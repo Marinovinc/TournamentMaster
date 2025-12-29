@@ -1,0 +1,41 @@
+# Dependencies (will be installed in container)
+node_modules
+
+# Build output
+dist
+build
+
+# File uploads (managed by Docker volume)
+uploads
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# Testing
+coverage
+.nyc_output
+
+# TypeScript cache
+*.tsbuildinfo

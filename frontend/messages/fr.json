@@ -1,0 +1,243 @@
+{
+  "home": {
+    "badge": "Plateforme SaaS",
+    "heroDescription": "Plateforme en marque blanche pour la gestion professionnelle de tournois de pêche. Validation GPS, classements en temps réel et gestion complète des participants.",
+    "disciplinesTitle": "Disciplines Supportées",
+    "allRightsReserved": "Tous droits réservés.",
+    "disciplines": {
+      "big_game": {
+        "subtitle": "Pêche au Gros",
+        "description": "Tournois de pêche hauturière pour les grandes espèces pélagiques."
+      },
+      "drifting": {
+        "subtitle": "Pêche à la Dérive",
+        "description": "Tournois de technique de dérive avec appât vivant."
+      },
+      "traina_costiera": {
+        "subtitle": "Traîne Côtière",
+        "description": "Compétitions de traîne côtière près du rivage."
+      },
+      "vertical_jigging": {
+        "subtitle": "Jigging Vertical",
+        "description": "Tournois de jigging vertical pour les poissons de fond."
+      },
+      "bolentino": {
+        "subtitle": "Pêche de Fond",
+        "description": "Compétitions traditionnelles de pêche de fond."
+      },
+      "eging": {
+        "subtitle": "Eging",
+        "description": "Pêche aux céphalopodes avec des leurres spécialisés."
+      },
+      "shore": {
+        "subtitle": "Pêche du Bord",
+        "description": "Compétitions de pêche depuis la côte."
+      },
+      "social": {
+        "subtitle": "Événements Sociaux",
+        "description": "Rassemblements de pêche non compétitifs."
+      },
+      "spinning_mare": {
+        "subtitle": "Sea Spinning",
+        "description": "Casting and retrieving lures from boat or shore for marine predators."
+      },
+      "surfcasting": {
+        "subtitle": "Surfcasting",
+        "description": "Long-distance beach casting with heavy rods for bream, bass and mullet."
+      },
+      "fly_fishing": {
+        "subtitle": "Fly Fishing",
+        "description": "Elegant casting with fly line and artificial flies for trout and grayling."
+      },
+      "spinning_fiume": {
+        "subtitle": "River Spinning",
+        "description": "Lure fishing in rivers for pike, perch, asp and catfish."
+      },
+      "carpfishing": {
+        "subtitle": "Carp Fishing",
+        "description": "Stationary carp fishing with boilies, hair rig and specialized gear."
+      },
+      "feeder": {
+        "subtitle": "Feeder Fishing",
+        "description": "Bottom fishing with swimfeeder for cyprinids in still and running waters."
+      },
+      "trota_lago": {
+        "subtitle": "Lake Trout",
+        "description": "Lake trout fishing with bombarda, bubble float or light spinning."
+      },
+      "trota_torrente": {
+        "subtitle": "Stream Trout",
+        "description": "Stream trout fishing with touch techniques, spinning or fly."
+      },
+      "bass_fishing": {
+        "subtitle": "Black Bass",
+        "description": "Largemouth bass sport fishing with artificial lures and American techniques."
+      },
+      "colpo": {
+        "subtitle": "Match Fishing",
+        "description": "Precision pole or waggler fishing for competitive cyprinid matches."
+      }
+    },
+    "seaFishingTitle": "Sea Fishing",
+    "freshwaterFishingTitle": "Freshwater Fishing"
+  },
+  "common": {
+    "appName": "TournamentMaster",
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "back": "Retour",
+    "next": "Suivant",
+    "submit": "Envoyer",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "yes": "Oui",
+    "no": "Non",
+    "success": "Opération réussie",
+    "error": "Une erreur s'est produite",
+    "required": "Champ obligatoire"
+  },
+  "nav": {
+    "home": "Accueil",
+    "tournaments": "Tournois",
+    "catches": "Prises",
+    "leaderboard": "Classement",
+    "profile": "Profil",
+    "settings": "Paramètres",
+    "logout": "Déconnexion",
+    "login": "Connexion",
+    "register": "S'inscrire"
+  },
+  "auth": {
+    "login": "Connexion",
+    "register": "S'inscrire",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "phone": "Téléphone",
+    "fipsasNumber": "Numéro FIPSAS",
+    "forgotPassword": "Mot de passe oublié?",
+    "noAccount": "Pas encore de compte?",
+    "hasAccount": "Déjà un compte?",
+    "loginSuccess": "Connexion réussie",
+    "registerSuccess": "Inscription terminée",
+    "invalidCredentials": "Identifiants invalides"
+  },
+  "tournament": {
+    "title": "Tournoi",
+    "tournaments": "Tournois",
+    "createTournament": "Créer un tournoi",
+    "editTournament": "Modifier le tournoi",
+    "name": "Nom du tournoi",
+    "discipline": "Discipline",
+    "startDate": "Date de début",
+    "endDate": "Date de fin",
+    "registrationOpens": "Ouverture des inscriptions",
+    "registrationCloses": "Clôture des inscriptions",
+    "location": "Lieu",
+    "fishingZone": "Zone de pêche",
+    "registrationFee": "Frais d'inscription",
+    "status": {
+      "draft": "Brouillon",
+      "published": "Publié",
+      "ongoing": "En cours",
+      "completed": "Terminé",
+      "cancelled": "Annulé"
+    },
+    "disciplines": {
+      "big_game": "Big Game",
+      "drifting": "Dérive",
+      "traina_costiera": "Traîne côtière",
+      "bolentino": "Pêche de fond",
+      "eging": "Eging",
+      "vertical_jigging": "Jigging vertical",
+      "shore": "Pêche du bord",
+      "social": "Événement social",
+      "spinning_mare": "Sea Spinning",
+      "surfcasting": "Surfcasting",
+      "fly_fishing": "Fly Fishing",
+      "spinning_fiume": "River Spinning",
+      "carpfishing": "Carp Fishing",
+      "feeder": "Feeder",
+      "trota_lago": "Lake Trout",
+      "trota_torrente": "Stream Trout",
+      "bass_fishing": "Black Bass",
+      "colpo": "Match Fishing"
+    }
+  },
+  "catch": {
+    "title": "Prise",
+    "catches": "Prises",
+    "submitCatch": "Soumettre une prise",
+    "myCatches": "Mes prises",
+    "species": "Espèce",
+    "weight": "Poids (kg)",
+    "length": "Longueur (cm)",
+    "photo": "Photo",
+    "takePhoto": "Prendre une photo",
+    "uploadPhoto": "Télécharger une photo",
+    "location": "Position GPS",
+    "gpsAccuracy": "Précision GPS",
+    "caughtAt": "Date/heure de capture",
+    "notes": "Notes",
+    "status": {
+      "pending": "En attente",
+      "approved": "Approuvée",
+      "rejected": "Rejetée"
+    },
+    "validation": {
+      "outsideZone": "Prise hors de la zone de pêche",
+      "invalidGps": "Coordonnées GPS invalides",
+      "photoRequired": "Photo obligatoire",
+      "invalidExif": "Métadonnées photo invalides"
+    }
+  },
+  "leaderboard": {
+    "title": "Classement",
+    "rank": "Rang",
+    "participant": "Participant",
+    "catches": "Prises",
+    "points": "Points",
+    "totalWeight": "Poids total",
+    "biggestCatch": "Plus grosse prise",
+    "live": "EN DIRECT",
+    "lastUpdate": "Dernière mise à jour"
+  },
+  "profile": {
+    "title": "Profil",
+    "personalInfo": "Informations personnelles",
+    "documents": "Documents",
+    "statistics": "Statistiques",
+    "editProfile": "Modifier le profil",
+    "changePassword": "Changer le mot de passe"
+  },
+  "documents": {
+    "title": "Documents",
+    "upload": "Télécharger un document",
+    "masaf": "Licence MASAF",
+    "medical": "Certificat médical",
+    "nautical": "Permis bateau",
+    "identity": "Pièce d'identité",
+    "status": {
+      "pending": "En vérification",
+      "approved": "Approuvé",
+      "rejected": "Rejeté",
+      "expired": "Expiré"
+    },
+    "expiryDate": "Date d'expiration"
+  },
+  "errors": {
+    "generic": "Une erreur s'est produite",
+    "network": "Erreur de connexion",
+    "unauthorized": "Non autorisé",
+    "notFound": "Non trouvé",
+    "validation": "Erreur de validation"
+  }
+}

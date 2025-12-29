@@ -1,0 +1,93 @@
+import express, { Application, Request, Response, NextFunction } from "express";
+import cors from "cors";
+import helmet from "helmet";
+import compression from "compression";
+import { config } from "./config";
+
+// Import routes
+import authRoutes from "./routes/auth.routes";
+import userRoutes from "./routes/user.routes";
+import tournamentRoutes from "./routes/tournament.routes";
+import catchRoutes from "./routes/catch.routes";
+import leaderboardRoutes from "./routes/leaderboard.routes";
+
+// Create Express app
+const app: Application = express();
+
+// Security middleware
+app.use(helmet());
+
+// CORS configuration
+app.use(
+  cors({
+    origin: config.frontendUrl,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// Body parsing
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Compression
+app.use(compression());
+
+// Static files for uploads
+app.use("/uploads", express.static(config.upload.dir));
+
+// Health check
+app.get("/health", (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    message: "TournamentMaster API is running",
+    timestamp: new Date().toISOString(),
+    environment: config.nodeEnv,
+  });
+});
+
+// API Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/tournaments", tournamentRoutes);
+app.use("/api/catches", catchRoutes);
+app.use("/api/leaderboard", leaderboardRoutes);
+
+// 404 handler
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.path} not found`,
+  });
+});
+
+// Global error handler
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  console.error("Error:", err);
+
+  // Handle specific error types
+  if (err.name === "ValidationError") {
+    return res.status(400).json({
+      success: false,
+      message: "Validation error",
+      errors: err.message,
+    });
+  }
+
+  if (err.name === "UnauthorizedError") {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized",
+    });
+  }
+
+  // Default error response
+  res.status(500).json({
+    success: false,
+    message: config.isDev ? err.message : "Internal server error",
+    ...(config.isDev && { stack: err.stack }),
+  });
+});
+
+export default app;

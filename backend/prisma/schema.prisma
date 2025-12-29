@@ -1,0 +1,440 @@
+// TournamentMaster Prisma Schema
+// Database: MariaDB 10.4
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ================================
+// TENANT (Multi-tenant Support)
+// ================================
+
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(255)
+  slug        String   @unique @db.VarChar(100)
+  domain      String?  @unique @db.VarChar(255)
+  logo        String?  @db.VarChar(500)
+  primaryColor String? @db.VarChar(7) @default("#0066CC")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users       User[]
+  tournaments Tournament[]
+
+  @@map("tenants")
+}
+
+// ================================
+// USER & AUTHENTICATION
+// ================================
+
+enum UserRole {
+  SUPER_ADMIN
+  TENANT_ADMIN
+  ORGANIZER
+  JUDGE
+  PARTICIPANT
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique @db.VarChar(255)
+  passwordHash  String    @db.VarChar(255)
+  firstName     String    @db.VarChar(100)
+  lastName      String    @db.VarChar(100)
+  phone         String?   @db.VarChar(20)
+  fipsasNumber  String?   @db.VarChar(50)
+  role          UserRole  @default(PARTICIPANT)
+  avatar        String?   @db.VarChar(500)
+  isActive      Boolean   @default(true)
+  isVerified    Boolean   @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Tenant relation (null for SUPER_ADMIN)
+  tenantId      String?
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id])
+
+  // Relations
+  documents           Document[]
+  registrations       TournamentRegistration[]
+  catches             Catch[]
+  organizedTournaments Tournament[] @relation("TournamentOrganizer")
+  refreshTokens       RefreshToken[]
+
+  @@index([email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique @db.VarChar(500)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ================================
+// DOCUMENTS
+// ================================
+
+enum DocumentType {
+  MASAF_LICENSE
+  MEDICAL_CERTIFICATE
+  NAUTICAL_LICENSE
+  IDENTITY_DOCUMENT
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+model Document {
+  id          String         @id @default(uuid())
+  type        DocumentType
+  status      DocumentStatus @default(PENDING)
+  filePath    String         @db.VarChar(500)
+  fileName    String         @db.VarChar(255)
+  mimeType    String         @db.VarChar(100)
+  fileSize    Int
+  expiryDate  DateTime?
+  reviewNotes String?        @db.Text
+  reviewedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@map("documents")
+}
+
+// ================================
+// TOURNAMENT
+// ================================
+
+enum TournamentStatus {
+  DRAFT
+  PUBLISHED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentDiscipline {
+  BIG_GAME
+  DRIFTING
+  TRAINA_COSTIERA
+  BOLENTINO
+  EGING
+  VERTICAL_JIGGING
+  SHORE
+  SOCIAL
+}
+
+model Tournament {
+  id                  String               @id @default(uuid())
+  name                String               @db.VarChar(255)
+  description         String?              @db.Text
+  discipline          TournamentDiscipline
+  status              TournamentStatus     @default(DRAFT)
+
+  // Dates
+  startDate           DateTime
+  endDate             DateTime
+  registrationOpens   DateTime
+  registrationCloses  DateTime
+
+  // Location
+  location            String               @db.VarChar(255)
+  locationLat         Decimal?             @db.Decimal(10, 8)
+  locationLng         Decimal?             @db.Decimal(11, 8)
+
+  // Registration
+  registrationFee     Decimal              @db.Decimal(10, 2) @default(0)
+  maxParticipants     Int?
+  minParticipants     Int?                 @default(1)
+
+  // Rules
+  minWeight           Decimal?             @db.Decimal(8, 3) // Minimum catch weight in kg
+  maxCatchesPerDay    Int?
+  pointsPerKg         Decimal              @db.Decimal(6, 2) @default(1)
+  bonusPoints         Int                  @default(0) // Bonus for biggest catch
+
+  // Media
+  bannerImage         String?              @db.VarChar(500)
+
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  // Relations
+  tenantId            String
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+
+  organizerId         String
+  organizer           User                 @relation("TournamentOrganizer", fields: [organizerId], references: [id])
+
+  fishingZones        FishingZone[]
+  registrations       TournamentRegistration[]
+  catches             Catch[]
+  leaderboardEntries  LeaderboardEntry[]
+  allowedSpecies      TournamentSpecies[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([discipline])
+  @@index([startDate])
+  @@map("tournaments")
+}
+
+// ================================
+// FISHING ZONE (GeoJSON stored as TEXT)
+// ================================
+
+model FishingZone {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(255)
+  description  String?  @db.Text
+
+  // GeoJSON stored as TEXT (Polygon or MultiPolygon)
+  // Example: {"type":"Polygon","coordinates":[[[lng,lat],[lng,lat]...]]}
+  geoJson      String   @db.LongText
+
+  // Bounding box for quick filtering (optional optimization)
+  minLat       Decimal? @db.Decimal(10, 8)
+  maxLat       Decimal? @db.Decimal(10, 8)
+  minLng       Decimal? @db.Decimal(11, 8)
+  maxLng       Decimal? @db.Decimal(11, 8)
+
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
+  @@map("fishing_zones")
+}
+
+// ================================
+// FISH SPECIES
+// ================================
+
+model Species {
+  id            String   @id @default(uuid())
+  scientificName String  @unique @db.VarChar(255)
+  commonNameIt  String   @db.VarChar(255)
+  commonNameEn  String   @db.VarChar(255)
+  minSizeCm     Int?     // Minimum legal size
+  pointsMultiplier Decimal @db.Decimal(4, 2) @default(1.0)
+  isProtected   Boolean  @default(false)
+  imageUrl      String?  @db.VarChar(500)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  catches       Catch[]
+  tournaments   TournamentSpecies[]
+
+  @@map("species")
+}
+
+model TournamentSpecies {
+  id            String     @id @default(uuid())
+  tournamentId  String
+  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  speciesId     String
+  species       Species    @relation(fields: [speciesId], references: [id])
+
+  // Override points for this tournament
+  customPointsMultiplier Decimal? @db.Decimal(4, 2)
+
+  @@unique([tournamentId, speciesId])
+  @@map("tournament_species")
+}
+
+// ================================
+// TOURNAMENT REGISTRATION
+// ================================
+
+enum RegistrationStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  REFUNDED
+}
+
+model TournamentRegistration {
+  id             String             @id @default(uuid())
+  status         RegistrationStatus @default(PENDING_PAYMENT)
+  registeredAt   DateTime           @default(now())
+  confirmedAt    DateTime?
+  cancelledAt    DateTime?
+
+  // Team info (optional)
+  teamName       String?            @db.VarChar(255)
+  boatName       String?            @db.VarChar(255)
+  boatLength     Decimal?           @db.Decimal(5, 2)
+
+  // Payment
+  amountPaid     Decimal?           @db.Decimal(10, 2)
+  paymentId      String?            @db.VarChar(255) // Stripe payment ID
+
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  userId         String
+  user           User               @relation(fields: [userId], references: [id])
+
+  tournamentId   String
+  tournament     Tournament         @relation(fields: [tournamentId], references: [id])
+
+  @@unique([userId, tournamentId])
+  @@index([tournamentId])
+  @@index([status])
+  @@map("tournament_registrations")
+}
+
+// ================================
+// CATCH (with lat/lng columns)
+// ================================
+
+enum CatchStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Catch {
+  id            String      @id @default(uuid())
+  status        CatchStatus @default(PENDING)
+
+  // Fish details
+  weight        Decimal     @db.Decimal(8, 3) // Weight in kg
+  length        Decimal?    @db.Decimal(6, 2) // Length in cm
+
+  // GPS Location (separate columns for performance)
+  latitude      Decimal     @db.Decimal(10, 8)
+  longitude     Decimal     @db.Decimal(11, 8)
+  gpsAccuracy   Decimal?    @db.Decimal(8, 2) // Accuracy in meters
+
+  // Photo evidence
+  photoPath     String      @db.VarChar(500)
+  photoExifData String?     @db.Text // JSON string with EXIF data
+
+  // Timestamps
+  caughtAt      DateTime    // When the fish was caught
+  submittedAt   DateTime    @default(now())
+  reviewedAt    DateTime?
+
+  // Review
+  reviewNotes   String?     @db.Text
+  reviewerId    String?     @db.VarChar(36)
+
+  // Points (calculated after approval)
+  points        Decimal?    @db.Decimal(10, 2)
+
+  // Validation flags
+  isInsideZone  Boolean?
+  validationData String?    @db.Text // JSON with validation details
+
+  notes         String?     @db.Text
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+
+  tournamentId  String
+  tournament    Tournament  @relation(fields: [tournamentId], references: [id])
+
+  speciesId     String?
+  species       Species?    @relation(fields: [speciesId], references: [id])
+
+  @@index([tournamentId])
+  @@index([userId])
+  @@index([status])
+  @@index([caughtAt])
+  // Composite index for GPS queries
+  @@index([latitude, longitude])
+  @@map("catches")
+}
+
+// ================================
+// LEADERBOARD (Denormalized for performance)
+// ================================
+
+model LeaderboardEntry {
+  id              String   @id @default(uuid())
+
+  // Participant info (denormalized)
+  participantName String   @db.VarChar(255)
+  teamName        String?  @db.VarChar(255)
+
+  // Stats
+  rank            Int
+  totalPoints     Decimal  @db.Decimal(12, 2) @default(0)
+  totalWeight     Decimal  @db.Decimal(12, 3) @default(0)
+  catchCount      Int      @default(0)
+  biggestCatch    Decimal? @db.Decimal(8, 3) // Weight of biggest catch
+
+  lastUpdated     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tournamentId    String
+  tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  userId          String   @db.VarChar(36)
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId, rank])
+  @@map("leaderboard_entries")
+}
+
+// ================================
+// AUDIT LOG
+// ================================
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String   @db.VarChar(100)
+  entityType  String   @db.VarChar(100)
+  entityId    String   @db.VarChar(36)
+  oldData     String?  @db.LongText
+  newData     String?  @db.LongText
+  ipAddress   String?  @db.VarChar(45)
+  userAgent   String?  @db.VarChar(500)
+  createdAt   DateTime @default(now())
+
+  userId      String?  @db.VarChar(36)
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

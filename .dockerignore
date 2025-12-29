@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Screenshots and test images
+*.png
+*.jpg
+*.jpeg
+
+# Python test files
+*.py
+
+# IDE
+.vscode
+.idea
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files at root level
+.env
+.env.local
+.env.*.local

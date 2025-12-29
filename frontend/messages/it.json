@@ -1,0 +1,243 @@
+{
+  "home": {
+    "badge": "Piattaforma SaaS",
+    "heroDescription": "Piattaforma white-label per la gestione professionale di tornei di pesca. Validazione GPS, classifiche in tempo reale e gestione completa dei partecipanti.",
+    "disciplinesTitle": "Discipline Supportate",
+    "seaFishingTitle": "Pesca in Mare",
+    "freshwaterFishingTitle": "Acque Interne",
+    "allRightsReserved": "Tutti i diritti riservati.",
+    "disciplines": {
+      "big_game": {
+        "subtitle": "Pesca d'Altura",
+        "description": "Traina d'altura oltre le 6 miglia per tonno rosso, pescespada, alalunga e lampuga."
+      },
+      "drifting": {
+        "subtitle": "Pesca in Deriva",
+        "description": "Barca in deriva con pasturazione a sarda per tonno rosso e grandi pelagici."
+      },
+      "traina_costiera": {
+        "subtitle": "Piccola Traina",
+        "description": "Traina con artificiali o esca naturale per spigole, palamite e serra."
+      },
+      "vertical_jigging": {
+        "subtitle": "Jigging Verticale",
+        "description": "Tecnica con jig metallici per dentici, ricciole e cernie su fondali profondi."
+      },
+      "bolentino": {
+        "subtitle": "Pesca a Fondo",
+        "description": "Pesca verticale su fondali da 30 a 400 metri per occhioni, naselli e cernie."
+      },
+      "eging": {
+        "subtitle": "Pesca ai Cefalopodi",
+        "description": "Tecnica giapponese con totanare (egi) per calamari, seppie e totani."
+      },
+      "spinning_mare": {
+        "subtitle": "Spinning in Mare",
+        "description": "Lancio e recupero con artificiali dalla barca o dalla riva per predatori marini."
+      },
+      "surfcasting": {
+        "subtitle": "Surfcasting",
+        "description": "Lancio tecnico dalla spiaggia con canne lunghe per orate, spigole e mormore."
+      },
+      "shore": {
+        "subtitle": "Pesca da Riva",
+        "description": "Tecniche miste dalla costa: spinning, bolognese e fondo leggero."
+      },
+      "fly_fishing": {
+        "subtitle": "Pesca a Mosca",
+        "description": "Tecnica elegante con coda di topo e mosche artificiali per trote e temoli."
+      },
+      "spinning_fiume": {
+        "subtitle": "Spinning Fiume",
+        "description": "Lancio con artificiali in fiume per lucci, persici, aspi e siluri."
+      },
+      "carpfishing": {
+        "subtitle": "Carpfishing",
+        "description": "Pesca stanziale alla carpa con boilies, hair rig e attrezzatura specializzata."
+      },
+      "feeder": {
+        "subtitle": "Feeder Fishing",
+        "description": "Pesca a fondo con pasturatore per ciprinidi in acque ferme e correnti."
+      },
+      "trota_lago": {
+        "subtitle": "Trota Lago",
+        "description": "Pesca alla trota in lago con bombarda, vetrino o spinning leggero."
+      },
+      "trota_torrente": {
+        "subtitle": "Trota Torrente",
+        "description": "Pesca alla trota in torrente con tecniche al tocco, spinning o mosca."
+      },
+      "bass_fishing": {
+        "subtitle": "Black Bass",
+        "description": "Pesca sportiva al persico trota con esche artificiali e tecniche americane."
+      },
+      "colpo": {
+        "subtitle": "Pesca al Colpo",
+        "description": "Pesca di precisione con canna fissa o bolognese per gare su ciprinidi."
+      },
+      "social": {
+        "subtitle": "Eventi Sociali",
+        "description": "Raduni e manifestazioni di pesca non agonistiche."
+      }
+    }
+  },
+  "common": {
+    "appName": "TournamentMaster",
+    "loading": "Caricamento...",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "create": "Crea",
+    "search": "Cerca",
+    "filter": "Filtra",
+    "back": "Indietro",
+    "next": "Avanti",
+    "submit": "Invia",
+    "confirm": "Conferma",
+    "close": "Chiudi",
+    "yes": "Sì",
+    "no": "No",
+    "success": "Operazione completata",
+    "error": "Si è verificato un errore",
+    "required": "Campo obbligatorio"
+  },
+  "nav": {
+    "home": "Home",
+    "tournaments": "Tornei",
+    "catches": "Catture",
+    "leaderboard": "Classifica",
+    "profile": "Profilo",
+    "settings": "Impostazioni",
+    "logout": "Esci",
+    "login": "Accedi",
+    "register": "Registrati"
+  },
+  "auth": {
+    "login": "Accedi",
+    "register": "Registrati",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Conferma password",
+    "firstName": "Nome",
+    "lastName": "Cognome",
+    "phone": "Telefono",
+    "fipsasNumber": "Numero FIPSAS",
+    "forgotPassword": "Password dimenticata?",
+    "noAccount": "Non hai un account?",
+    "hasAccount": "Hai già un account?",
+    "loginSuccess": "Accesso effettuato",
+    "registerSuccess": "Registrazione completata",
+    "invalidCredentials": "Credenziali non valide"
+  },
+  "tournament": {
+    "title": "Torneo",
+    "tournaments": "Tornei",
+    "createTournament": "Crea Torneo",
+    "editTournament": "Modifica Torneo",
+    "name": "Nome torneo",
+    "discipline": "Disciplina",
+    "startDate": "Data inizio",
+    "endDate": "Data fine",
+    "registrationOpens": "Apertura iscrizioni",
+    "registrationCloses": "Chiusura iscrizioni",
+    "location": "Luogo",
+    "fishingZone": "Zona di pesca",
+    "registrationFee": "Quota iscrizione",
+    "status": {
+      "draft": "Bozza",
+      "published": "Pubblicato",
+      "ongoing": "In corso",
+      "completed": "Completato",
+      "cancelled": "Annullato"
+    },
+    "disciplines": {
+      "big_game": "Big Game",
+      "drifting": "Drifting",
+      "traina_costiera": "Traina Costiera",
+      "bolentino": "Bolentino",
+      "eging": "Eging",
+      "vertical_jigging": "Vertical Jigging",
+      "spinning_mare": "Spinning Mare",
+      "surfcasting": "Surfcasting",
+      "shore": "Pesca da Riva",
+      "fly_fishing": "Pesca a Mosca",
+      "spinning_fiume": "Spinning Fiume",
+      "carpfishing": "Carpfishing",
+      "feeder": "Feeder",
+      "trota_lago": "Trota Lago",
+      "trota_torrente": "Trota Torrente",
+      "bass_fishing": "Black Bass",
+      "colpo": "Pesca al Colpo",
+      "social": "Evento Sociale"
+    }
+  },
+  "catch": {
+    "title": "Cattura",
+    "catches": "Catture",
+    "submitCatch": "Inserisci Cattura",
+    "myCatches": "Le mie catture",
+    "species": "Specie",
+    "weight": "Peso (kg)",
+    "length": "Lunghezza (cm)",
+    "photo": "Foto",
+    "takePhoto": "Scatta foto",
+    "uploadPhoto": "Carica foto",
+    "location": "Posizione GPS",
+    "gpsAccuracy": "Precisione GPS",
+    "caughtAt": "Data/ora cattura",
+    "notes": "Note",
+    "status": {
+      "pending": "In attesa",
+      "approved": "Approvata",
+      "rejected": "Rifiutata"
+    },
+    "validation": {
+      "outsideZone": "Cattura fuori dalla zona di pesca",
+      "invalidGps": "Coordinate GPS non valide",
+      "photoRequired": "Foto obbligatoria",
+      "invalidExif": "Metadati foto non validi"
+    }
+  },
+  "leaderboard": {
+    "title": "Classifica",
+    "rank": "Pos.",
+    "participant": "Partecipante",
+    "catches": "Catture",
+    "points": "Punti",
+    "totalWeight": "Peso totale",
+    "biggestCatch": "Cattura più grande",
+    "live": "LIVE",
+    "lastUpdate": "Ultimo aggiornamento"
+  },
+  "profile": {
+    "title": "Profilo",
+    "personalInfo": "Informazioni personali",
+    "documents": "Documenti",
+    "statistics": "Statistiche",
+    "editProfile": "Modifica profilo",
+    "changePassword": "Cambia password"
+  },
+  "documents": {
+    "title": "Documenti",
+    "upload": "Carica documento",
+    "masaf": "Licenza MASAF",
+    "medical": "Certificato Medico",
+    "nautical": "Patente Nautica",
+    "identity": "Documento Identità",
+    "status": {
+      "pending": "In verifica",
+      "approved": "Approvato",
+      "rejected": "Rifiutato",
+      "expired": "Scaduto"
+    },
+    "expiryDate": "Data scadenza"
+  },
+  "errors": {
+    "generic": "Si è verificato un errore",
+    "network": "Errore di connessione",
+    "unauthorized": "Non autorizzato",
+    "notFound": "Non trovato",
+    "validation": "Errore di validazione"
+  }
+}

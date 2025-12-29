@@ -1,0 +1,224 @@
+/**
+ * =============================================================================
+ * AUTH CONTEXT
+ * =============================================================================
+ * Gestisce lo stato di autenticazione globale dell'applicazione
+ *
+ * Features:
+ * - Login/Logout
+ * - Persistenza token in localStorage
+ * - Auto-refresh token
+ * - Role-based access control
+ * =============================================================================
+ */
+
+"use client";
+
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { useRouter } from "next/navigation";
+
+// Types
+export type UserRole =
+  | "SUPER_ADMIN"
+  | "TENANT_ADMIN"
+  | "ORGANIZER"
+  | "JUDGE"
+  | "PARTICIPANT";
+
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  tenantId?: string;
+  tenantName?: string;
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+}
+
+interface AuthContextType extends AuthState {
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => void;
+  hasRole: (...roles: UserRole[]) => boolean;
+  isAdmin: boolean;
+  isJudge: boolean;
+  isOrganizer: boolean;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    token: null,
+    isLoading: true,
+    isAuthenticated: false,
+  });
+
+  // Initialize from localStorage on mount
+  useEffect(() => {
+    const initAuth = () => {
+      try {
+        const token = localStorage.getItem("token");
+        const userStr = localStorage.getItem("user");
+
+        if (token && userStr) {
+          const user = JSON.parse(userStr) as User;
+          setState({
+            user,
+            token,
+            isLoading: false,
+            isAuthenticated: true,
+          });
+        } else {
+          setState(prev => ({ ...prev, isLoading: false }));
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setState(prev => ({ ...prev, isLoading: false }));
+      }
+    };
+
+    initAuth();
+  }, []);
+
+  // Login function
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return { success: false, error: data.message || "Login failed" };
+      }
+
+      const { accessToken: token, user } = data.data;
+
+      // Store in localStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // Update state
+      setState({
+        user,
+        token,
+        isLoading: false,
+        isAuthenticated: true,
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error("Login error:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Network error"
+      };
+    }
+  }, []);
+
+  // Logout function
+  const logout = useCallback(() => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
+    setState({
+      user: null,
+      token: null,
+      isLoading: false,
+      isAuthenticated: false,
+    });
+
+    router.push("/");
+  }, [router]);
+
+  // Role check helper
+  const hasRole = useCallback((...roles: UserRole[]) => {
+    if (!state.user) return false;
+    return roles.includes(state.user.role);
+  }, [state.user]);
+
+  // Computed role checks
+  const isAdmin = state.user?.role === "SUPER_ADMIN" || state.user?.role === "TENANT_ADMIN";
+  const isJudge = state.user?.role === "JUDGE";
+  const isOrganizer = state.user?.role === "ORGANIZER";
+
+  const value: AuthContextType = {
+    ...state,
+    login,
+    logout,
+    hasRole,
+    isAdmin,
+    isJudge,
+    isOrganizer,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// Hook to use auth context
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}
+
+// HOC for protected routes
+export function withAuth<P extends object>(
+  Component: React.ComponentType<P>,
+  allowedRoles?: UserRole[]
+) {
+  return function ProtectedComponent(props: P) {
+    const { isAuthenticated, isLoading, hasRole } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+      if (!isLoading && !isAuthenticated) {
+        router.push("/login");
+      }
+
+      if (!isLoading && isAuthenticated && allowedRoles && !hasRole(...allowedRoles)) {
+        router.push("/unauthorized");
+      }
+    }, [isLoading, isAuthenticated, router]);
+
+    if (isLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      );
+    }
+
+    if (!isAuthenticated) {
+      return null;
+    }
+
+    if (allowedRoles && !hasRole(...allowedRoles)) {
+      return null;
+    }
+
+    return <Component {...props} />;
+  };
+}

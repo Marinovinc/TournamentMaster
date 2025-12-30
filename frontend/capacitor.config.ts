@@ -1,9 +1,5 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
-const isDev = process.env.NODE_ENV === 'development';
-const devServerUrl = process.env.DEV_SERVER_URL || 'http://192.168.1.74:3000';
-const prodServerUrl = process.env.PROD_SERVER_URL || 'https://tournamentmaster.app';
-
 const config: CapacitorConfig = {
   appId: 'app.tournamentmaster.www',
   appName: 'TournamentMaster',
@@ -29,14 +25,10 @@ const config: CapacitorConfig = {
       spinnerColor: '#ffffff'
     }
   },
-  server: {
-    // L'app punta al server web (non usa file statici)
-    url: isDev ? devServerUrl : prodServerUrl,
-    cleartext: isDev // Solo in dev permetti HTTP non sicuro
-  },
+  // Nessun server.url = usa file statici dalla cartella 'out'
   android: {
-    allowMixedContent: isDev, // Solo in dev
-    webContentsDebuggingEnabled: isDev
+    allowMixedContent: false,
+    webContentsDebuggingEnabled: false
   },
   ios: {
     contentInset: 'automatic',

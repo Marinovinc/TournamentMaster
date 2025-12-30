@@ -25,10 +25,14 @@ const config: CapacitorConfig = {
       spinnerColor: '#ffffff'
     }
   },
-  // Nessun server.url = usa file statici dalla cartella 'out'
+  server: {
+    // Connetti al server locale del PC (frontend Next.js)
+    url: 'http://192.168.1.74:3000',
+    cleartext: true // Permetti HTTP (non HTTPS) per dev locale
+  },
   android: {
-    allowMixedContent: false,
-    webContentsDebuggingEnabled: false
+    allowMixedContent: true, // Permetti contenuti misti per dev
+    webContentsDebuggingEnabled: true // Debug Chrome DevTools
   },
   ios: {
     contentInset: 'automatic',

@@ -56,8 +56,9 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          # DEV LOCALE: usa IP del PC sulla rete WiFi
+          # IP FISSO rete locale (configurare nel router)
           NEXT_PUBLIC_API_URL: 'http://192.168.1.74:3001'
+          NODE_ENV: 'production'
 
       - name: Add Android platform
         working-directory: frontend
@@ -122,8 +123,9 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          # DEV LOCALE: usa IP del PC sulla rete WiFi
+          # IP FISSO rete locale (configurare nel router)
           NEXT_PUBLIC_API_URL: 'http://192.168.1.74:3001'
+          NODE_ENV: 'production'
 
       - name: Add iOS platform
         working-directory: frontend

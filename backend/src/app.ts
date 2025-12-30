@@ -17,10 +17,10 @@ const app: Application = express();
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
+// CORS configuration - permissive for mobile app
 app.use(
   cors({
-    origin: config.frontendUrl,
+    origin: true, // Allow all origins (needed for Capacitor mobile app)
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -37,13 +37,23 @@ app.use(compression());
 // Static files for uploads
 app.use("/uploads", express.static(config.upload.dir));
 
-// Health check
+// Health check (both paths for compatibility)
 app.get("/health", (req: Request, res: Response) => {
   res.json({
-    success: true,
+    status: "ok",
     message: "TournamentMaster API is running",
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
+  });
+});
+
+app.get("/api/health", (req: Request, res: Response) => {
+  res.json({
+    status: "ok",
+    message: "TournamentMaster API is running",
+    timestamp: new Date().toISOString(),
+    environment: config.nodeEnv,
+    uptime: process.uptime(),
   });
 });
 

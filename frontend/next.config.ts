@@ -5,8 +5,16 @@ import withPWA from "next-pwa";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  // Enable standalone output for Docker deployment
-  output: "standalone",
+  // Static export for Capacitor APK (frontend included in app)
+  output: "export",
+
+  // Required for static export with dynamic routes
+  trailingSlash: true,
+
+  // Disable image optimization (not supported in static export)
+  images: {
+    unoptimized: true,
+  },
 
   // Enable experimental features for better performance
   experimental: {

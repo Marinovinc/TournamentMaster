@@ -62,6 +62,10 @@ jobs:
         working-directory: frontend
         run: npx cap add android || true
 
+      - name: Create Android assets directory
+        working-directory: frontend
+        run: mkdir -p android/app/src/main/assets/public
+
       - name: Sync Capacitor
         working-directory: frontend
         run: npx cap sync android

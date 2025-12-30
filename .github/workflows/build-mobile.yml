@@ -58,6 +58,10 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.API_URL || 'https://api.tournamentmaster.app' }}
 
+      - name: Add Android platform
+        working-directory: frontend
+        run: npx cap add android || true
+
       - name: Sync Capacitor
         working-directory: frontend
         run: npx cap sync android

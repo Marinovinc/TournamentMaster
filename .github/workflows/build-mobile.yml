@@ -56,7 +56,8 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.API_URL || 'https://api.tournamentmaster.app' }}
+          # DEV LOCALE: usa IP del PC sulla rete WiFi
+          NEXT_PUBLIC_API_URL: 'http://192.168.1.74:3001'
 
       - name: Add Android platform
         working-directory: frontend
@@ -121,7 +122,8 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.API_URL || 'https://api.tournamentmaster.app' }}
+          # DEV LOCALE: usa IP del PC sulla rete WiFi
+          NEXT_PUBLIC_API_URL: 'http://192.168.1.74:3001'
 
       - name: Add iOS platform
         working-directory: frontend

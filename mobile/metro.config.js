@@ -1,24 +1,13 @@
 /**
- * Metro configuration for React Native
- * https://github.com/facebook/react-native
+ * Metro configuration for Expo
+ * https://docs.expo.dev/guides/customizing-metro/
  */
 
-const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+const { getDefaultConfig } = require('expo/metro-config');
 
-const defaultConfig = getDefaultConfig(__dirname);
+const config = getDefaultConfig(__dirname);
 
-const config = {
-  transformer: {
-    getTransformOptions: async () => ({
-      transform: {
-        experimentalImportSupport: false,
-        inlineRequires: true,
-      },
-    }),
-  },
-  resolver: {
-    sourceExts: [...defaultConfig.resolver.sourceExts, 'cjs'],
-  },
-};
+// Aggiungi supporto per .cjs
+config.resolver.sourceExts.push('cjs');
 
-module.exports = mergeConfig(defaultConfig, config);
+module.exports = config;

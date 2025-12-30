@@ -599,3 +599,192 @@ WS     /ws/tournament/:id/leaderboard
 
 *Documento generato il 2025-12-30*
 *TournamentMaster - Piattaforma SaaS Tornei di Pesca*
+
+## 11. CONFIGURAZIONE SVILUPPO LOCALE
+
+### 11.1 Architettura Servizi
+
+```
++-------------------------------------------------------------------+
+|                    AMBIENTE SVILUPPO LOCALE                        |
++-------------------------------------------------------------------+
+|                                                                    |
+|  +------------------+     +------------------+                     |
+|  |   FRONTEND       |     |   BACKEND API    |                     |
+|  |   Next.js 16     |---->|   Express.js 5   |                     |
+|  |                  |     |                  |                     |
+|  | localhost:3000   |     | localhost:3001   |                     |
+|  +------------------+     +--------+---------+                     |
+|                                    |                               |
+|                           +--------v---------+                     |
+|                           |    DATABASE      |                     |
+|                           |   MySQL/MariaDB  |                     |
+|                           |                  |                     |
+|                           | localhost:3306   |                     |
+|                           | db: tournamentmaster                   |
+|                           +------------------+                     |
+|                                                                    |
++-------------------------------------------------------------------+
+```
+
+### 11.2 URL Base per Ambiente
+
+**Configurazione app mobile (config.ts o .env):**
+
+```typescript
+// src/config/environment.ts
+
+interface Environment {
+  apiBaseUrl: string;
+  wsBaseUrl: string;
+  frontendUrl: string;
+}
+
+const environments: Record<string, Environment> = {
+  // Sviluppo locale (emulatore/simulatore)
+  development: {
+    apiBaseUrl: "http://10.0.2.2:3001/api/v1",    // Android Emulator
+    // apiBaseUrl: "http://localhost:3001/api/v1", // iOS Simulator
+    wsBaseUrl: "ws://10.0.2.2:3001",
+    frontendUrl: "http://10.0.2.2:3000",
+  },
+
+  // Sviluppo con device fisico (usa IP della macchina)
+  development_device: {
+    apiBaseUrl: "http://192.168.1.XXX:3001/api/v1",  // Sostituisci con IP locale
+    wsBaseUrl: "ws://192.168.1.XXX:3001",
+    frontendUrl: "http://192.168.1.XXX:3000",
+  },
+
+  // Staging
+  staging: {
+    apiBaseUrl: "https://api-staging.tournamentmaster.app/v1",
+    wsBaseUrl: "wss://ws-staging.tournamentmaster.app",
+    frontendUrl: "https://staging.tournamentmaster.app",
+  },
+
+  // Produzione
+  production: {
+    apiBaseUrl: "https://api.tournamentmaster.app/v1",
+    wsBaseUrl: "wss://ws.tournamentmaster.app",
+    frontendUrl: "https://tournamentmaster.app",
+  },
+};
+
+export const config = environments[process.env.NODE_ENV || "development"];
+```
+
+### 11.3 Nota Speciale: Android Emulator
+
+**IMPORTANTE:** L'emulatore Android usa `10.0.2.2` per riferirsi al `localhost` della macchina host.
+
+| Piattaforma | localhost della macchina |
+|-------------|-------------------------|
+| iOS Simulator | `localhost` o `127.0.0.1` |
+| Android Emulator | `10.0.2.2` |
+| Device Fisico | IP LAN (es. `192.168.1.100`) |
+
+### 11.4 Avvio Servizi Sviluppo
+
+```bash
+# Terminal 1: Backend API
+cd backend
+npm run dev
+# Output: Server running on http://localhost:3001
+
+# Terminal 2: Frontend Web (per test/debug)
+cd frontend
+npm run dev
+# Output: Server running on http://localhost:3000
+
+# Terminal 3: Database (se non gia attivo)
+# XAMPP/MAMP o:
+mysql.server start  # macOS
+net start mysql     # Windows
+```
+
+### 11.5 Test Connessione da App Mobile
+
+**Verifica che il backend sia raggiungibile:**
+
+```bash
+# Da terminale macchina host
+curl http://localhost:3001/api/v1/health
+
+# Da ADB shell (Android emulator)
+adb shell curl http://10.0.2.2:3001/api/v1/health
+```
+
+**Endpoint health check consigliato nel backend:**
+
+```typescript
+// backend/src/routes/health.routes.ts
+router.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    version: "1.0.0"
+  });
+});
+```
+
+### 11.6 CORS Configuration (Backend)
+
+Il backend deve accettare richieste dall'app mobile:
+
+```typescript
+// backend/src/app.ts
+import cors from "cors";
+
+app.use(cors({
+  origin: [
+    "http://localhost:3000",      // Frontend web dev
+    "http://10.0.2.2:3000",       // Android emulator
+    "capacitor://localhost",      // Capacitor iOS
+    "ionic://localhost",          // Ionic
+    // In produzione: URL specifiche dell'app
+  ],
+  credentials: true,
+}));
+```
+
+### 11.7 Variabili Ambiente Backend (.env)
+
+```env
+# Database
+DATABASE_URL="mysql://root:@localhost:3306/tournamentmaster"
+
+# JWT
+JWT_SECRET="dev-secret-key-change-in-production-12345"
+JWT_EXPIRES_IN="7d"
+JWT_REFRESH_EXPIRES_IN="30d"
+
+# Server
+PORT=3001
+NODE_ENV=development
+
+# Frontend URL (for CORS)
+FRONTEND_URL=http://localhost:3000
+
+# File Upload
+UPLOAD_DIR=./uploads
+MAX_FILE_SIZE=10485760
+```
+
+### 11.8 Debug Network (React Native / Flutter)
+
+**React Native - Flipper:**
+```bash
+# Installa Flipper desktop app
+# Abilita in app:
+# android/app/src/debug/java/.../ReactNativeFlipper.java
+```
+
+**Flutter - DevTools:**
+```bash
+flutter pub global activate devtools
+flutter pub global run devtools
+```
+
+---

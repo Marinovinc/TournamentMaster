@@ -91,9 +91,13 @@ Un altro dispositivo ha gia' quell'IP. Cambia l'IP nell'app o libera l'IP sul ro
 - Verifica che il DNS sia corretto (8.8.8.8)
 
 ### "L'app non si connette"
-1. Verifica che il server sia avviato (`AVVIA_SERVER.bat`)
+1. Verifica che ENTRAMBI i server siano avviati (`AVVIA_SERVER.bat`)
+   - Frontend: http://192.168.1.74:3000
+   - Backend: http://192.168.1.74:3001
 2. Verifica che il telefono sia sulla stessa rete WiFi
-3. Prova: `http://192.168.1.74:3001/health` dal browser del telefono
+3. Test dal browser del telefono:
+   - Frontend: `http://192.168.1.74:3000`
+   - Backend health: `http://192.168.1.74:3001/api/health`
 
 ---
 

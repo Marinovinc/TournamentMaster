@@ -3,6 +3,10 @@
   "appId": "app.tournamentmaster.www",
   "appName": "TournamentMaster",
   "webDir": "out",
+  "server": {
+    "url": "http://192.168.1.74:3000",
+    "cleartext": true
+  },
   "plugins": {
     "Camera": {
       "quality": 90,

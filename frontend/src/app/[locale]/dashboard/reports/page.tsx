@@ -44,8 +44,31 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+// Chart colors
+const COLORS = ["#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6"];
+const STATUS_COLORS = {
+  ONGOING: "#22c55e",
+  COMPLETED: "#3b82f6",
+  DRAFT: "#6b7280",
+  PUBLISHED: "#f59e0b",
+  CANCELLED: "#ef4444",
+};
 
 // =============================================================================
 // TYPES
@@ -795,6 +818,97 @@ function AssociationReportsContent({
         </Card>
       </div>
 
+      {/* Charts Section */}
+      {overview && (
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Tournament Status Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Tornei per Stato
+              </CardTitle>
+              <CardDescription>Distribuzione tornei dell'associazione</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart
+                  data={[
+                    { name: "In Corso", value: overview.activeTournaments, fill: STATUS_COLORS.ONGOING },
+                    { name: "Completati", value: overview.completedTournaments, fill: STATUS_COLORS.COMPLETED },
+                    { name: "Bozza", value: overview.draftTournaments, fill: STATUS_COLORS.DRAFT },
+                  ]}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" className="text-xs" />
+                  <YAxis allowDecimals={false} className="text-xs" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Bar dataKey="value" name="Tornei" radius={[4, 4, 0, 0]}>
+                    {[
+                      { name: "In Corso", fill: STATUS_COLORS.ONGOING },
+                      { name: "Completati", fill: STATUS_COLORS.COMPLETED },
+                      { name: "Bozza", fill: STATUS_COLORS.DRAFT },
+                    ].map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Catches Distribution Pie Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Fish className="h-5 w-5" />
+                Catture
+              </CardTitle>
+              <CardDescription>
+                {overview.totalCatches} catture totali, {overview.approvedCatches} approvate
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Approvate", value: overview.approvedCatches },
+                      { name: "In Attesa", value: overview.totalCatches - overview.approvedCatches },
+                    ].filter(d => d.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    <Cell fill="#22c55e" />
+                    <Cell fill="#f59e0b" />
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Tournament Cards Grid - Show all ONGOING and COMPLETED tournaments */}
       {(() => {
         const activeTournaments = tournaments.filter(
@@ -969,6 +1083,55 @@ function AssociationReportsContent({
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Team Performance Chart */}
+              {tournamentStats.topTeams.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Performance Team
+                    </CardTitle>
+                    <CardDescription>
+                      Catture, persi e rilasciati per team
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart
+                        data={tournamentStats.topTeams.map(team => ({
+                          name: team.name.length > 15 ? team.name.substring(0, 15) + "..." : team.name,
+                          Catture: team.catches,
+                          Persi: team.lost,
+                          Rilasciati: team.released,
+                        }))}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis
+                          dataKey="name"
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                          className="text-xs"
+                        />
+                        <YAxis allowDecimals={false} className="text-xs" />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                          }}
+                        />
+                        <Legend />
+                        <Bar dataKey="Catture" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="Persi" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="Rilasciati" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Top 5 Teams */}
               {tournamentStats.topTeams.length > 0 && (

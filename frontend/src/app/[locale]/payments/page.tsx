@@ -12,7 +12,7 @@
 
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import {
@@ -264,6 +264,7 @@ function PaymentsContent() {
   const selectedPlan = subscriptionPlans[selectedPlanId] || subscriptionPlans.pro;
 
   // Form state
+  const [isMounted, setIsMounted] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     cardName: "",
@@ -284,6 +285,11 @@ function PaymentsContent() {
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "success" | "error">("idle");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showSplitDetails, setShowSplitDetails] = useState(false);
+
+  // Ensure component is mounted before rendering interactive elements
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Calculate totals
   const planPrice = paymentType === "subscription" ? selectedPlan.price : 0;
@@ -389,6 +395,17 @@ function PaymentsContent() {
       setIsProcessing(false);
     }
   };
+
+  // Wait for client-side mount to avoid hydration issues with Select
+  if (!isMounted) {
+    return (
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </main>
+    );
+  }
 
   // Success state
   if (paymentStatus === "success") {

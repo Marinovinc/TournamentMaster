@@ -55,11 +55,15 @@ interface Tournament {
   id: string;
   name: string;
   status: string;
+  discipline?: string;
+  location?: string | null;
   startDate: string;
   endDate: string;
   _count?: {
     teams: number;
+    catches: number;
     strikes: number;
+    registrations: number;
   };
 }
 
@@ -791,44 +795,128 @@ function AssociationReportsContent({
         </Card>
       </div>
 
-      {/* Tournament Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Report Torneo
-          </CardTitle>
-          <CardDescription>
-            Seleziona un torneo per visualizzare le statistiche dettagliate
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 items-center">
-            <Select value={selectedTournament} onValueChange={setSelectedTournament}>
-              <SelectTrigger className="w-[350px]">
-                <SelectValue placeholder="Seleziona torneo..." />
-              </SelectTrigger>
-              <SelectContent>
-                {tournaments.map((tournament) => (
-                  <SelectItem key={tournament.id} value={tournament.id}>
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${getStatusColor(tournament.status)}`} />
-                      {tournament.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Tournament Cards Grid - Show all ONGOING and COMPLETED tournaments */}
+      {(() => {
+        const activeTournaments = tournaments.filter(
+          t => t.status === "ONGOING" || t.status === "COMPLETED"
+        );
 
-            {selectedTournament && (
-              <Button variant="outline" onClick={exportToCsv} disabled={!teamRankings.length}>
-                <Download className="h-4 w-4 mr-2" />
-                Esporta CSV
-              </Button>
-            )}
+        if (activeTournaments.length === 0) {
+          return (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">
+                  Nessun torneo terminato o in corso.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Le statistiche appariranno quando ci saranno tornei attivi o completati.
+                </p>
+              </CardContent>
+            </Card>
+          );
+        }
+
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Trophy className="h-5 w-5" />
+                Tornei ({activeTournaments.length})
+              </h2>
+              <div className="flex items-center gap-3">
+                {/* Dropdown for quick selection */}
+                <Select value={selectedTournament} onValueChange={setSelectedTournament}>
+                  <SelectTrigger className="w-[280px]">
+                    <SelectValue placeholder="Seleziona torneo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeTournaments.map((tournament) => (
+                      <SelectItem key={tournament.id} value={tournament.id}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${getStatusColor(tournament.status)}`} />
+                          {tournament.name}
+                          <span className="text-muted-foreground text-xs">
+                            ({tournament._count?.catches || 0} catture)
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedTournament && (
+                  <Button variant="outline" onClick={exportToCsv} disabled={!teamRankings.length}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Esporta CSV
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {activeTournaments.map((tournament) => {
+                const isSelected = selectedTournament === tournament.id;
+                const stats = tournament._count || { teams: 0, catches: 0, strikes: 0, registrations: 0 };
+
+                return (
+                  <Card
+                    key={tournament.id}
+                    className={`cursor-pointer transition-all hover:shadow-md ${
+                      isSelected ? "ring-2 ring-primary shadow-md" : ""
+                    }`}
+                    onClick={() => setSelectedTournament(tournament.id)}
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">{tournament.name}</CardTitle>
+                        <Badge className={getStatusColor(tournament.status)}>
+                          {tournament.status === "ONGOING" ? "In Corso" : "Completato"}
+                        </Badge>
+                      </div>
+                      <CardDescription className="flex items-center gap-2">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(tournament.startDate).toLocaleDateString("it-IT")} - {new Date(tournament.endDate).toLocaleDateString("it-IT")}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="bg-muted/50 rounded-lg p-2">
+                          <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                            <Anchor className="h-3 w-3" />
+                            <span className="text-xs">Team</span>
+                          </div>
+                          <p className="text-xl font-bold">{stats.teams}</p>
+                        </div>
+                        <div className="bg-muted/50 rounded-lg p-2">
+                          <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                            <Target className="h-3 w-3" />
+                            <span className="text-xs">Strike</span>
+                          </div>
+                          <p className="text-xl font-bold">{stats.strikes}</p>
+                        </div>
+                        <div className="bg-muted/50 rounded-lg p-2">
+                          <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                            <Fish className="h-3 w-3" />
+                            <span className="text-xs">Catture</span>
+                          </div>
+                          <p className="text-xl font-bold text-green-600">{stats.catches}</p>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="mt-3 pt-3 border-t text-center">
+                          <span className="text-sm text-primary font-medium">
+                            ▼ Dettagli sotto
+                          </span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        );
+      })()}
 
       {/* Tournament Stats */}
       {selectedTournament && (
@@ -1023,26 +1111,13 @@ function AssociationReportsContent({
         </>
       )}
 
-      {!selectedTournament && tournaments.length > 0 && (
+      {/* Message when no tournament selected and there are active tournaments */}
+      {!selectedTournament && tournaments.some(t => t.status === "ONGOING" || t.status === "COMPLETED") && (
         <Card>
-          <CardContent className="py-10 text-center">
-            <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              Seleziona un torneo dal menu sopra per visualizzare le statistiche.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {tournaments.length === 0 && (
-        <Card>
-          <CardContent className="py-10 text-center">
-            <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              Nessun torneo disponibile.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Crea un torneo dalla sezione Tornei per iniziare.
+          <CardContent className="py-6 text-center">
+            <BarChart3 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-muted-foreground text-sm">
+              Clicca su un torneo sopra per vedere le statistiche dettagliate
             </p>
           </CardContent>
         </Card>

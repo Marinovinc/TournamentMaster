@@ -21,7 +21,7 @@
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -177,9 +177,11 @@ export default async function TournamentDetailPage({
           </div>
 
           {canRegister && (
-            <Button size="lg" className="shrink-0">
-              <Users className="h-5 w-5 mr-2" />
-              Iscriviti al Torneo
+            <Button size="lg" className="shrink-0" asChild>
+              <Link href={`/${locale}/tournaments/${tournament.id}/register`}>
+                <Users className="h-5 w-5 mr-2" />
+                Iscriviti al Torneo
+              </Link>
             </Button>
           )}
         </div>

@@ -50,7 +50,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // ============================================================================
@@ -590,9 +589,11 @@ function PaymentsContent() {
                     onClick={() => toggleService(service.id)}
                   >
                     <div className="flex items-center gap-3">
-                      <Checkbox
+                      <input
+                        type="checkbox"
                         checked={selectedServices.includes(service.id)}
-                        onCheckedChange={() => toggleService(service.id)}
+                        onChange={() => toggleService(service.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                       />
                       <div>
                         <h4 className="font-medium">{service.name}</h4>
@@ -980,10 +981,12 @@ function PaymentsContent() {
               <CardFooter className="flex-col gap-4">
                 {/* Terms */}
                 <div className="flex items-start gap-2 w-full">
-                  <Checkbox
+                  <input
+                    type="checkbox"
                     id="terms"
                     checked={acceptTerms}
-                    onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-0.5"
                   />
                   <label htmlFor="terms" className="text-xs text-muted-foreground">
                     Accetto i{" "}

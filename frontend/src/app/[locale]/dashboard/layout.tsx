@@ -28,6 +28,8 @@ import {
   BarChart3,
   Bell,
   ChevronDown,
+  Ship,
+  Zap,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -80,31 +82,43 @@ export default function DashboardLayout({
       href: `/${locale}/dashboard/admin`,
       label: "Admin",
       icon: <Settings className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "ORGANIZER"],
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
     },
     {
       href: `/${locale}/dashboard/judge`,
       label: "Catture da Validare",
       icon: <CheckCircle className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "ORGANIZER", "JUDGE"],
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+    },
+    {
+      href: `/${locale}/dashboard/teams`,
+      label: "Barche/Team",
+      icon: <Ship className="h-5 w-5" />,
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+    },
+    {
+      href: `/${locale}/dashboard/strikes`,
+      label: "Strike Live",
+      icon: <Zap className="h-5 w-5" />,
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
     },
     {
       href: `/${locale}/dashboard/tournaments`,
       label: "Tornei",
       icon: <Trophy className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "ORGANIZER"],
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
     },
     {
       href: `/${locale}/dashboard/users`,
       label: "Utenti",
       icon: <Users className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN"],
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
     },
     {
       href: `/${locale}/dashboard/reports`,
       label: "Report",
       icon: <BarChart3 className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "ORGANIZER"],
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
     },
   ];
 

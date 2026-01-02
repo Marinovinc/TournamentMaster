@@ -25,9 +25,33 @@ const prisma = new PrismaClient();
 
 // Password hash per tutti gli utenti demo (password: "demo123")
 const DEMO_PASSWORD_HASH = bcrypt.hashSync('demo123', 10);
+// Password hash per SuperAdmin (password: "Gerstofen22")
+const SUPERADMIN_PASSWORD_HASH = bcrypt.hashSync('Gerstofen22', 10);
 
 async function main() {
   console.log('🌊 Seeding TournamentMaster database...\n');
+
+  // ================================
+  // 0. SUPER ADMIN - Vincenzo Marino (vede tutto, gestisce tutto)
+  // ================================
+  console.log('👑 Creating SuperAdmin: Vincenzo Marino');
+  const superAdmin = await prisma.user.upsert({
+    where: { email: 'marino@unitec.it' },
+    update: {
+      passwordHash: SUPERADMIN_PASSWORD_HASH,
+      role: UserRole.SUPER_ADMIN,
+    },
+    create: {
+      email: 'marino@unitec.it',
+      passwordHash: SUPERADMIN_PASSWORD_HASH,
+      firstName: 'Vincenzo',
+      lastName: 'Marino',
+      role: UserRole.SUPER_ADMIN,
+      isActive: true,
+      isVerified: true,
+      tenantId: null, // SuperAdmin non appartiene a nessun tenant
+    },
+  });
 
   // ================================
   // 1. TENANT - IschiaFishing
@@ -69,21 +93,64 @@ async function main() {
   }
 
   // ================================
-  // 3. USERS - Admin, Giudice, Pescatori
+  // 3. USERS - Admin, Presidente, Giudice, Pescatori
   // ================================
   console.log('👥 Creating users');
 
-  // Admin
+  // Admin Società - Crescenzo Mendella (Amministratore IschiaFishing)
   const admin = await prisma.user.upsert({
     where: { email: 'admin@ischiafishing.it' },
-    update: {},
+    update: {
+      firstName: 'Crescenzo',
+      lastName: 'Mendella',
+      passwordHash: DEMO_PASSWORD_HASH,
+    },
     create: {
       email: 'admin@ischiafishing.it',
       passwordHash: DEMO_PASSWORD_HASH,
-      firstName: 'Mario',
-      lastName: 'Rossi',
+      firstName: 'Crescenzo',
+      lastName: 'Mendella',
       phone: '+39 081 1234567',
       role: UserRole.TENANT_ADMIN,
+      isActive: true,
+      isVerified: true,
+      tenantId: tenant.id,
+    },
+  });
+
+  // Presidente Associazione - Massimo Bottiglieri (secondo admin)
+  const presidente = await prisma.user.upsert({
+    where: { email: 'presidente@ischiafishing.it' },
+    update: {
+      passwordHash: DEMO_PASSWORD_HASH,
+      role: UserRole.PRESIDENT,
+    },
+    create: {
+      email: 'presidente@ischiafishing.it',
+      passwordHash: DEMO_PASSWORD_HASH,
+      firstName: 'Massimo',
+      lastName: 'Bottiglieri',
+      phone: '+39 081 9876543',
+      role: UserRole.PRESIDENT, // Presidente = secondo admin della società
+      isActive: true,
+      isVerified: true,
+      tenantId: tenant.id,
+    },
+  });
+
+  // Utente normale - Gennaro Colicchio (può solo vedere info della società)
+  const utenteBase = await prisma.user.upsert({
+    where: { email: 'utente@ischiafishing.it' },
+    update: {
+      passwordHash: DEMO_PASSWORD_HASH,
+    },
+    create: {
+      email: 'utente@ischiafishing.it',
+      passwordHash: DEMO_PASSWORD_HASH,
+      firstName: 'Gennaro',
+      lastName: 'Colicchio',
+      phone: '+39 081 5555555',
+      role: UserRole.PARTICIPANT,
       isActive: true,
       isVerified: true,
       tenantId: tenant.id,
@@ -547,12 +614,17 @@ async function main() {
   console.log('\n✅ Seed completed successfully!');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`📍 Tenant: ${tenant.name}`);
-  console.log(`👥 Users: ${allParticipants.length + 2} (1 admin, 1 judge, ${allParticipants.length} participants)`);
+  console.log(`👥 Users: ${allParticipants.length + 5} (1 superadmin, 2 admin, 1 judge, 1 utente, ${allParticipants.length} participants)`);
   console.log(`🐟 Species: ${Object.keys(species).length}`);
   console.log(`🏆 Tournaments: 8 (2 completed, 2 live, 4 upcoming)`);
   console.log(`🎣 Catches: ${catchesData.length}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('\n🔑 Demo login: admin@ischiafishing.it / demo123\n');
+  console.log('\n🔑 Login disponibili:');
+  console.log('  👑 SuperAdmin: marino@unitec.it / Gerstofen22');
+  console.log('  🏢 Admin:      admin@ischiafishing.it / demo123');
+  console.log('  🏢 Presidente: presidente@ischiafishing.it / demo123');
+  console.log('  👤 Utente:     utente@ischiafishing.it / demo123');
+  console.log('  ⚖️  Giudice:    giudice@ischiafishing.it / demo123\n');
 }
 
 main()

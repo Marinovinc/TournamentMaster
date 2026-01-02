@@ -93,6 +93,40 @@ export const optionalAuth = (
  * Tenant isolation middleware
  * Ensures user can only access their own tenant's resources
  */
+/**
+ * Helper: Check if user is Admin or President
+ * Both roles have same permissions for tenant management
+ */
+export const isAdminOrPresident = (...additionalRoles: UserRole[]) => {
+  const adminRoles = [UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT];
+  return authorize(...adminRoles, ...additionalRoles);
+};
+
+/**
+ * Helper: Check if user can manage teams (admin, president, or team captain)
+ */
+export const canManageTeam = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({ success: false, message: "Not authenticated" });
+    return;
+  }
+
+  const adminRoles = [UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT];
+
+  // Admin/President can always manage
+  if (adminRoles.includes(req.user.role)) {
+    next();
+    return;
+  }
+
+  // Others need to be team captain (checked in service layer)
+  next();
+};
+
 export const requireTenant = (
   req: AuthenticatedRequest,
   res: Response,

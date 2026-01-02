@@ -271,6 +271,82 @@ export const PAGE_GUIDES: Record<string, {
       "Salva la pagina nei preferiti per accedervi rapidamente",
       "Controlla le condizioni meteo prima del torneo"
     ]
+  },
+
+  // GESTIONE BARCHE/TEAM
+  teams: {
+    title: "Gestione Barche e Team",
+    description: "Crea e gestisci i team iscritti ai tornei con barche, capitani ed equipaggi.",
+    sections: [
+      {
+        title: "Creazione Team",
+        content: "Clicca '+ Nuovo Team' per creare un team. Campi obbligatori: Nome Team, Nome Barca, Torneo. Il numero barca viene assegnato dall'organizzazione.",
+        icon: "plus"
+      },
+      {
+        title: "Gestione Equipaggio",
+        content: "Ogni team puo' avere un capitano e membri dell'equipaggio. Il capitano e' responsabile della barca e delle catture registrate.",
+        icon: "users"
+      },
+      {
+        title: "Assegnazione Ispettore",
+        content: "L'ispettore di bordo puo' essere assegnato a qualsiasi torneo. Per tornei multi-societa' (Provinciale, Regionale, Nazionale, Internazionale) deve provenire da un club diverso. Per tornei societari puo' essere dello stesso club.",
+        icon: "shield"
+      },
+      {
+        title: "Livelli Torneo",
+        content: "SOCIALE: torneo interno al club. PROVINCIALE/REGIONALE: tornei con piu' societa'. NAZIONALE/INTERNAZIONALE: massimo livello competitivo.",
+        icon: "trophy"
+      },
+      {
+        title: "Filtri e Ricerca",
+        content: "Usa il dropdown per filtrare per torneo. La barra di ricerca cerca per nome team, nome barca o nome capitano.",
+        icon: "search"
+      }
+    ],
+    tips: [
+      "Assegna un numero barca univoco per identificare facilmente i team durante la gara",
+      "Verifica che l'ispettore sia di un club diverso per tornei multi-societa'",
+      "Il contatore Strike mostra quanti eventi sono stati registrati per ogni team"
+    ]
+  },
+
+  // STRIKE LIVE
+  strikes: {
+    title: "Strike Live - Monitoraggio Catture",
+    description: "Registra e monitora gli strike in tempo reale durante i tornei attivi.",
+    sections: [
+      {
+        title: "Cos'e' uno Strike?",
+        content: "Uno strike e' il momento in cui un pesce abbocca all'amo. Puo' risultare in: CATCH (cattura), LOST (pesce perso), RELEASED (rilasciato - catch & release).",
+        icon: "zap"
+      },
+      {
+        title: "Registrazione Strike",
+        content: "Seleziona il torneo attivo, trova il team nella griglia e clicca 'Registra Strike'. Inserisci numero canna (1-6), risultato e note opzionali.",
+        icon: "plus"
+      },
+      {
+        title: "Griglia Team",
+        content: "Ogni card mostra: nome team, numero barca, capitano, contatore strike. Solo i tornei con stato 'IN CORSO' sono disponibili.",
+        icon: "grid"
+      },
+      {
+        title: "Tabella Strike",
+        content: "Lista cronologica degli strike registrati con timestamp, team, numero canna, risultato (badge colorato) e note.",
+        icon: "list"
+      },
+      {
+        title: "Auto-Refresh",
+        content: "La pagina si aggiorna automaticamente ogni 30 secondi. Un indicatore mostra il countdown. Usa 'Aggiorna Ora' per refresh immediato.",
+        icon: "refresh"
+      }
+    ],
+    tips: [
+      "Registra gli strike immediatamente per un tracking preciso",
+      "Il badge verde indica CATCH, rosso LOST, blu RELEASED",
+      "Gli strike sono immutabili: in caso di errore contatta un amministratore"
+    ]
   }
 };
 

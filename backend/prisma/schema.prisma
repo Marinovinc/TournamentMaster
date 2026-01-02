@@ -40,6 +40,7 @@ model Tenant {
 enum UserRole {
   SUPER_ADMIN
   TENANT_ADMIN
+  PRESIDENT      // Secondo admin della società (stessi permessi di TENANT_ADMIN)
   ORGANIZER
   JUDGE
   PARTICIPANT
@@ -71,6 +72,8 @@ model User {
   catches             Catch[]
   organizedTournaments Tournament[] @relation("TournamentOrganizer")
   refreshTokens       RefreshToken[]
+  captainedTeams      Team[] @relation("TeamCaptain")
+  teamMemberships     TeamMember[]
 
   @@index([email])
   @@index([tenantId])
@@ -144,6 +147,15 @@ enum TournamentStatus {
   CANCELLED
 }
 
+// Livello torneo (provinciale, regionale, nazionale, internazionale)
+enum TournamentLevel {
+  CLUB        // Solo club/società locale
+  PROVINCIAL  // Provinciale
+  REGIONAL    // Regionale
+  NATIONAL    // Nazionale
+  INTERNATIONAL // Internazionale
+}
+
 enum TournamentDiscipline {
   BIG_GAME
   DRIFTING
@@ -161,6 +173,7 @@ model Tournament {
   description         String?              @db.Text
   discipline          TournamentDiscipline
   status              TournamentStatus     @default(DRAFT)
+  level               TournamentLevel      @default(CLUB) // Livello torneo
 
   // Dates
   startDate           DateTime
@@ -202,6 +215,8 @@ model Tournament {
   catches             Catch[]
   leaderboardEntries  LeaderboardEntry[]
   allowedSpecies      TournamentSpecies[]
+  teams               Team[]
+  strikes             Strike[]
 
   @@index([tenantId])
   @@index([status])
@@ -298,6 +313,16 @@ model TournamentRegistration {
   teamName       String?            @db.VarChar(255)
   boatName       String?            @db.VarChar(255)
   boatLength     Decimal?           @db.Decimal(5, 2)
+  boatNumber     Int?               // Numero barca assegnato nel torneo
+
+  // Ispettore di bordo (può essere di altra squadra/società)
+  inspectorId    String?            @db.VarChar(36)
+  inspectorName  String?            @db.VarChar(255)
+  inspectorClub  String?            @db.VarChar(255) // Società di provenienza ispettore
+
+  // Società di provenienza (per tornei provinciali/regionali/nazionali)
+  clubName       String?            @db.VarChar(255)
+  clubCode       String?            @db.VarChar(50) // Codice affiliazione FIPSAS
 
   // Payment
   amountPaid     Decimal?           @db.Decimal(10, 2)
@@ -316,6 +341,109 @@ model TournamentRegistration {
   @@index([tournamentId])
   @@index([status])
   @@map("tournament_registrations")
+}
+
+// ================================
+// TEAM (Equipaggio Barca)
+// ================================
+
+model Team {
+  id            String   @id @default(uuid())
+  name          String   @db.VarChar(255) // Nome squadra
+  boatName      String   @db.VarChar(255) // Nome barca
+  boatNumber    Int?     // Numero barca assegnato nel torneo
+
+  // Capoequipaggio
+  captainId     String
+  captain       User     @relation("TeamCaptain", fields: [captainId], references: [id])
+
+  // Società di provenienza (per tornei provinciali/nazionali)
+  clubName      String?  @db.VarChar(255)
+  clubCode      String?  @db.VarChar(50) // Codice FIPSAS
+
+  // Ispettore di bordo assegnato
+  inspectorId   String?  @db.VarChar(36)
+  inspectorName String?  @db.VarChar(255)
+  inspectorClub String?  @db.VarChar(255) // Società ispettore
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tournamentId  String
+  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  // Membri equipaggio
+  members       TeamMember[]
+  strikes       Strike[]
+
+  @@unique([tournamentId, boatNumber])
+  @@index([tournamentId])
+  @@index([captainId])
+  @@map("teams")
+}
+
+// ================================
+// TEAM MEMBER (Membro Equipaggio)
+// ================================
+
+model TeamMember {
+  id        String   @id @default(uuid())
+
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  role      String   @default("CREW") @db.VarChar(50) // CAPTAIN, CREW, ANGLER
+
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+// ================================
+// STRIKE (Segnalazione durante gare)
+// ================================
+
+model Strike {
+  id            String   @id @default(uuid())
+
+  // Quando è avvenuto lo strike
+  strikeAt      DateTime @default(now())
+
+  // Numero di canne (quante canne hanno avuto abboccata)
+  rodCount      Int      @default(1)
+
+  // Note opzionali (es. "doppio strike", "tonno in fuga")
+  notes         String?  @db.Text
+
+  // Coordinate GPS dello strike
+  latitude      Decimal? @db.Decimal(10, 8)
+  longitude     Decimal? @db.Decimal(11, 8)
+
+  // Esito dello strike
+  result        String?  @db.VarChar(50) // CATCH, LOST, RELEASED
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tournamentId  String
+  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  teamId        String?
+  team          Team?    @relation(fields: [teamId], references: [id])
+
+  // Chi ha registrato lo strike
+  reportedById  String   @db.VarChar(36)
+
+  @@index([tournamentId])
+  @@index([teamId])
+  @@index([strikeAt])
+  @@map("strikes")
 }
 
 // ================================
@@ -344,6 +472,9 @@ model Catch {
   // Photo evidence
   photoPath     String      @db.VarChar(500)
   photoExifData String?     @db.Text // JSON string with EXIF data
+
+  // Video evidence (optional)
+  videoPath     String?     @db.VarChar(500)
 
   // Timestamps
   caughtAt      DateTime    // When the fish was caught

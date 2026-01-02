@@ -11,6 +11,7 @@ export interface JWTPayload {
 export enum UserRole {
   SUPER_ADMIN = "SUPER_ADMIN",
   TENANT_ADMIN = "TENANT_ADMIN",
+  PRESIDENT = "PRESIDENT",       // Secondo admin della società (stessi permessi di TENANT_ADMIN)
   ORGANIZER = "ORGANIZER",
   JUDGE = "JUDGE",
   PARTICIPANT = "PARTICIPANT",

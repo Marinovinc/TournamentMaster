@@ -22,7 +22,7 @@ const router = Router();
 // =============================================================================
 
 const createStrikeValidation = [
-  body("tournamentId").isUUID().withMessage("Valid tournament ID required"),
+  body("tournamentId").notEmpty().withMessage("Tournament ID is required"),
   body("teamId").isUUID().withMessage("Valid team ID required"),
   body("rodCount").isInt({ min: 1, max: 10 }).withMessage("Rod count must be between 1 and 10"),
   body("strikeAt").optional().isISO8601().withMessage("Invalid timestamp"),
@@ -44,7 +44,7 @@ router.get(
   "/",
   authenticate,
   [
-    query("tournamentId").optional().isUUID(),
+    query("tournamentId").optional().notEmpty(),
     query("teamId").optional().isUUID(),
     query("page").optional().isInt({ min: 1 }).toInt(),
     query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
@@ -336,7 +336,7 @@ router.get(
 router.get(
   "/tournament/:tournamentId/live",
   authenticate,
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   [query("since").optional().isISO8601()],
   async (req: AuthenticatedRequest, res: Response) => {
     try {

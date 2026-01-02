@@ -24,7 +24,7 @@ const router = Router();
 const createTeamValidation = [
   body("name").trim().notEmpty().withMessage("Team name is required"),
   body("boatName").trim().notEmpty().withMessage("Boat name is required"),
-  body("tournamentId").isUUID().withMessage("Valid tournament ID required"),
+  body("tournamentId").notEmpty().withMessage("Tournament ID is required"),
   body("clubName").optional().trim(),
   body("clubCode").optional().trim(),
 ];
@@ -52,7 +52,7 @@ router.get(
   "/",
   authenticate,
   [
-    query("tournamentId").optional().isUUID(),
+    query("tournamentId").optional().notEmpty(),
     query("page").optional().isInt({ min: 1 }).toInt(),
     query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
   ],
@@ -503,7 +503,7 @@ router.put(
 router.get(
   "/tournament/:tournamentId",
   authenticate,
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const teams = await prisma.team.findMany({

@@ -127,6 +127,24 @@ export const canManageTeam = (
   next();
 };
 
+/**
+ * Helper: Get tenant ID from authenticated request
+ * Returns tenantId for tenant-scoped operations
+ */
+export const getTenantId = (req: AuthenticatedRequest): string | null => {
+  if (!req.user) return null;
+
+  // Super admin can specify tenantId in query/params
+  if (req.user.role === UserRole.SUPER_ADMIN) {
+    return (req.query.tenantId as string) ||
+           (req.params.tenantId as string) ||
+           req.user.tenantId ||
+           null;
+  }
+
+  return req.user.tenantId || null;
+};
+
 export const requireTenant = (
   req: AuthenticatedRequest,
   res: Response,

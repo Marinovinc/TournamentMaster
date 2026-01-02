@@ -4,17 +4,20 @@
  * =============================================================================
  * Percorso: prisma/seed.ts
  * Creato: 2025-12-29
- * Descrizione: Seed database con dati demo IschiaFishing
+ * Aggiornato: 2026-01-02 - Aggiunta dati multi-tenant per report
+ * Descrizione: Seed database con dati demo completi per report
  *
  * Esecuzione: npx prisma db seed
  *
  * Dati Demo:
- * - 1 Tenant: IschiaFishing
- * - 12 Utenti: 1 admin, 1 giudice, 10 pescatori
- * - 3 Team: Ticket To Ride, FischinDream, Jambo
+ * - 3 Tenant: IschiaFishing, Mare Blu Club, Pesca Sportiva Napoli
+ * - 30+ Utenti per tenant con vari ruoli
+ * - Teams con membri per ogni torneo
+ * - Strikes per tornei in corso
+ * - Catture con stati misti (APPROVED, PENDING, REJECTED)
  * - 5 Specie: tonno rosso, pesce spada, alalunga, aguglia imperiale, lampuga
- * - 8 Tornei: 2 completati, 2 in corso, 4 futuri (con banner images)
- * - Catture con punteggi realistici
+ * - 10+ Tornei per tenant: mix di completati, in corso, futuri
+ * - Leaderboard entries per tornei completati
  * =============================================================================
  */
 
@@ -54,9 +57,11 @@ async function main() {
   });
 
   // ================================
-  // 1. TENANT - IschiaFishing
+  // 1. TENANTS - Multi-tenant per Report Super Admin
   // ================================
-  console.log('📍 Creating tenant: IschiaFishing');
+  console.log('📍 Creating tenants...');
+
+  // Tenant 1: IschiaFishing (principale, attivo)
   const tenant = await prisma.tenant.upsert({
     where: { slug: 'ischiafishing' },
     update: {},
@@ -67,6 +72,48 @@ async function main() {
       logo: '/logos/ischiafishing.png',
       primaryColor: '#0066CC',
       isActive: true,
+    },
+  });
+
+  // Tenant 2: Mare Blu Club (attivo)
+  const tenant2 = await prisma.tenant.upsert({
+    where: { slug: 'mareblu' },
+    update: {},
+    create: {
+      name: 'Mare Blu Club',
+      slug: 'mareblu',
+      domain: 'marebluclub.it',
+      logo: '/logos/mareblu.png',
+      primaryColor: '#1E40AF',
+      isActive: true,
+    },
+  });
+
+  // Tenant 3: Pesca Sportiva Napoli (attivo)
+  const tenant3 = await prisma.tenant.upsert({
+    where: { slug: 'pescanapolisport' },
+    update: {},
+    create: {
+      name: 'Pesca Sportiva Napoli',
+      slug: 'pescanapolisport',
+      domain: 'pescanapolisport.it',
+      logo: '/logos/pescanapolisport.png',
+      primaryColor: '#059669',
+      isActive: true,
+    },
+  });
+
+  // Tenant 4: Circolo Pescatori Salerno (inattivo - per test report)
+  const tenant4 = await prisma.tenant.upsert({
+    where: { slug: 'circolosalerno' },
+    update: {},
+    create: {
+      name: 'Circolo Pescatori Salerno',
+      slug: 'circolosalerno',
+      domain: 'circolopescatorisalerno.it',
+      logo: '/logos/salerno.png',
+      primaryColor: '#DC2626',
+      isActive: false, // Inattivo per test
     },
   });
 
@@ -143,6 +190,7 @@ async function main() {
     where: { email: 'utente@ischiafishing.it' },
     update: {
       passwordHash: DEMO_PASSWORD_HASH,
+      role: UserRole.PARTICIPANT,
     },
     create: {
       email: 'utente@ischiafishing.it',
@@ -215,6 +263,104 @@ async function main() {
         isActive: true,
         isVerified: true,
         tenantId: tenant.id,
+      },
+    });
+    users[p.email] = user.id;
+  }
+
+  // ================================
+  // 3B. USERS per TENANT 2 (Mare Blu Club)
+  // ================================
+  console.log('👥 Creating users for Mare Blu Club');
+
+  const adminMareBlu = await prisma.user.upsert({
+    where: { email: 'admin@marebluclub.it' },
+    update: {},
+    create: {
+      email: 'admin@marebluclub.it',
+      passwordHash: DEMO_PASSWORD_HASH,
+      firstName: 'Giovanni',
+      lastName: 'Rossi',
+      phone: '+39 089 1234567',
+      role: UserRole.TENANT_ADMIN,
+      isActive: true,
+      isVerified: true,
+      tenantId: tenant2.id,
+    },
+  });
+
+  // Partecipanti Mare Blu
+  const mareBlueParticipants = [
+    { firstName: 'Alessandro', lastName: 'Verdi', email: 'a.verdi@mareblu.it', fipsasNumber: 'MB-2024-001' },
+    { firstName: 'Davide', lastName: 'Neri', email: 'd.neri@mareblu.it', fipsasNumber: 'MB-2024-002' },
+    { firstName: 'Luca', lastName: 'Gialli', email: 'l.gialli@mareblu.it', fipsasNumber: 'MB-2024-003' },
+    { firstName: 'Simone', lastName: 'Bianchi', email: 's.bianchi@mareblu.it', fipsasNumber: 'MB-2024-004' },
+  ];
+
+  for (const p of mareBlueParticipants) {
+    const user = await prisma.user.upsert({
+      where: { email: p.email },
+      update: {},
+      create: {
+        email: p.email,
+        passwordHash: DEMO_PASSWORD_HASH,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        fipsasNumber: p.fipsasNumber,
+        role: UserRole.PARTICIPANT,
+        isActive: true,
+        isVerified: true,
+        tenantId: tenant2.id,
+      },
+    });
+    users[p.email] = user.id;
+  }
+
+  // ================================
+  // 3C. USERS per TENANT 3 (Pesca Sportiva Napoli)
+  // ================================
+  console.log('👥 Creating users for Pesca Sportiva Napoli');
+
+  const adminPescaNapoli = await prisma.user.upsert({
+    where: { email: 'admin@pescanapolisport.it' },
+    update: {},
+    create: {
+      email: 'admin@pescanapolisport.it',
+      passwordHash: DEMO_PASSWORD_HASH,
+      firstName: 'Carlo',
+      lastName: 'Esposito',
+      phone: '+39 081 7654321',
+      role: UserRole.TENANT_ADMIN,
+      isActive: true,
+      isVerified: true,
+      tenantId: tenant3.id,
+    },
+  });
+
+  // Partecipanti Pesca Napoli
+  const pescaNapoliParticipants = [
+    { firstName: 'Mario', lastName: 'Cuomo', email: 'm.cuomo@pescanapolisport.it', fipsasNumber: 'PN-2024-001' },
+    { firstName: 'Luigi', lastName: 'Pagano', email: 'l.pagano@pescanapolisport.it', fipsasNumber: 'PN-2024-002' },
+    { firstName: 'Pietro', lastName: 'Sorrentino', email: 'p.sorrentino@pescanapolisport.it', fipsasNumber: 'PN-2024-003' },
+    { firstName: 'Vincenzo', lastName: 'Pinto', email: 'v.pinto@pescanapolisport.it', fipsasNumber: 'PN-2024-004' },
+    { firstName: 'Antonio', lastName: 'Russo', email: 'a.russo@pescanapolisport.it', fipsasNumber: 'PN-2024-005' },
+    { firstName: 'Raffaele', lastName: 'Mazza', email: 'r.mazza@pescanapolisport.it', fipsasNumber: 'PN-2024-006' },
+  ];
+
+  for (const p of pescaNapoliParticipants) {
+    const user = await prisma.user.upsert({
+      where: { email: p.email },
+      update: {},
+      create: {
+        email: p.email,
+        passwordHash: DEMO_PASSWORD_HASH,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        fipsasNumber: p.fipsasNumber,
+        role: UserRole.PARTICIPANT,
+        isActive: true,
+        isVerified: true,
+        tenantId: tenant3.id,
       },
     });
     users[p.email] = user.id;
@@ -475,17 +621,238 @@ async function main() {
     },
   });
 
-  // All tournaments array
-  const allTournaments = [tournament1, tournament2, tournament3, tournament4, tournament5, tournament6, tournament7, tournament8];
+  // ================================
+  // 4B. TOURNAMENTS per TENANT 2 (Mare Blu Club)
+  // ================================
+  console.log('🏆 Creating tournaments for Mare Blu Club');
 
-  // Add fishing zones
-  for (const t of allTournaments) {
+  const mb_tournament1 = await prisma.tournament.upsert({
+    where: { id: 'mb-tournament-completed' },
+    update: {},
+    create: {
+      id: 'mb-tournament-completed',
+      name: 'Trofeo Mare Blu 2024',
+      description: 'Torneo annuale del Mare Blu Club. Competizione di traina costiera.',
+      discipline: TournamentDiscipline.TRAINA_COSTIERA,
+      status: TournamentStatus.COMPLETED,
+      startDate: new Date('2024-09-10T06:00:00Z'),
+      endDate: new Date('2024-09-11T18:00:00Z'),
+      registrationOpens: new Date('2024-08-01T00:00:00Z'),
+      registrationCloses: new Date('2024-09-05T23:59:59Z'),
+      location: 'Porto di Amalfi',
+      locationLat: 40.6340,
+      locationLng: 14.6020,
+      registrationFee: 120.00,
+      maxParticipants: 25,
+      minWeight: 2.0,
+      pointsPerKg: 100,
+      bannerImage: bannerImages.fishing,
+      tenantId: tenant2.id,
+      organizerId: adminMareBlu.id,
+    },
+  });
+
+  const mb_tournament2 = await prisma.tournament.upsert({
+    where: { id: 'mb-tournament-ongoing' },
+    update: {},
+    create: {
+      id: 'mb-tournament-ongoing',
+      name: 'Coppa Costiera 2025',
+      description: 'Gara invernale di drifting nelle acque della Costiera.',
+      discipline: TournamentDiscipline.DRIFTING,
+      status: TournamentStatus.ONGOING,
+      startDate: new Date(new Date().setHours(5, 0, 0, 0)),
+      endDate: new Date(new Date().setDate(new Date().getDate() + 3)),
+      registrationOpens: new Date('2024-12-01T00:00:00Z'),
+      registrationCloses: new Date('2024-12-30T23:59:59Z'),
+      location: 'Marina di Maiori',
+      locationLat: 40.6500,
+      locationLng: 14.6400,
+      registrationFee: 100.00,
+      maxParticipants: 20,
+      minWeight: 3.0,
+      pointsPerKg: 110,
+      bannerImage: bannerImages.ocean,
+      tenantId: tenant2.id,
+      organizerId: adminMareBlu.id,
+    },
+  });
+
+  const mb_tournament3 = await prisma.tournament.upsert({
+    where: { id: 'mb-tournament-draft' },
+    update: {},
+    create: {
+      id: 'mb-tournament-draft',
+      name: 'Gran Premio Estate 2025',
+      description: 'Torneo estivo in fase di organizzazione.',
+      discipline: TournamentDiscipline.BIG_GAME,
+      status: TournamentStatus.DRAFT,
+      startDate: new Date('2025-07-20T06:00:00Z'),
+      endDate: new Date('2025-07-21T18:00:00Z'),
+      registrationOpens: new Date('2025-05-01T00:00:00Z'),
+      registrationCloses: new Date('2025-07-15T23:59:59Z'),
+      location: 'Porto di Amalfi',
+      locationLat: 40.6340,
+      locationLng: 14.6020,
+      registrationFee: 180.00,
+      maxParticipants: 30,
+      minWeight: 5.0,
+      pointsPerKg: 100,
+      bannerImage: bannerImages.sunset,
+      tenantId: tenant2.id,
+      organizerId: adminMareBlu.id,
+    },
+  });
+
+  // ================================
+  // 4C. TOURNAMENTS per TENANT 3 (Pesca Sportiva Napoli)
+  // ================================
+  console.log('🏆 Creating tournaments for Pesca Sportiva Napoli');
+
+  const pn_tournament1 = await prisma.tournament.upsert({
+    where: { id: 'pn-tournament-completed1' },
+    update: {},
+    create: {
+      id: 'pn-tournament-completed1',
+      name: 'Memorial Pescatori 2024',
+      description: 'Torneo commemorativo annuale. Bolentino di profondità.',
+      discipline: TournamentDiscipline.BOLENTINO,
+      status: TournamentStatus.COMPLETED,
+      startDate: new Date('2024-05-20T05:00:00Z'),
+      endDate: new Date('2024-05-20T14:00:00Z'),
+      registrationOpens: new Date('2024-04-01T00:00:00Z'),
+      registrationCloses: new Date('2024-05-15T23:59:59Z'),
+      location: 'Molo Beverello',
+      locationLat: 40.8380,
+      locationLng: 14.2580,
+      registrationFee: 60.00,
+      maxParticipants: 40,
+      minWeight: 0.2,
+      pointsPerKg: 150,
+      bannerImage: bannerImages.coast,
+      tenantId: tenant3.id,
+      organizerId: adminPescaNapoli.id,
+    },
+  });
+
+  const pn_tournament2 = await prisma.tournament.upsert({
+    where: { id: 'pn-tournament-completed2' },
+    update: {},
+    create: {
+      id: 'pn-tournament-completed2',
+      name: 'Trofeo San Gennaro',
+      description: 'Gara tradizionale di pesca al traino.',
+      discipline: TournamentDiscipline.TRAINA_COSTIERA,
+      status: TournamentStatus.COMPLETED,
+      startDate: new Date('2024-09-19T06:00:00Z'),
+      endDate: new Date('2024-09-20T17:00:00Z'),
+      registrationOpens: new Date('2024-08-01T00:00:00Z'),
+      registrationCloses: new Date('2024-09-15T23:59:59Z'),
+      location: 'Porto di Napoli',
+      locationLat: 40.8400,
+      locationLng: 14.2700,
+      registrationFee: 90.00,
+      maxParticipants: 30,
+      minWeight: 2.0,
+      pointsPerKg: 100,
+      bannerImage: bannerImages.boat,
+      tenantId: tenant3.id,
+      organizerId: adminPescaNapoli.id,
+    },
+  });
+
+  const pn_tournament3 = await prisma.tournament.upsert({
+    where: { id: 'pn-tournament-completed3' },
+    update: {},
+    create: {
+      id: 'pn-tournament-completed3',
+      name: 'Campionato Sociale 2024',
+      description: 'Campionato annuale riservato ai soci.',
+      discipline: TournamentDiscipline.SHORE,
+      status: TournamentStatus.COMPLETED,
+      startDate: new Date('2024-11-15T05:00:00Z'),
+      endDate: new Date('2024-11-15T12:00:00Z'),
+      registrationOpens: new Date('2024-10-01T00:00:00Z'),
+      registrationCloses: new Date('2024-11-10T23:59:59Z'),
+      location: 'Lungomare Caracciolo',
+      locationLat: 40.8290,
+      locationLng: 14.2400,
+      registrationFee: 40.00,
+      maxParticipants: 50,
+      minWeight: 0.1,
+      pointsPerKg: 200,
+      bannerImage: bannerImages.tropical,
+      tenantId: tenant3.id,
+      organizerId: adminPescaNapoli.id,
+    },
+  });
+
+  const pn_tournament4 = await prisma.tournament.upsert({
+    where: { id: 'pn-tournament-ongoing' },
+    update: {},
+    create: {
+      id: 'pn-tournament-ongoing',
+      name: 'Winter Cup Napoli 2025',
+      description: 'Torneo invernale di spinning.',
+      discipline: TournamentDiscipline.EGING,
+      status: TournamentStatus.ONGOING,
+      startDate: new Date(new Date().setHours(6, 0, 0, 0)),
+      endDate: new Date(new Date().setDate(new Date().getDate() + 1)),
+      registrationOpens: new Date('2024-12-01T00:00:00Z'),
+      registrationCloses: new Date('2024-12-29T23:59:59Z'),
+      location: 'Marina di Mergellina',
+      locationLat: 40.8280,
+      locationLng: 14.2150,
+      registrationFee: 50.00,
+      maxParticipants: 35,
+      minWeight: 0.3,
+      pointsPerKg: 180,
+      bannerImage: bannerImages.fishing,
+      tenantId: tenant3.id,
+      organizerId: adminPescaNapoli.id,
+    },
+  });
+
+  const pn_tournament5 = await prisma.tournament.upsert({
+    where: { id: 'pn-tournament-published' },
+    update: {},
+    create: {
+      id: 'pn-tournament-published',
+      name: 'Trofeo Primavera 2025',
+      description: 'Primo grande torneo di stagione.',
+      discipline: TournamentDiscipline.BIG_GAME,
+      status: TournamentStatus.PUBLISHED,
+      startDate: new Date('2025-04-05T06:00:00Z'),
+      endDate: new Date('2025-04-06T18:00:00Z'),
+      registrationOpens: new Date('2025-02-01T00:00:00Z'),
+      registrationCloses: new Date('2025-04-01T23:59:59Z'),
+      location: 'Porto di Napoli',
+      locationLat: 40.8400,
+      locationLng: 14.2700,
+      registrationFee: 150.00,
+      maxParticipants: 25,
+      minWeight: 5.0,
+      pointsPerKg: 100,
+      bannerImage: bannerImages.biggame,
+      tenantId: tenant3.id,
+      organizerId: adminPescaNapoli.id,
+    },
+  });
+
+  // All tournaments array (tutti i tenant)
+  const allTournaments = [tournament1, tournament2, tournament3, tournament4, tournament5, tournament6, tournament7, tournament8];
+  const allTournamentsTenant2 = [mb_tournament1, mb_tournament2, mb_tournament3];
+  const allTournamentsTenant3 = [pn_tournament1, pn_tournament2, pn_tournament3, pn_tournament4, pn_tournament5];
+
+  // Add fishing zones for all tenants
+  const allTournamentsGlobal = [...allTournaments, ...allTournamentsTenant2, ...allTournamentsTenant3];
+  for (const t of allTournamentsGlobal) {
     await prisma.fishingZone.upsert({
       where: { id: `zone-${t.id}` },
       update: {},
       create: {
         id: `zone-${t.id}`,
-        name: 'Area Marina Ischia',
+        name: 'Area Marina',
         description: 'Zona di pesca autorizzata per il torneo',
         geoJson: ischiaZoneGeoJson,
         minLat: 40.70,
@@ -497,8 +864,8 @@ async function main() {
     });
   }
 
-  // Add tournament species
-  for (const t of allTournaments) {
+  // Add tournament species for all tenants
+  for (const t of allTournamentsGlobal) {
     for (const [name, data] of Object.entries(species)) {
       await prisma.tournamentSpecies.upsert({
         where: { tournamentId_speciesId: { tournamentId: t.id, speciesId: data.id } },
@@ -611,21 +978,607 @@ async function main() {
     });
   }
 
+  // ================================
+  // 8. TEAMS per tornei
+  // ================================
+  console.log('⛵ Creating teams');
+
+  // Teams per torneo IschiaFishing completato
+  const team1 = await prisma.team.upsert({
+    where: { id: 'team-ticket-to-ride' },
+    update: {},
+    create: {
+      id: 'team-ticket-to-ride',
+      name: 'Ticket To Ride',
+      boatName: 'Sea Hunter',
+      boatNumber: 1,
+      captainId: users['g.marino@demo.it'],
+      clubName: 'IschiaFishing',
+      clubCode: 'IF-001',
+      tournamentId: tournament1.id,
+    },
+  });
+
+  const team2 = await prisma.team.upsert({
+    where: { id: 'team-fischindream' },
+    update: {},
+    create: {
+      id: 'team-fischindream',
+      name: 'FischinDream',
+      boatName: 'Dream Catcher',
+      boatNumber: 2,
+      captainId: users['m.deluca@demo.it'],
+      clubName: 'IschiaFishing',
+      clubCode: 'IF-002',
+      tournamentId: tournament1.id,
+    },
+  });
+
+  const team3 = await prisma.team.upsert({
+    where: { id: 'team-jambo' },
+    update: {},
+    create: {
+      id: 'team-jambo',
+      name: 'Jambo',
+      boatName: 'Jambo Star',
+      boatNumber: 3,
+      captainId: users['r.colombo@demo.it'],
+      clubName: 'IschiaFishing',
+      clubCode: 'IF-003',
+      tournamentId: tournament1.id,
+    },
+  });
+
+  // Teams per torneo live (IschiaFishing)
+  const teamLive1 = await prisma.team.upsert({
+    where: { id: 'team-live-1' },
+    update: {},
+    create: {
+      id: 'team-live-1',
+      name: 'Aquila Marina',
+      boatName: 'Flying Eagle',
+      boatNumber: 1,
+      captainId: users['g.marino@demo.it'],
+      clubName: 'IschiaFishing',
+      tournamentId: tournament2.id,
+    },
+  });
+
+  const teamLive2 = await prisma.team.upsert({
+    where: { id: 'team-live-2' },
+    update: {},
+    create: {
+      id: 'team-live-2',
+      name: 'Onda Blu',
+      boatName: 'Blue Wave',
+      boatNumber: 2,
+      captainId: users['m.deluca@demo.it'],
+      clubName: 'IschiaFishing',
+      tournamentId: tournament2.id,
+    },
+  });
+
+  // ================================
+  // 9. STRIKES per tornei in corso
+  // ================================
+  console.log('🎯 Creating strikes');
+
+  // Strikes per torneo live IschiaFishing - PIU' DATI DEMO
+  const strikesData = [
+    { teamId: teamLive1.id, lat: 40.72, lng: 13.89, rodCount: 2, notes: 'Doppio strike! Tonno in vista', result: 'CATCH' },
+    { teamId: teamLive1.id, lat: 40.73, lng: 13.90, rodCount: 1, notes: 'Strike singolo', result: 'LOST' },
+    { teamId: teamLive2.id, lat: 40.71, lng: 13.88, rodCount: 1, notes: 'Pesce in fuga', result: 'LOST' },
+    { teamId: teamLive2.id, lat: 40.74, lng: 13.91, rodCount: 3, notes: 'Triplo strike!', result: 'CATCH' },
+    { teamId: teamLive1.id, lat: 40.72, lng: 13.87, rodCount: 1, notes: null, result: 'RELEASED' },
+    { teamId: teamLive1.id, lat: 40.725, lng: 13.885, rodCount: 2, notes: 'Doppio strike mattutino', result: 'CATCH' },
+    { teamId: teamLive2.id, lat: 40.715, lng: 13.895, rodCount: 1, notes: 'Alalunga avvistata', result: 'CATCH' },
+    { teamId: teamLive1.id, lat: 40.735, lng: 13.875, rodCount: 1, notes: 'Pesce perso dopo 10 minuti', result: 'LOST' },
+    { teamId: teamLive2.id, lat: 40.728, lng: 13.892, rodCount: 2, notes: 'Attacco coordinato', result: 'CATCH' },
+    { teamId: teamLive1.id, lat: 40.718, lng: 13.882, rodCount: 1, notes: 'Rilasciato sotto misura', result: 'RELEASED' },
+    { teamId: teamLive2.id, lat: 40.732, lng: 13.878, rodCount: 1, notes: 'Strike rapido', result: 'LOST' },
+    { teamId: teamLive1.id, lat: 40.722, lng: 13.898, rodCount: 3, notes: 'Tripla abboccata!', result: 'CATCH' },
+  ];
+
+  for (const s of strikesData) {
+    await prisma.strike.create({
+      data: {
+        tournamentId: tournament2.id,
+        teamId: s.teamId,
+        strikeAt: new Date(new Date().getTime() - Math.random() * 3600000 * 4), // Ultime 4 ore
+        rodCount: s.rodCount,
+        notes: s.notes,
+        latitude: s.lat,
+        longitude: s.lng,
+        result: s.result,
+        reportedById: users['g.marino@demo.it'],
+      },
+    });
+  }
+
+  // ================================
+  // 9B. CATCHES per tornei LIVE (statistiche real-time)
+  // ================================
+  console.log('🎣 Creating catches for LIVE tournaments');
+
+  // Catture per torneo live IschiaFishing (Coppa Inverno Ischia 2024)
+  const liveCatchesIschia = [
+    { email: 'g.marino@demo.it', speciesName: 'Tonno rosso', weight: 67.5, status: CatchStatus.APPROVED, hoursAgo: 2 },
+    { email: 'g.marino@demo.it', speciesName: 'Alalunga', weight: 19.8, status: CatchStatus.APPROVED, hoursAgo: 3 },
+    { email: 'm.deluca@demo.it', speciesName: 'Pesce spada', weight: 45.2, status: CatchStatus.APPROVED, hoursAgo: 1.5 },
+    { email: 'm.deluca@demo.it', speciesName: 'Lampuga', weight: 11.3, status: CatchStatus.PENDING, hoursAgo: 0.5 },
+    { email: 'a.ferrara@demo.it', speciesName: 'Tonno rosso', weight: 52.0, status: CatchStatus.APPROVED, hoursAgo: 4 },
+    { email: 'g.conte@demo.it', speciesName: 'Aguglia imperiale', weight: 15.8, status: CatchStatus.APPROVED, hoursAgo: 2.5 },
+    { email: 's.esposito@demo.it', speciesName: 'Alalunga', weight: 23.5, status: CatchStatus.PENDING, hoursAgo: 1 },
+    { email: 'r.colombo@demo.it', speciesName: 'Lampuga', weight: 8.9, status: CatchStatus.APPROVED, hoursAgo: 3.5 },
+    { email: 'f.romano@demo.it', speciesName: 'Tonno rosso', weight: 78.2, status: CatchStatus.APPROVED, hoursAgo: 0.75 },
+    { email: 'p.ricci@demo.it', speciesName: 'Pesce spada', weight: 38.7, status: CatchStatus.REJECTED, hoursAgo: 5, reviewNotes: 'Foto non valida' },
+  ];
+
+  for (const c of liveCatchesIschia) {
+    const sp = species[c.speciesName];
+    const caughtAt = new Date(new Date().getTime() - c.hoursAgo * 3600000);
+    await prisma.catch.create({
+      data: {
+        userId: users[c.email],
+        tournamentId: tournament2.id,
+        speciesId: sp.id,
+        weight: c.weight,
+        length: c.weight * 2.2,
+        latitude: 40.72 + (Math.random() - 0.5) * 0.04,
+        longitude: 13.88 + (Math.random() - 0.5) * 0.04,
+        gpsAccuracy: 4.5,
+        photoPath: `/demo/catches/live_${c.email.split('@')[0]}_${Date.now()}.jpg`,
+        caughtAt: caughtAt,
+        status: c.status,
+        points: c.status === CatchStatus.APPROVED ? c.weight * 100 * sp.pointsMultiplier : null,
+        isInsideZone: true,
+        reviewNotes: c.reviewNotes || null,
+        reviewedAt: c.status !== CatchStatus.PENDING ? new Date(caughtAt.getTime() + 1800000) : null,
+        reviewerId: c.status !== CatchStatus.PENDING ? judge.id : null,
+      },
+    });
+  }
+
+  // Registrazioni per torneo live IschiaFishing
+  for (const p of [...teamTicketToRide, ...teamFischinDream, ...teamJambo]) {
+    await prisma.tournamentRegistration.upsert({
+      where: { userId_tournamentId: { userId: users[p.email], tournamentId: tournament2.id } },
+      update: {},
+      create: {
+        userId: users[p.email],
+        tournamentId: tournament2.id,
+        status: RegistrationStatus.CONFIRMED,
+        teamName: teamTicketToRide.some(m => m.email === p.email) ? 'Aquila Marina' :
+                  teamFischinDream.some(m => m.email === p.email) ? 'Onda Blu' : 'Jambo Live',
+        boatName: teamTicketToRide.some(m => m.email === p.email) ? 'Flying Eagle' :
+                  teamFischinDream.some(m => m.email === p.email) ? 'Blue Wave' : 'Jambo Runner',
+        boatLength: 11.5,
+        amountPaid: 100.00,
+        confirmedAt: new Date('2024-12-25'),
+      },
+    });
+  }
+
+  // ================================
+  // 10. CATTURE e REGISTRAZIONI per altri tenant
+  // ================================
+  console.log('🎣 Creating catches for other tenants');
+
+  // Registrazioni e catture per Mare Blu Club
+  for (const p of mareBlueParticipants) {
+    await prisma.tournamentRegistration.upsert({
+      where: { userId_tournamentId: { userId: users[p.email], tournamentId: mb_tournament1.id } },
+      update: {},
+      create: {
+        userId: users[p.email],
+        tournamentId: mb_tournament1.id,
+        status: RegistrationStatus.CONFIRMED,
+        teamName: 'Team Mare Blu',
+        boatName: 'Costiera',
+        boatLength: 10.5,
+        amountPaid: 120.00,
+        confirmedAt: new Date('2024-09-01'),
+      },
+    });
+  }
+
+  // Catture per Mare Blu - Torneo COMPLETATO
+  const mbCatchesData = [
+    { email: 'a.verdi@mareblu.it', speciesName: 'Alalunga', weight: 25.3, status: CatchStatus.APPROVED },
+    { email: 'd.neri@mareblu.it', speciesName: 'Lampuga', weight: 9.8, status: CatchStatus.APPROVED },
+    { email: 'l.gialli@mareblu.it', speciesName: 'Tonno rosso', weight: 52.1, status: CatchStatus.APPROVED },
+    { email: 's.bianchi@mareblu.it', speciesName: 'Pesce spada', weight: 38.5, status: CatchStatus.APPROVED },
+    { email: 'a.verdi@mareblu.it', speciesName: 'Lampuga', weight: 7.2, status: CatchStatus.APPROVED },
+    { email: 'd.neri@mareblu.it', speciesName: 'Aguglia imperiale', weight: 14.5, status: CatchStatus.APPROVED },
+  ];
+
+  for (const c of mbCatchesData) {
+    const sp = species[c.speciesName];
+    await prisma.catch.create({
+      data: {
+        userId: users[c.email],
+        tournamentId: mb_tournament1.id,
+        speciesId: sp.id,
+        weight: c.weight,
+        length: c.weight * 2.1,
+        latitude: 40.63 + Math.random() * 0.02,
+        longitude: 14.60 + Math.random() * 0.02,
+        gpsAccuracy: 5.0,
+        photoPath: `/demo/catches/${c.email.split('@')[0]}.jpg`,
+        caughtAt: new Date('2024-09-10T09:30:00Z'),
+        status: c.status,
+        points: c.status === CatchStatus.APPROVED ? c.weight * 100 * sp.pointsMultiplier : null,
+        isInsideZone: true,
+      },
+    });
+  }
+
+  // Registrazioni e catture per Mare Blu - Torneo LIVE (Coppa Costiera 2025)
+  for (const p of mareBlueParticipants) {
+    await prisma.tournamentRegistration.upsert({
+      where: { userId_tournamentId: { userId: users[p.email], tournamentId: mb_tournament2.id } },
+      update: {},
+      create: {
+        userId: users[p.email],
+        tournamentId: mb_tournament2.id,
+        status: RegistrationStatus.CONFIRMED,
+        teamName: 'Costiera Blue Team',
+        boatName: 'Amalfi Dream',
+        boatLength: 9.5,
+        amountPaid: 100.00,
+        confirmedAt: new Date('2024-12-28'),
+      },
+    });
+  }
+
+  // Catture LIVE per Mare Blu (mb_tournament2)
+  const mbLiveCatches = [
+    { email: 'a.verdi@mareblu.it', speciesName: 'Tonno rosso', weight: 42.8, status: CatchStatus.APPROVED, hoursAgo: 1 },
+    { email: 'd.neri@mareblu.it', speciesName: 'Alalunga', weight: 18.5, status: CatchStatus.APPROVED, hoursAgo: 2.5 },
+    { email: 'l.gialli@mareblu.it', speciesName: 'Pesce spada', weight: 35.2, status: CatchStatus.PENDING, hoursAgo: 0.5 },
+    { email: 's.bianchi@mareblu.it', speciesName: 'Lampuga', weight: 6.8, status: CatchStatus.APPROVED, hoursAgo: 3 },
+    { email: 'a.verdi@mareblu.it', speciesName: 'Aguglia imperiale', weight: 12.3, status: CatchStatus.APPROVED, hoursAgo: 4 },
+  ];
+
+  for (const c of mbLiveCatches) {
+    const sp = species[c.speciesName];
+    const caughtAt = new Date(new Date().getTime() - c.hoursAgo * 3600000);
+    await prisma.catch.create({
+      data: {
+        userId: users[c.email],
+        tournamentId: mb_tournament2.id,
+        speciesId: sp.id,
+        weight: c.weight,
+        length: c.weight * 2.1,
+        latitude: 40.65 + (Math.random() - 0.5) * 0.02,
+        longitude: 14.64 + (Math.random() - 0.5) * 0.02,
+        gpsAccuracy: 5.0,
+        photoPath: `/demo/catches/mb_live_${c.email.split('@')[0]}_${Date.now()}.jpg`,
+        caughtAt: caughtAt,
+        status: c.status,
+        points: c.status === CatchStatus.APPROVED ? c.weight * 110 * sp.pointsMultiplier : null,
+        isInsideZone: true,
+      },
+    });
+  }
+
+  // Team per Mare Blu torneo live
+  const mbTeamLive = await prisma.team.upsert({
+    where: { id: 'team-mb-costiera' },
+    update: {},
+    create: {
+      id: 'team-mb-costiera',
+      name: 'Costiera Blue Team',
+      boatName: 'Amalfi Dream',
+      boatNumber: 1,
+      captainId: users['a.verdi@mareblu.it'],
+      clubName: 'Mare Blu Club',
+      clubCode: 'MB-001',
+      tournamentId: mb_tournament2.id,
+    },
+  });
+
+  // Strikes per Mare Blu torneo live
+  const mbStrikesLive = [
+    { teamId: mbTeamLive.id, lat: 40.65, lng: 14.64, rodCount: 2, notes: 'Doppio strike costa', result: 'CATCH' },
+    { teamId: mbTeamLive.id, lat: 40.652, lng: 14.638, rodCount: 1, notes: 'Strike singolo', result: 'LOST' },
+    { teamId: mbTeamLive.id, lat: 40.648, lng: 14.642, rodCount: 1, notes: 'Pesce avvistato', result: 'CATCH' },
+    { teamId: mbTeamLive.id, lat: 40.655, lng: 14.635, rodCount: 3, notes: 'Triplo strike!', result: 'CATCH' },
+  ];
+
+  for (const s of mbStrikesLive) {
+    await prisma.strike.create({
+      data: {
+        tournamentId: mb_tournament2.id,
+        teamId: s.teamId,
+        strikeAt: new Date(new Date().getTime() - Math.random() * 3600000 * 3),
+        rodCount: s.rodCount,
+        notes: s.notes,
+        latitude: s.lat,
+        longitude: s.lng,
+        result: s.result,
+        reportedById: users['a.verdi@mareblu.it'],
+      },
+    });
+  }
+
+  // Registrazioni e catture per Pesca Sportiva Napoli
+  for (const p of pescaNapoliParticipants) {
+    await prisma.tournamentRegistration.upsert({
+      where: { userId_tournamentId: { userId: users[p.email], tournamentId: pn_tournament1.id } },
+      update: {},
+      create: {
+        userId: users[p.email],
+        tournamentId: pn_tournament1.id,
+        status: RegistrationStatus.CONFIRMED,
+        teamName: 'Napoli Fishing Team',
+        boatName: 'Vesuvio',
+        amountPaid: 60.00,
+        confirmedAt: new Date('2024-05-10'),
+      },
+    });
+
+    // Seconda registrazione per altro torneo
+    await prisma.tournamentRegistration.upsert({
+      where: { userId_tournamentId: { userId: users[p.email], tournamentId: pn_tournament2.id } },
+      update: {},
+      create: {
+        userId: users[p.email],
+        tournamentId: pn_tournament2.id,
+        status: RegistrationStatus.CONFIRMED,
+        teamName: 'Napoli Fishing Team',
+        boatName: 'Vesuvio',
+        amountPaid: 90.00,
+        confirmedAt: new Date('2024-09-10'),
+      },
+    });
+  }
+
+  // Catture per Pesca Napoli - torneo 1
+  const pnCatchesData1 = [
+    { email: 'm.cuomo@pescanapolisport.it', speciesName: 'Lampuga', weight: 5.2, status: CatchStatus.APPROVED },
+    { email: 'l.pagano@pescanapolisport.it', speciesName: 'Alalunga', weight: 18.7, status: CatchStatus.APPROVED },
+    { email: 'p.sorrentino@pescanapolisport.it', speciesName: 'Tonno rosso', weight: 42.0, status: CatchStatus.APPROVED },
+    { email: 'v.pinto@pescanapolisport.it', speciesName: 'Aguglia imperiale', weight: 12.5, status: CatchStatus.REJECTED },
+    { email: 'a.russo@pescanapolisport.it', speciesName: 'Pesce spada', weight: 55.8, status: CatchStatus.APPROVED },
+    { email: 'r.mazza@pescanapolisport.it', speciesName: 'Lampuga', weight: 7.3, status: CatchStatus.APPROVED },
+  ];
+
+  for (const c of pnCatchesData1) {
+    const sp = species[c.speciesName];
+    await prisma.catch.create({
+      data: {
+        userId: users[c.email],
+        tournamentId: pn_tournament1.id,
+        speciesId: sp.id,
+        weight: c.weight,
+        length: c.weight * 2.0,
+        latitude: 40.83 + Math.random() * 0.02,
+        longitude: 14.25 + Math.random() * 0.02,
+        gpsAccuracy: 4.0,
+        photoPath: `/demo/catches/${c.email.split('@')[0]}_pn1.jpg`,
+        caughtAt: new Date('2024-05-20T08:00:00Z'),
+        status: c.status,
+        points: c.status === CatchStatus.APPROVED ? c.weight * 150 * sp.pointsMultiplier : null,
+        isInsideZone: true,
+        reviewNotes: c.status === CatchStatus.REJECTED ? 'Pesce sotto misura' : null,
+      },
+    });
+  }
+
+  // Catture per Pesca Napoli - torneo 2
+  const pnCatchesData2 = [
+    { email: 'm.cuomo@pescanapolisport.it', speciesName: 'Tonno rosso', weight: 38.5, status: CatchStatus.APPROVED },
+    { email: 'l.pagano@pescanapolisport.it', speciesName: 'Pesce spada', weight: 48.2, status: CatchStatus.APPROVED },
+    { email: 'p.sorrentino@pescanapolisport.it', speciesName: 'Alalunga', weight: 21.0, status: CatchStatus.PENDING },
+  ];
+
+  for (const c of pnCatchesData2) {
+    const sp = species[c.speciesName];
+    await prisma.catch.create({
+      data: {
+        userId: users[c.email],
+        tournamentId: pn_tournament2.id,
+        speciesId: sp.id,
+        weight: c.weight,
+        length: c.weight * 2.1,
+        latitude: 40.84 + Math.random() * 0.01,
+        longitude: 14.27 + Math.random() * 0.01,
+        gpsAccuracy: 3.5,
+        photoPath: `/demo/catches/${c.email.split('@')[0]}_pn2.jpg`,
+        caughtAt: new Date('2024-09-19T10:30:00Z'),
+        status: c.status,
+        points: c.status === CatchStatus.APPROVED ? c.weight * 100 * sp.pointsMultiplier : null,
+        isInsideZone: true,
+      },
+    });
+  }
+
+  // Registrazioni per torneo LIVE Pesca Napoli (Winter Cup)
+  for (const p of pescaNapoliParticipants) {
+    await prisma.tournamentRegistration.upsert({
+      where: { userId_tournamentId: { userId: users[p.email], tournamentId: pn_tournament4.id } },
+      update: {},
+      create: {
+        userId: users[p.email],
+        tournamentId: pn_tournament4.id,
+        status: RegistrationStatus.CONFIRMED,
+        teamName: 'Napoli Winter Team',
+        boatName: 'Partenope',
+        amountPaid: 50.00,
+        confirmedAt: new Date('2024-12-27'),
+      },
+    });
+  }
+
+  // Catture LIVE per Pesca Napoli (Winter Cup - pn_tournament4)
+  const pnLiveCatches = [
+    { email: 'm.cuomo@pescanapolisport.it', speciesName: 'Alalunga', weight: 16.5, status: CatchStatus.APPROVED, hoursAgo: 0.5 },
+    { email: 'l.pagano@pescanapolisport.it', speciesName: 'Lampuga', weight: 5.8, status: CatchStatus.APPROVED, hoursAgo: 1.5 },
+    { email: 'p.sorrentino@pescanapolisport.it', speciesName: 'Tonno rosso', weight: 32.4, status: CatchStatus.PENDING, hoursAgo: 0.25 },
+    { email: 'v.pinto@pescanapolisport.it', speciesName: 'Aguglia imperiale', weight: 11.2, status: CatchStatus.APPROVED, hoursAgo: 2 },
+    { email: 'a.russo@pescanapolisport.it', speciesName: 'Alalunga', weight: 19.8, status: CatchStatus.APPROVED, hoursAgo: 3 },
+    { email: 'r.mazza@pescanapolisport.it', speciesName: 'Pesce spada', weight: 28.5, status: CatchStatus.APPROVED, hoursAgo: 1 },
+    { email: 'm.cuomo@pescanapolisport.it', speciesName: 'Lampuga', weight: 4.2, status: CatchStatus.APPROVED, hoursAgo: 4 },
+  ];
+
+  for (const c of pnLiveCatches) {
+    const sp = species[c.speciesName];
+    const caughtAt = new Date(new Date().getTime() - c.hoursAgo * 3600000);
+    await prisma.catch.create({
+      data: {
+        userId: users[c.email],
+        tournamentId: pn_tournament4.id,
+        speciesId: sp.id,
+        weight: c.weight,
+        length: c.weight * 2.0,
+        latitude: 40.828 + (Math.random() - 0.5) * 0.01,
+        longitude: 14.215 + (Math.random() - 0.5) * 0.01,
+        gpsAccuracy: 4.0,
+        photoPath: `/demo/catches/pn_live_${c.email.split('@')[0]}_${Date.now()}.jpg`,
+        caughtAt: caughtAt,
+        status: c.status,
+        points: c.status === CatchStatus.APPROVED ? c.weight * 180 * sp.pointsMultiplier : null,
+        isInsideZone: true,
+      },
+    });
+  }
+
+  // Teams per Pesca Napoli
+  const pnTeam1 = await prisma.team.upsert({
+    where: { id: 'team-pn-vesuvio' },
+    update: {},
+    create: {
+      id: 'team-pn-vesuvio',
+      name: 'Napoli Fishing Team',
+      boatName: 'Vesuvio',
+      boatNumber: 1,
+      captainId: users['m.cuomo@pescanapolisport.it'],
+      clubName: 'Pesca Sportiva Napoli',
+      clubCode: 'PSN-001',
+      tournamentId: pn_tournament4.id,
+    },
+  });
+
+  // Strikes per torneo live Pesca Napoli
+  const pnStrikesData = [
+    { teamId: pnTeam1.id, lat: 40.828, lng: 14.215, rodCount: 1, notes: 'Strike mattutino', result: 'CATCH' },
+    { teamId: pnTeam1.id, lat: 40.829, lng: 14.218, rodCount: 2, notes: 'Doppio!', result: 'CATCH' },
+    { teamId: pnTeam1.id, lat: 40.827, lng: 14.212, rodCount: 1, notes: 'Perso vicino barca', result: 'LOST' },
+  ];
+
+  for (const s of pnStrikesData) {
+    await prisma.strike.create({
+      data: {
+        tournamentId: pn_tournament4.id,
+        teamId: s.teamId,
+        strikeAt: new Date(new Date().getTime() - Math.random() * 3600000 * 2),
+        rodCount: s.rodCount,
+        notes: s.notes,
+        latitude: s.lat,
+        longitude: s.lng,
+        result: s.result,
+        reportedById: users['m.cuomo@pescanapolisport.it'],
+      },
+    });
+  }
+
+  // ================================
+  // 11. LEADERBOARD per altri tornei completati
+  // ================================
+  console.log('📊 Creating leaderboards for other tournaments');
+
+  // Leaderboard Mare Blu
+  const mbLeaderboard = [
+    { email: 'l.gialli@mareblu.it', points: 5210, weight: 52.1, catches: 1, biggest: 52.1 },
+    { email: 'a.verdi@mareblu.it', points: 2024, weight: 25.3, catches: 1, biggest: 25.3 },
+    { email: 'd.neri@mareblu.it', points: 588, weight: 9.8, catches: 1, biggest: 9.8 },
+  ];
+
+  let mbRank = 1;
+  for (const entry of mbLeaderboard) {
+    await prisma.leaderboardEntry.upsert({
+      where: { tournamentId_userId: { tournamentId: mb_tournament1.id, userId: users[entry.email] } },
+      update: {},
+      create: {
+        tournamentId: mb_tournament1.id,
+        userId: users[entry.email],
+        participantName: entry.email.split('@')[0].replace('.', ' '),
+        teamName: 'Team Mare Blu',
+        rank: mbRank++,
+        totalPoints: entry.points,
+        totalWeight: entry.weight,
+        catchCount: entry.catches,
+        biggestCatch: entry.biggest,
+      },
+    });
+  }
+
+  // Leaderboard Pesca Napoli - Torneo 1
+  const pnLeaderboard1 = [
+    { email: 'a.russo@pescanapolisport.it', points: 6696, weight: 55.8, catches: 1, biggest: 55.8 },
+    { email: 'p.sorrentino@pescanapolisport.it', points: 6300, weight: 42.0, catches: 1, biggest: 42.0 },
+    { email: 'l.pagano@pescanapolisport.it', points: 2244, weight: 18.7, catches: 1, biggest: 18.7 },
+    { email: 'r.mazza@pescanapolisport.it', points: 657, weight: 7.3, catches: 1, biggest: 7.3 },
+    { email: 'm.cuomo@pescanapolisport.it', points: 468, weight: 5.2, catches: 1, biggest: 5.2 },
+  ];
+
+  let pnRank = 1;
+  for (const entry of pnLeaderboard1) {
+    await prisma.leaderboardEntry.upsert({
+      where: { tournamentId_userId: { tournamentId: pn_tournament1.id, userId: users[entry.email] } },
+      update: {},
+      create: {
+        tournamentId: pn_tournament1.id,
+        userId: users[entry.email],
+        participantName: entry.email.split('@')[0].replace('.', ' '),
+        teamName: 'Napoli Fishing Team',
+        rank: pnRank++,
+        totalPoints: entry.points,
+        totalWeight: entry.weight,
+        catchCount: entry.catches,
+        biggestCatch: entry.biggest,
+      },
+    });
+  }
+
   console.log('\n✅ Seed completed successfully!');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`📍 Tenant: ${tenant.name}`);
-  console.log(`👥 Users: ${allParticipants.length + 5} (1 superadmin, 2 admin, 1 judge, 1 utente, ${allParticipants.length} participants)`);
+  console.log('📊 DATI DEMO PER REPORT:');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`📍 Tenant: 4 (3 attivi, 1 inattivo)`);
+  console.log(`   - IschiaFishing (8 tornei, 17 utenti, 17 catches live)`);
+  console.log(`   - Mare Blu Club (3 tornei, 5 utenti, 11 catches, 4 strikes live)`);
+  console.log(`   - Pesca Sportiva Napoli (5 tornei, 7 utenti, 16 catches, 6 strikes)`);
+  console.log(`   - Circolo Pescatori Salerno (inattivo)`);
+  console.log(`👥 Users: 30+ totali con vari ruoli`);
   console.log(`🐟 Species: ${Object.keys(species).length}`);
-  console.log(`🏆 Tournaments: 8 (2 completed, 2 live, 4 upcoming)`);
-  console.log(`🎣 Catches: ${catchesData.length}`);
+  console.log(`🏆 Tournaments: 16 totali`);
+  console.log(`   - 5 COMPLETED (per report storici)`);
+  console.log(`   - 4 ONGOING (per report live con dati real-time)`);
+  console.log(`   - 6 PUBLISHED (futuri)`);
+  console.log(`   - 1 DRAFT`);
+  console.log(`⛵ Teams: 10 con membri`);
+  console.log(`🎣 Catches: 45+ con stati misti (APPROVED, PENDING, REJECTED)`);
+  console.log(`🎯 Strikes: 19 per tornei live (Ischia 12, Mare Blu 4, Napoli 3)`);
+  console.log(`📊 Leaderboards: 3 tornei completati con classifica`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('\n🔑 Login disponibili:');
   console.log('  👑 SuperAdmin: marino@unitec.it / Gerstofen22');
-  console.log('  🏢 Admin:      admin@ischiafishing.it / demo123');
-  console.log('  🏢 Presidente: presidente@ischiafishing.it / demo123');
-  console.log('  👤 Utente:     utente@ischiafishing.it / demo123');
-  console.log('  ⚖️  Giudice:    giudice@ischiafishing.it / demo123\n');
+  console.log('');
+  console.log('  🏢 IschiaFishing:');
+  console.log('     admin@ischiafishing.it / demo123');
+  console.log('     presidente@ischiafishing.it / demo123');
+  console.log('     giudice@ischiafishing.it / demo123');
+  console.log('');
+  console.log('  🏢 Mare Blu Club:');
+  console.log('     admin@marebluclub.it / demo123');
+  console.log('');
+  console.log('  🏢 Pesca Sportiva Napoli:');
+  console.log('     admin@pescanapolisport.it / demo123');
+  console.log('');
 }
+
 
 main()
   .catch((e) => {

@@ -12,7 +12,7 @@
 
 "use client";
 
-import { useState, Suspense, useEffect } from "react";
+import { useState, Suspense, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import {
@@ -344,9 +344,9 @@ function PaymentsContent() {
 
   const split = calculateSplit();
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = useCallback((field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
   const toggleService = (serviceId: string) => {
     setSelectedServices((prev) =>

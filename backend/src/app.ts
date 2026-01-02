@@ -13,6 +13,8 @@ import leaderboardRoutes from "./routes/leaderboard.routes";
 import uploadRoutes from "./routes/upload.routes";
 import teamRoutes from "./routes/team.routes";
 import strikeRoutes from "./routes/strike.routes";
+import tenantRoutes from "./routes/tenant.routes";
+import reportsRoutes from "./routes/reports.routes";
 
 // Create Express app
 const app: Application = express();
@@ -69,6 +71,8 @@ app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/strikes", strikeRoutes);
+app.use("/api/tenants", tenantRoutes);
+app.use("/api/reports", reportsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

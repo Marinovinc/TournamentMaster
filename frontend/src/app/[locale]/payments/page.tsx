@@ -50,13 +50,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -396,7 +389,7 @@ function PaymentsContent() {
     }
   };
 
-  // Wait for client-side mount to avoid hydration issues with Select
+  // Wait for client-side mount to avoid hydration issues
   if (!isMounted) {
     return (
       <main className="container mx-auto px-4 py-8">
@@ -867,24 +860,21 @@ function PaymentsContent() {
                   </div>
                   <div>
                     <Label htmlFor="country">Paese *</Label>
-                    <Select
+                    <select
+                      id="country"
                       value={formData.country}
-                      onValueChange={(value) => handleInputChange("country", value)}
+                      onChange={(e) => handleInputChange("country", e.target.value)}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="IT">Italia</SelectItem>
-                        <SelectItem value="DE">Germania</SelectItem>
-                        <SelectItem value="FR">Francia</SelectItem>
-                        <SelectItem value="ES">Spagna</SelectItem>
-                        <SelectItem value="AT">Austria</SelectItem>
-                        <SelectItem value="CH">Svizzera</SelectItem>
-                        <SelectItem value="HR">Croazia</SelectItem>
-                        <SelectItem value="SI">Slovenia</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <option value="IT">Italia</option>
+                      <option value="DE">Germania</option>
+                      <option value="FR">Francia</option>
+                      <option value="ES">Spagna</option>
+                      <option value="AT">Austria</option>
+                      <option value="CH">Svizzera</option>
+                      <option value="HR">Croazia</option>
+                      <option value="SI">Slovenia</option>
+                    </select>
                   </div>
                 </div>
               </CardContent>

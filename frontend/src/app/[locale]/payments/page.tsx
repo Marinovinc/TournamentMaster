@@ -592,7 +592,11 @@ function PaymentsContent() {
                       <input
                         type="checkbox"
                         checked={selectedServices.includes(service.id)}
-                        onChange={() => toggleService(service.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleService(service.id);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                       />
                       <div>

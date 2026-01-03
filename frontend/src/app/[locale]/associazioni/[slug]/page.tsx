@@ -28,17 +28,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-// API URL
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// API URL - for server-side rendering, prefer localhost or internal URL
+// NEXT_PUBLIC_API_URL may point to external IP not reachable from server
+const getApiUrl = () => {
+  // Server-side: use internal URL (localhost)
+  if (typeof window === "undefined") {
+    return process.env.API_URL || "http://localhost:3001";
+  }
+  // Client-side: use public URL
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+};
 
 // Fetch tenant data server-side
 async function getTenantData(slug: string) {
+  const apiUrl = getApiUrl();
+
   try {
-    const response = await fetch(`${API_URL}/api/tenants/public/${slug}`, {
+    const response = await fetch(`${apiUrl}/api/tenants/public/${slug}`, {
       next: { revalidate: 60 }, // Cache for 60 seconds
+      cache: "force-cache",
     });
 
     if (!response.ok) {
+      console.error(`Failed to fetch tenant ${slug}: ${response.status}`);
       return null;
     }
 

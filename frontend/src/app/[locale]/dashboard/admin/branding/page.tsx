@@ -59,6 +59,12 @@ interface BrandingData {
   fipsasRegion?: string;
 }
 
+interface TenantOption {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export default function BrandingPage() {
   const { user, token, isAdmin } = useAuth();
   const params = useParams();
@@ -71,7 +77,34 @@ export default function BrandingPage() {
   const [error, setError] = useState<string | null>(null);
   const [branding, setBranding] = useState<BrandingData | null>(null);
 
+  // For SUPER_ADMIN tenant selection
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+  // Fetch tenants list for SUPER_ADMIN
+  useEffect(() => {
+    const fetchTenants = async () => {
+      if (!token || !isSuperAdmin) return;
+
+      try {
+        const response = await fetch(`${API_URL}/api/tenants?limit=100`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setTenants(data.data.map((t: any) => ({ id: t.id, name: t.name, slug: t.slug })));
+        }
+      } catch (err) {
+        console.error("Failed to fetch tenants:", err);
+      }
+    };
+
+    fetchTenants();
+  }, [token, isSuperAdmin, API_URL]);
 
   // Fetch branding data
   useEffect(() => {
@@ -81,8 +114,18 @@ export default function BrandingPage() {
         return;
       }
 
+      // For SUPER_ADMIN, require tenant selection first
+      if (isSuperAdmin && !selectedTenantId) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const response = await fetch(`${API_URL}/api/tenants/me/branding`, {
+        const url = isSuperAdmin && selectedTenantId
+          ? `${API_URL}/api/tenants/me/branding?tenantId=${selectedTenantId}`
+          : `${API_URL}/api/tenants/me/branding`;
+
+        const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -101,7 +144,7 @@ export default function BrandingPage() {
     };
 
     fetchBranding();
-  }, [token, API_URL]);
+  }, [token, API_URL, isSuperAdmin, selectedTenantId]);
 
   // Check admin access
   useEffect(() => {
@@ -119,7 +162,11 @@ export default function BrandingPage() {
     setSuccess(false);
 
     try {
-      const response = await fetch(`${API_URL}/api/tenants/me/branding`, {
+      const url = isSuperAdmin && selectedTenantId
+        ? `${API_URL}/api/tenants/me/branding?tenantId=${selectedTenantId}`
+        : `${API_URL}/api/tenants/me/branding`;
+
+      const response = await fetch(url, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -144,6 +191,14 @@ export default function BrandingPage() {
     }
   };
 
+  // Handle tenant selection for SUPER_ADMIN
+  const handleTenantSelect = (tenantId: string) => {
+    setSelectedTenantId(tenantId);
+    setBranding(null);
+    setLoading(true);
+    setError(null);
+  };
+
   // Update field
   const updateField = (field: keyof BrandingData, value: string) => {
     if (!branding) return;
@@ -154,6 +209,51 @@ export default function BrandingPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Show tenant selector for SUPER_ADMIN
+  if (isSuperAdmin && !selectedTenantId) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Personalizza Associazione</h1>
+          <p className="text-muted-foreground mt-2">
+            Seleziona l&apos;associazione da personalizzare
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Fish className="h-5 w-5" />
+              Seleziona Associazione
+            </CardTitle>
+            <CardDescription>
+              Come Super Admin puoi gestire il branding di qualsiasi associazione
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {tenants.length === 0 ? (
+              <p className="text-muted-foreground">Caricamento associazioni...</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tenants.map((tenant) => (
+                  <Button
+                    key={tenant.id}
+                    variant="outline"
+                    className="h-auto p-4 flex flex-col items-start gap-1"
+                    onClick={() => handleTenantSelect(tenant.id)}
+                  >
+                    <span className="font-medium">{tenant.name}</span>
+                    <span className="text-xs text-muted-foreground">/{tenant.slug}</span>
+                  </Button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -188,6 +288,23 @@ export default function BrandingPage() {
           <p className="text-muted-foreground">
             Configura logo, colori, informazioni di contatto e social media
           </p>
+          {isSuperAdmin && selectedTenantId && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-sm bg-primary/10 text-primary px-2 py-1 rounded">
+                {branding?.name}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedTenantId(null);
+                  setBranding(null);
+                }}
+              >
+                Cambia associazione
+              </Button>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Button

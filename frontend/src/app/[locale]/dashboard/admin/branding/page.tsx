@@ -35,6 +35,13 @@ import {
   ArrowLeft,
   Fish,
   ExternalLink,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+  Lightbulb,
+  FileImage,
+  Type,
+  Share2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -76,6 +83,7 @@ export default function BrandingPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branding, setBranding] = useState<BrandingData | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   // For SUPER_ADMIN tenant selection
   const [tenants, setTenants] = useState<TenantOption[]>([]);
@@ -341,6 +349,185 @@ export default function BrandingPage() {
           Modifiche salvate con successo!
         </div>
       )}
+
+      {/* Guida Branding */}
+      <Card className="border-blue-200 bg-blue-50/50">
+        <CardHeader className="pb-3">
+          <button
+            onClick={() => setShowGuide(!showGuide)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <HelpCircle className="h-5 w-5" />
+              Guida alla Personalizzazione
+            </CardTitle>
+            {showGuide ? (
+              <ChevronUp className="h-5 w-5 text-blue-600" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-blue-600" />
+            )}
+          </button>
+          {!showGuide && (
+            <CardDescription className="text-blue-700">
+              Clicca per espandere la guida completa su come personalizzare la tua associazione
+            </CardDescription>
+          )}
+        </CardHeader>
+
+        {showGuide && (
+          <CardContent className="pt-0">
+            <div className="space-y-6 text-sm">
+              {/* Introduzione */}
+              <div className="prose prose-sm max-w-none">
+                <p className="text-blue-900 leading-relaxed">
+                  Personalizza l&apos;aspetto della <strong>pagina pubblica</strong> della tua associazione.
+                  Le modifiche saranno visibili a tutti i visitatori su{" "}
+                  <code className="bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">
+                    /associazioni/{branding?.slug || "tuo-slug"}
+                  </code>
+                </p>
+              </div>
+
+              {/* Sezioni Guide */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Logo e Banner */}
+                <div className="bg-white rounded-lg p-4 border border-blue-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <FileImage className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <h4 className="font-semibold text-gray-900">Logo e Banner</h4>
+                  </div>
+                  <ul className="space-y-2 text-gray-600">
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-500 mt-1">•</span>
+                      <span><strong>Logo:</strong> Formato quadrato (es. 200x200px), PNG con trasparenza consigliato</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-500 mt-1">•</span>
+                      <span><strong>Banner:</strong> Formato panoramico (es. 1920x400px), JPG per foto</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-500 mt-1">•</span>
+                      <span>Usa URL diretti alle immagini (es. da Google Drive, Imgur, o tuo hosting)</span>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Colori */}
+                <div className="bg-white rounded-lg p-4 border border-blue-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <Palette className="h-4 w-4 text-green-600" />
+                    </div>
+                    <h4 className="font-semibold text-gray-900">Colori</h4>
+                  </div>
+                  <ul className="space-y-2 text-gray-600">
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-500 mt-1">•</span>
+                      <span><strong>Primario:</strong> Colore principale per header, pulsanti e accenti</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-500 mt-1">•</span>
+                      <span><strong>Secondario:</strong> Usato per gradienti e elementi secondari</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-500 mt-1">•</span>
+                      <span>Scegli colori con buon contrasto per leggibilita</span>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Contatti e Social */}
+                <div className="bg-white rounded-lg p-4 border border-blue-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <Share2 className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <h4 className="font-semibold text-gray-900">Contatti e Social</h4>
+                  </div>
+                  <ul className="space-y-2 text-gray-600">
+                    <li className="flex items-start gap-2">
+                      <span className="text-orange-500 mt-1">•</span>
+                      <span>Inserisci email e telefono per essere contattato</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-orange-500 mt-1">•</span>
+                      <span>Aggiungi link ai tuoi profili Facebook, Instagram, YouTube</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-orange-500 mt-1">•</span>
+                      <span>L&apos;indirizzo apparira nella sezione contatti della pagina</span>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* FIPSAS */}
+                <div className="bg-white rounded-lg p-4 border border-blue-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Fish className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <h4 className="font-semibold text-gray-900">Affiliazione FIPSAS</h4>
+                  </div>
+                  <ul className="space-y-2 text-gray-600">
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-500 mt-1">•</span>
+                      <span>Inserisci il codice affiliazione FIPSAS ufficiale</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-500 mt-1">•</span>
+                      <span>Seleziona la regione di appartenenza</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-500 mt-1">•</span>
+                      <span>I dati appariranno nei PDF delle classifiche ufficiali</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Tips */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Lightbulb className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-yellow-800 mb-2">Suggerimenti</h4>
+                    <ul className="space-y-1 text-yellow-700">
+                      <li>• Usa il pulsante <strong>&quot;Anteprima&quot;</strong> in alto a destra per vedere come appare la pagina</li>
+                      <li>• Ricorda di cliccare <strong>&quot;Salva Modifiche&quot;</strong> dopo ogni modifica</li>
+                      <li>• Le immagini devono essere gia caricate online (URL pubblico)</li>
+                      <li>• Per caricare immagini puoi usare servizi come Imgur, Google Drive (link diretto), o il tuo sito web</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`/${locale}/associazioni/${branding?.slug}`, "_blank")}
+                  className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Vedi Pagina Pubblica
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`/${locale}/fipsas`, "_blank")}
+                  className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                >
+                  <Fish className="h-4 w-4 mr-2" />
+                  Info FIPSAS
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       {/* Tabs */}
       <Tabs defaultValue="branding" className="space-y-6">

@@ -30,6 +30,8 @@ import {
   ChevronDown,
   Ship,
   Zap,
+  Building2,
+  Palette,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -79,6 +81,12 @@ export default function DashboardLayout({
       icon: <LayoutDashboard className="h-5 w-5" />,
     },
     {
+      href: `/${locale}/dashboard/super-admin`,
+      label: "Gestione Associazioni",
+      icon: <Building2 className="h-5 w-5" />,
+      roles: ["SUPER_ADMIN"],
+    },
+    {
       href: `/${locale}/dashboard/admin`,
       label: "Admin",
       icon: <Settings className="h-5 w-5" />,
@@ -119,6 +127,12 @@ export default function DashboardLayout({
       label: "Report",
       icon: <BarChart3 className="h-5 w-5" />,
       roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+    },
+    {
+      href: `/${locale}/dashboard/admin/branding`,
+      label: "Branding",
+      icon: <Palette className="h-5 w-5" />,
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
     },
   ];
 

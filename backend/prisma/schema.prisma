@@ -20,8 +20,29 @@ model Tenant {
   name        String   @db.VarChar(255)
   slug        String   @unique @db.VarChar(100)
   domain      String?  @unique @db.VarChar(255)
-  logo        String?  @db.VarChar(500)
-  primaryColor String? @db.VarChar(7) @default("#0066CC")
+
+  // Branding & Customization
+  logo            String?  @db.VarChar(500)
+  bannerImage     String?  @db.VarChar(500)
+  primaryColor    String?  @db.VarChar(7) @default("#0066CC")
+  secondaryColor  String?  @db.VarChar(7) @default("#004499")
+  description     String?  @db.Text
+
+  // Contact Info
+  contactEmail    String?  @db.VarChar(255)
+  contactPhone    String?  @db.VarChar(30)
+  website         String?  @db.VarChar(255)
+  address         String?  @db.VarChar(500)
+
+  // Social Links
+  socialFacebook  String?  @db.VarChar(255)
+  socialInstagram String?  @db.VarChar(255)
+  socialYoutube   String?  @db.VarChar(255)
+
+  // FIPSAS Affiliation
+  fipsasCode      String?  @db.VarChar(50)
+  fipsasRegion    String?  @db.VarChar(100)
+
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -37,13 +58,23 @@ model Tenant {
 // USER & AUTHENTICATION
 // ================================
 
+// Ruoli PERMANENTI dell'utente (a livello di associazione)
 enum UserRole {
-  SUPER_ADMIN
-  TENANT_ADMIN
-  PRESIDENT      // Secondo admin della società (stessi permessi di TENANT_ADMIN)
-  ORGANIZER
-  JUDGE
-  PARTICIPANT
+  SUPER_ADMIN    // Amministratore piattaforma
+  TENANT_ADMIN   // Amministratore associazione
+  PRESIDENT      // Presidente associazione (stessi permessi di TENANT_ADMIN)
+  ORGANIZER      // Può organizzare tornei
+  JUDGE          // Giudice
+  PARTICIPANT    // Partecipante (default)
+  MEMBER         // Alias per PARTICIPANT (legacy)
+}
+
+// Ruoli TEMPORANEI assegnati per singolo torneo
+enum TournamentStaffRole {
+  DIRECTOR       // Direttore di gara
+  JUDGE          // Giudice di gara
+  INSPECTOR      // Ispettore (può essere assegnato anche a livello di barca)
+  SCORER         // Addetto punteggi
 }
 
 model User {
@@ -54,7 +85,7 @@ model User {
   lastName      String    @db.VarChar(100)
   phone         String?   @db.VarChar(20)
   fipsasNumber  String?   @db.VarChar(50)
-  role          UserRole  @default(PARTICIPANT)
+  role          UserRole  @default(MEMBER)
   avatar        String?   @db.VarChar(500)
   isActive      Boolean   @default(true)
   isVerified    Boolean   @default(false)
@@ -74,6 +105,7 @@ model User {
   refreshTokens       RefreshToken[]
   captainedTeams      Team[] @relation("TeamCaptain")
   teamMemberships     TeamMember[]
+  tournamentStaff     TournamentStaff[]
 
   @@index([email])
   @@index([tenantId])
@@ -217,6 +249,7 @@ model Tournament {
   allowedSpecies      TournamentSpecies[]
   teams               Team[]
   strikes             Strike[]
+  staff               TournamentStaff[]
 
   @@index([tenantId])
   @@index([status])
@@ -403,6 +436,31 @@ model TeamMember {
   @@index([teamId])
   @@index([userId])
   @@map("team_members")
+}
+
+// ================================
+// TOURNAMENT STAFF (Ruoli temporanei per torneo)
+// ================================
+
+model TournamentStaff {
+  id            String              @id @default(uuid())
+  role          TournamentStaffRole
+  notes         String?             @db.VarChar(500)
+
+  // Utente assegnato
+  userId        String
+  user          User                @relation(fields: [userId], references: [id])
+
+  // Torneo di riferimento
+  tournamentId  String
+  tournament    Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime            @default(now())
+
+  @@unique([tournamentId, userId, role])  // Un utente può avere un solo ruolo specifico per torneo
+  @@index([tournamentId])
+  @@index([userId])
+  @@map("tournament_staff")
 }
 
 // ================================

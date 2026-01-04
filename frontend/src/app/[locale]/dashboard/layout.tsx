@@ -160,6 +160,45 @@ export default function DashboardLayout({
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set()
   );
+  const [impersonatingTenant, setImpersonatingTenant] = useState<{id: string; name: string} | null>(null);
+
+  // Check for impersonation mode
+  useEffect(() => {
+    const checkImpersonation = () => {
+      const tenantStr = localStorage.getItem("impersonatingTenant");
+      if (tenantStr) {
+        try {
+          setImpersonatingTenant(JSON.parse(tenantStr));
+        } catch {
+          setImpersonatingTenant(null);
+        }
+      } else {
+        setImpersonatingTenant(null);
+      }
+    };
+
+    // Check on mount and pathname changes
+    checkImpersonation();
+
+    // Listen to storage events (for cross-tab sync)
+    window.addEventListener("storage", checkImpersonation);
+    
+    // Also check periodically in case of same-tab changes
+    const interval = setInterval(checkImpersonation, 500);
+
+    return () => {
+      window.removeEventListener("storage", checkImpersonation);
+      clearInterval(interval);
+    };
+  }, [pathname]);
+
+  // Exit association mode
+  const exitAssociationMode = () => {
+    localStorage.removeItem("impersonationToken");
+    localStorage.removeItem("impersonatingTenant");
+    setImpersonatingTenant(null);
+    router.push(`/${locale}/dashboard/super-admin`);
+  };
 
   const operationalSections: SidebarSection[] = useMemo(
     () => [
@@ -208,6 +247,79 @@ export default function DashboardLayout({
       {
         id: "report",
         label: "Report e Statistiche",
+        icon: <BarChart3 className="h-4 w-4" />,
+        roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+        items: [
+          {
+            href: `/${locale}/dashboard/reports`,
+            label: "Report & Classifiche",
+            icon: <BarChart3 className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+          },
+          {
+            href: `/${locale}/dashboard/admin/branding`,
+            label: "Branding",
+            icon: <Palette className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
+          },
+        ],
+      },
+    ],
+    [locale]
+  );
+
+  // Sezioni per modalità associazione
+  const associationSections: SidebarSection[] = useMemo(
+    () => [
+      {
+        id: "assoc-gestione",
+        label: "Gestione Associazione",
+        icon: <Building2 className="h-4 w-4" />,
+        roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
+        items: [
+          {
+            href: `/${locale}/dashboard/tournaments`,
+            label: "Tornei",
+            icon: <Trophy className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+          },
+          {
+            href: `/${locale}/dashboard/users`,
+            label: "Utenti",
+            icon: <Users className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
+          },
+          {
+            href: `/${locale}/dashboard/teams`,
+            label: "Barche/Team",
+            icon: <Ship className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+          },
+        ],
+      },
+      {
+        id: "assoc-tornei",
+        label: "Operazioni Torneo",
+        icon: <Trophy className="h-4 w-4" />,
+        roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+        items: [
+          {
+            href: `/${locale}/dashboard/strikes`,
+            label: "Strike Live",
+            icon: <Zap className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+          },
+          {
+            href: `/${locale}/dashboard/judge`,
+            label: "Catture da Validare",
+            icon: <CheckCircle className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+          },
+        ],
+      },
+      {
+        id: "assoc-report",
+        label: "Report",
         icon: <BarChart3 className="h-4 w-4" />,
         roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
         items: [
@@ -338,11 +450,18 @@ export default function DashboardLayout({
     if (user.role === "PARTICIPANT") {
       return participantSections;
     }
+    // In association mode, show association-specific sections
+    if (impersonatingTenant) {
+      return associationSections.filter((section) => {
+        if (!section.roles) return true;
+        return section.roles.includes(user.role);
+      });
+    }
     return operationalSections.filter((section) => {
       if (!section.roles) return true;
       return section.roles.includes(user.role);
     });
-  }, [user, operationalSections, participantSections]);
+  }, [user, operationalSections, participantSections, associationSections, impersonatingTenant]);
 
   if (!mounted || isLoading) {
     return (
@@ -387,7 +506,29 @@ export default function DashboardLayout({
           </Button>
         </div>
 
-        <nav className="p-4 flex-1 overflow-y-auto" style={{ maxHeight: "calc(100vh - 180px)" }}>
+        {/* Association Mode Banner */}
+        {impersonatingTenant && (
+          <div className="mx-3 mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 mb-2">
+              <Building2 className="h-4 w-4" />
+              <span className="text-sm font-medium">Modalità Associazione</span>
+            </div>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mb-2 font-semibold">
+              {impersonatingTenant.name}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs h-7 border-blue-300 text-blue-700 hover:bg-blue-100"
+              onClick={exitAssociationMode}
+            >
+              <LogOut className="h-3 w-3 mr-1" />
+              Esci dalla modalità
+            </Button>
+          </div>
+        )}
+
+        <nav className="p-4 flex-1 overflow-y-auto" style={{ maxHeight: impersonatingTenant ? "calc(100vh - 300px)" : "calc(100vh - 180px)" }}>
           <Link
             href={`/${locale}/dashboard`}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors mb-4 ${

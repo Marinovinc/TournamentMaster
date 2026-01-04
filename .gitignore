@@ -63,3 +63,30 @@ frontend/.capacitor/
 !frontend/public/**/*.png
 frontend/nul
 nul
+
+# Backup files
+*.BACKUP*
+*.backup
+*.bak
+
+# Debug/test scripts (Python)
+test_*.py
+check_*.py
+
+# Temporary exports
+data_export*.sql
+sync_report*.json
+
+# Test results
+test-results/
+playwright-report/
+
+# Sensitive credentials (never commit!)
+credentials.json
+credentials/
+ios-certificates/
+
+# Generated files
+*.bmp
+QR_*.html
+*_debug.html

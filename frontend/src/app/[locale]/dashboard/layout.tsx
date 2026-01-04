@@ -204,32 +204,7 @@ export default function DashboardLayout({
           },
         ],
       },
-      {
-        id: "tornei",
-        label: "Tornei per Associazione",
-        icon: <Trophy className="h-4 w-4" />,
-        roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
-        items: [
-          {
-            href: `/${locale}/dashboard/strikes`,
-            label: "Strike Live",
-            icon: <Zap className="h-4 w-4" />,
-            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
-          },
-          {
-            href: `/${locale}/dashboard/judge`,
-            label: "Catture da Validare",
-            icon: <CheckCircle className="h-4 w-4" />,
-            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
-          },
-          {
-            href: `/${locale}/dashboard/teams`,
-            label: "Barche/Team",
-            icon: <Ship className="h-4 w-4" />,
-            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
-          },
-        ],
-      },
+
       {
         id: "report",
         label: "Report e Statistiche",

@@ -243,12 +243,6 @@ export default function DashboardLayout({
             roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
           },
           {
-            href: `/${locale}/dashboard/admin`,
-            label: "Pannello Admin",
-            icon: <Settings className="h-4 w-4" />,
-            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
-          },
-          {
             href: `/${locale}/dashboard/admin/branding`,
             label: "Branding",
             icon: <Palette className="h-4 w-4" />,

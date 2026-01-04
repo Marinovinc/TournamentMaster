@@ -14,6 +14,7 @@ interface SubmitCatchData {
   speciesId?: string;
   photoPath: string;
   photoExifData?: string;
+  videoPath?: string;
   caughtAt: Date;
   notes?: string;
 }
@@ -138,6 +139,7 @@ export class CatchService {
         speciesId: data.speciesId,
         photoPath: data.photoPath,
         photoExifData: data.photoExifData,
+        videoPath: data.videoPath,
         caughtAt: data.caughtAt,
         notes: data.notes,
         status: CatchStatus.PENDING,

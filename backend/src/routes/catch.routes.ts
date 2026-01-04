@@ -22,6 +22,7 @@ const submitCatchValidation = [
   body("gpsAccuracy").optional().isFloat({ min: 0 }),
   body("speciesId").optional().isUUID(),
   body("photoPath").notEmpty().withMessage("Photo path required"),
+  body("videoPath").optional().isString().withMessage("Video path must be a string"),
   body("caughtAt").isISO8601().withMessage("Valid catch time required"),
   body("notes").optional().trim(),
 ];

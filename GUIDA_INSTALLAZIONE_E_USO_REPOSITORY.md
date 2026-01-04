@@ -1,13 +1,51 @@
 # Guida Completa: Installazione e Uso del Repository TournamentMaster
 
 **Repository GitHub:** https://github.com/Marinovinc/TournamentMaster
-**Data:** 2026-01-02
-**Versione:** 1.0.0
+**Data:** 2026-01-03 (aggiornato)
+**Versione:** 1.0.1
+
+---
+
+## TODO - Prossimi Passi
+
+### Priorita Alta
+- [ ] Risolvere warning middleware Next.js 16 ("proxy" invece di "middleware")
+- [ ] Configurare CORS restrittivo per produzione (attualmente `origin: true`)
+- [ ] Implementare refresh token automatico lato frontend
+- [ ] Aggiungere validazione form con Zod/Yup
+
+### Priorita Media
+- [ ] Integrare Stripe per pagamenti online
+- [ ] Configurare Cloudinary per upload media in cloud
+- [ ] Implementare notifiche push per Strike Live
+- [ ] Aggiungere test automatici (Jest/Vitest)
+
+### Priorita Bassa
+- [ ] Ottimizzare query database (N+1 problems)
+- [ ] Implementare caching Redis
+- [ ] PWA support per frontend
+- [ ] Dark mode
+
+---
+
+## Documenti Correlati
+
+| Documento | Descrizione | Ultimo Aggiornamento |
+|-----------|-------------|----------------------|
+| [DOCUMENTO_TECNICO_RIFERIMENTI_API_DATABASE_20260103.md](./DOCUMENTO_TECNICO_RIFERIMENTI_API_DATABASE_20260103.md) | Riferimento API, database, metodi, services | 2026-01-03 |
+| [HANDOVER_SESSIONE_AVVIO_20260103.md](./HANDOVER_SESSIONE_AVVIO_20260103.md) | Handover sessione avvio server | 2026-01-03 |
+| [DOCUMENTAZIONE_COMPLETA_TOURNAMENTMASTER.md](./DOCUMENTAZIONE_COMPLETA_TOURNAMENTMASTER.md) | Documentazione architetturale completa | 2026-01-02 |
+| [DOCUMENTAZIONE_TECNICA_TOURNAMENTMASTER_20251230.md](./DOCUMENTAZIONE_TECNICA_TOURNAMENTMASTER_20251230.md) | Documentazione tecnica precedente | 2025-12-30 |
+| [INDICE_DOCUMENTI_TOURNAMENTMASTER.md](./INDICE_DOCUMENTI_TOURNAMENTMASTER.md) | Indice di tutti i documenti | 2026-01-02 |
+| [GUIDA_AVVIO_E_GESTIONE_TOURNAMENTMASTER_SENZA_DOCKER.md](./GUIDA_AVVIO_E_GESTIONE_TOURNAMENTMASTER_SENZA_DOCKER.md) | Avvio senza Docker | 2025-12-30 |
+| [GUIDA_MIGRAZIONE_DA_RETE_LOCALE_A_HOSTING_CLOUD_TOURNAMENTMASTER.md](./GUIDA_MIGRAZIONE_DA_RETE_LOCALE_A_HOSTING_CLOUD_TOURNAMENTMASTER.md) | Guida deploy cloud | 2025-12-30 |
 
 ---
 
 ## Indice
 
+0. [TODO - Prossimi Passi](#todo---prossimi-passi)
+0. [Documenti Correlati](#documenti-correlati)
 1. [Cos'e Questo Repository](#cose-questo-repository)
 2. [Cosa Serve Prima di Iniziare](#cosa-serve-prima-di-iniziare)
 3. [Come Scaricare il Progetto](#come-scaricare-il-progetto)

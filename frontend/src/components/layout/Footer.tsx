@@ -74,6 +74,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/fipsas" className="text-muted-foreground hover:text-foreground transition-colors">
+                  FIPSAS
+                </Link>
+              </li>
+              <li>
                 <Link href="/register" className="text-muted-foreground hover:text-foreground transition-colors">
                   Registrati
                 </Link>

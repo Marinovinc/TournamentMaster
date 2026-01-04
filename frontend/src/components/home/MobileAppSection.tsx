@@ -32,33 +32,31 @@ const appFeatures = [
 ];
 
 export function MobileAppSection() {
-  // Download diretti dal sito - app proprietaria non su store
+  // Download da GitHub Releases - APK v1.0.2
+  const androidDownloadUrl = "https://github.com/Marinovinc/TournamentMaster/releases/download/v1.0.2/app-debug.apk";
+  // iOS ancora da path locale (non disponibile su GitHub)
   const iosDownloadUrl = "/downloads/TournamentMaster-iOS.ipa";
-  const androidDownloadUrl = "/downloads/TournamentMaster.apk";
 
-  // Base URL - usa IP rete locale per accesso da dispositivi mobili
-  // In sviluppo: Apache reverse proxy su porta 80 -> Next.js porta 3000
-  // In produzione: dominio reale (es. https://tournamentmaster.app)
+  // Base URL per iOS - usa IP rete locale per accesso da dispositivi mobili
   const localNetworkIp = "192.168.1.74";
   const productionUrl = "https://tournamentmaster.app";
 
-  // Determina se siamo in sviluppo locale o produzione
+  // Determina se siamo in sviluppo locale o produzione (solo per iOS)
   const [baseUrl, setBaseUrl] = useState(productionUrl);
 
   useEffect(() => {
     const hostname = window.location.hostname;
     if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.")) {
-      // Sviluppo locale - i file sono serviti da Apache su porta 80
       setBaseUrl(`http://${localNetworkIp}`);
     } else {
-      // Produzione - usa l'origin attuale
       setBaseUrl(window.location.origin);
     }
   }, []);
 
-  // URL completi per i QR code (passano attraverso Apache proxy)
+  // URL completi per i QR code
   const iosFullUrl = `${baseUrl}${iosDownloadUrl}`;
-  const androidFullUrl = `${baseUrl}${androidDownloadUrl}`;
+  // Android usa direttamente GitHub (URL assoluto)
+  const androidFullUrl = androidDownloadUrl;
 
   return (
     <section className="py-20 relative overflow-hidden" id="download-app">

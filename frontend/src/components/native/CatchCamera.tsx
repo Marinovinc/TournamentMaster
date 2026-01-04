@@ -4,13 +4,15 @@
  * =============================================================================
  * Percorso: src/components/native/CatchCamera.tsx
  * Creato: 2025-12-30
- * Descrizione: Componente per scattare foto catture con guida posizionamento
+ * Aggiornato: 2025-12-30 - Integrazione Cloudinary upload
+ * Descrizione: Componente per scattare foto catture con upload cloud
  *
  * Features:
  * - Overlay con guida per posizionare il pesce
  * - Cattura foto con metadati GPS
+ * - Upload automatico su Cloudinary CDN
  * - Preview e conferma prima dell'invio
- * - Funziona offline (salva localmente)
+ * - Fallback offline (salva localmente)
  * =============================================================================
  */
 
@@ -20,16 +22,29 @@ import { useState, useCallback } from "react";
 import { Camera, CameraResultType, CameraSource, Photo } from "@capacitor/camera";
 import { Geolocation, Position } from "@capacitor/geolocation";
 import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Network } from "@capacitor/network";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Camera as CameraIcon, MapPin, Check, X, Loader2, Fish } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Camera as CameraIcon, MapPin, Check, X, Loader2, Fish, Cloud, WifiOff } from "lucide-react";
+import { useUpload, UploadedMedia } from "@/hooks/useUpload";
 
 interface CatchPhoto {
-  dataUrl: string;
+  // URL foto (Cloudinary se online, dataUrl se offline)
+  url: string;
+  // URL thumbnail (solo se caricato su Cloudinary)
+  thumbnailUrl?: string;
+  // ID Cloudinary per eventuale eliminazione
+  publicId?: string;
+  // Coordinate GPS
   latitude: number | null;
   longitude: number | null;
+  // Timestamp cattura
   timestamp: Date;
+  // Indica se salvato localmente (offline mode)
   savedLocally: boolean;
+  // Indica se caricato su cloud
+  uploadedToCloud: boolean;
 }
 
 interface CatchCameraProps {
@@ -41,8 +56,16 @@ interface CatchCameraProps {
 export function CatchCamera({ onPhotoTaken, onCancel, tournamentId }: CatchCameraProps) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [preview, setPreview] = useState<CatchPhoto | null>(null);
+  const [preview, setPreview] = useState<{
+    dataUrl: string;
+    latitude: number | null;
+    longitude: number | null;
+    timestamp: Date;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Hook per upload Cloudinary
+  const { isUploading, uploadProgress, error: uploadError, uploadPhoto, reset: resetUpload } = useUpload();
 
   const getLocation = useCallback(async (): Promise<Position | null> => {
     try {
@@ -64,6 +87,7 @@ export function CatchCamera({ onPhotoTaken, onCancel, tournamentId }: CatchCamer
     try {
       setIsCapturing(true);
       setError(null);
+      resetUpload();
 
       // Cattura foto
       const photo: Photo = await Camera.getPhoto({
@@ -82,15 +106,12 @@ export function CatchCamera({ onPhotoTaken, onCancel, tournamentId }: CatchCamer
       // Ottieni posizione GPS
       const position = await getLocation();
 
-      const catchPhoto: CatchPhoto = {
+      setPreview({
         dataUrl: photo.dataUrl,
         latitude: position?.coords.latitude ?? null,
         longitude: position?.coords.longitude ?? null,
         timestamp: new Date(),
-        savedLocally: false,
-      };
-
-      setPreview(catchPhoto);
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Errore durante la cattura";
       setError(message);
@@ -98,35 +119,101 @@ export function CatchCamera({ onPhotoTaken, onCancel, tournamentId }: CatchCamer
     } finally {
       setIsCapturing(false);
     }
-  }, [getLocation]);
+  }, [getLocation, resetUpload]);
 
   const confirmPhoto = useCallback(async () => {
     if (!preview) return;
 
     try {
-      // Salva localmente per offline mode
-      const fileName = `catch_${tournamentId || "unknown"}_${Date.now()}.jpg`;
+      // Verifica connessione
+      const networkStatus = await Network.getStatus();
+      const isOnline = networkStatus.connected;
+
+      let catchPhoto: CatchPhoto;
+
+      if (isOnline) {
+        // Online: carica su Cloudinary
+        const uploaded = await uploadPhoto(preview.dataUrl, tournamentId);
+
+        if (uploaded) {
+          catchPhoto = {
+            url: uploaded.url,
+            thumbnailUrl: uploaded.thumbnailUrl,
+            publicId: uploaded.publicId,
+            latitude: preview.latitude,
+            longitude: preview.longitude,
+            timestamp: preview.timestamp,
+            savedLocally: false,
+            uploadedToCloud: true,
+          };
+        } else {
+          // Upload fallito, salva localmente come fallback
+          catchPhoto = await saveLocally(preview, tournamentId);
+        }
+      } else {
+        // Offline: salva localmente
+        catchPhoto = await saveLocally(preview, tournamentId);
+      }
+
+      onPhotoTaken(catchPhoto);
+      setPreview(null);
+      resetUpload();
+    } catch (err) {
+      console.error("Error confirming photo:", err);
+      // Fallback: invia comunque con dataUrl
+      onPhotoTaken({
+        url: preview.dataUrl,
+        latitude: preview.latitude,
+        longitude: preview.longitude,
+        timestamp: preview.timestamp,
+        savedLocally: false,
+        uploadedToCloud: false,
+      });
+      setPreview(null);
+      resetUpload();
+    }
+  }, [preview, tournamentId, onPhotoTaken, uploadPhoto, resetUpload]);
+
+  // Salva foto localmente per offline mode
+  const saveLocally = async (
+    photoData: { dataUrl: string; latitude: number | null; longitude: number | null; timestamp: Date },
+    tId?: string
+  ): Promise<CatchPhoto> => {
+    try {
+      const fileName = `catch_${tId || "unknown"}_${Date.now()}.jpg`;
       await Filesystem.writeFile({
         path: `catches/${fileName}`,
-        data: preview.dataUrl.split(",")[1], // Rimuovi prefix base64
+        data: photoData.dataUrl.split(",")[1],
         directory: Directory.Data,
         recursive: true,
       });
 
-      onPhotoTaken({ ...preview, savedLocally: true });
-      setPreview(null);
+      return {
+        url: photoData.dataUrl,
+        latitude: photoData.latitude,
+        longitude: photoData.longitude,
+        timestamp: photoData.timestamp,
+        savedLocally: true,
+        uploadedToCloud: false,
+      };
     } catch (err) {
       console.warn("Could not save locally:", err);
-      // Invia comunque anche se non salvato localmente
-      onPhotoTaken(preview);
-      setPreview(null);
+      return {
+        url: photoData.dataUrl,
+        latitude: photoData.latitude,
+        longitude: photoData.longitude,
+        timestamp: photoData.timestamp,
+        savedLocally: false,
+        uploadedToCloud: false,
+      };
     }
-  }, [preview, tournamentId, onPhotoTaken]);
+  };
 
   const retakePhoto = useCallback(() => {
     setPreview(null);
     setError(null);
-  }, []);
+    resetUpload();
+  }, [resetUpload]);
 
   // Preview della foto scattata
   if (preview) {
@@ -153,11 +240,31 @@ export function CatchCamera({ onPhotoTaken, onCancel, tournamentId }: CatchCamer
             )}
           </div>
 
+          {/* Progress bar durante upload */}
+          {isUploading && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Cloud className="h-4 w-4 animate-pulse" />
+                Caricamento su cloud...
+              </div>
+              <Progress value={uploadProgress} className="h-2" />
+            </div>
+          )}
+
+          {/* Errore upload */}
+          {uploadError && (
+            <div className="p-3 bg-amber-500/10 text-amber-600 text-sm rounded-lg flex items-center gap-2">
+              <WifiOff className="h-4 w-4" />
+              {uploadError} - Verra salvato localmente
+            </div>
+          )}
+
           <div className="flex gap-2">
             <Button
               variant="outline"
               className="flex-1"
               onClick={retakePhoto}
+              disabled={isUploading}
             >
               <X className="h-4 w-4 mr-2" />
               Riprova
@@ -165,9 +272,19 @@ export function CatchCamera({ onPhotoTaken, onCancel, tournamentId }: CatchCamer
             <Button
               className="flex-1 bg-emerald-600 hover:bg-emerald-700"
               onClick={confirmPhoto}
+              disabled={isUploading}
             >
-              <Check className="h-4 w-4 mr-2" />
-              Conferma
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {uploadProgress}%
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Conferma
+                </>
+              )}
             </Button>
           </div>
         </CardContent>
@@ -230,7 +347,7 @@ export function CatchCamera({ onPhotoTaken, onCancel, tournamentId }: CatchCamer
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          La posizione GPS verra aggiunta automaticamente alla foto
+          La foto verra caricata automaticamente su cloud con posizione GPS
         </p>
       </CardContent>
     </Card>

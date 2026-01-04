@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 export type UserRole =
   | "SUPER_ADMIN"
   | "TENANT_ADMIN"
+  | "PRESIDENT"       // Secondo admin della società (stessi permessi di TENANT_ADMIN)
   | "ORGANIZER"
   | "JUDGE"
   | "PARTICIPANT";
@@ -49,6 +50,7 @@ interface AuthContextType extends AuthState {
   isAdmin: boolean;
   isJudge: boolean;
   isOrganizer: boolean;
+  isPresident: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -154,9 +156,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state.user]);
 
   // Computed role checks
-  const isAdmin = state.user?.role === "SUPER_ADMIN" || state.user?.role === "TENANT_ADMIN";
+  // PRESIDENT ha gli stessi permessi di TENANT_ADMIN
+  const isAdmin = state.user?.role === "SUPER_ADMIN" || state.user?.role === "TENANT_ADMIN" || state.user?.role === "PRESIDENT";
   const isJudge = state.user?.role === "JUDGE";
   const isOrganizer = state.user?.role === "ORGANIZER";
+  const isPresident = state.user?.role === "PRESIDENT";
 
   const value: AuthContextType = {
     ...state,
@@ -166,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin,
     isJudge,
     isOrganizer,
+    isPresident,
   };
 
   return (

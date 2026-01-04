@@ -13,6 +13,7 @@ import { param, query, validationResult } from "express-validator";
 import { authenticate, authorize, getTenantId } from "../middleware/auth.middleware";
 import { AuthenticatedRequest, UserRole } from "../types";
 import { ReportsService } from "../services/reports.service";
+import { PDFService } from "../services/pdf.service";
 
 const router = Router();
 
@@ -206,7 +207,7 @@ router.get(
 );
 
 // =============================================================================
-// EXPORT ENDPOINTS
+// EXPORT ENDPOINTS - CSV
 // =============================================================================
 
 /**
@@ -321,6 +322,156 @@ router.get(
       res.send(csv);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to export CSV";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+// =============================================================================
+// EXPORT ENDPOINTS - PDF
+// =============================================================================
+
+/**
+ * GET /api/reports/export/pdf/judge-assignments/:tournamentId
+ * Download PDF Assegnazioni Giudici di Bordo
+ */
+router.get(
+  "/export/pdf/judge-assignments/:tournamentId",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER),
+  param("tournamentId").isUUID(),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = getTenantId(req);
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          message: "Seleziona un'associazione per visualizzare i dati",
+        });
+      }
+
+      const pdfBuffer = await PDFService.generateJudgeAssignmentsPDF(
+        req.params.tournamentId,
+        tenantId
+      );
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=assegnazioni_giudici_${req.params.tournamentId.slice(0, 8)}_${new Date().toISOString().split("T")[0]}.pdf`
+      );
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.send(pdfBuffer);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate PDF";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+/**
+ * GET /api/reports/export/pdf/judge-assignments/:tournamentId/preview
+ * Anteprima PDF Assegnazioni Giudici (apre in browser)
+ */
+router.get(
+  "/export/pdf/judge-assignments/:tournamentId/preview",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER),
+  param("tournamentId").isUUID(),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = getTenantId(req);
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          message: "Seleziona un'associazione per visualizzare i dati",
+        });
+      }
+
+      const pdfBuffer = await PDFService.generateJudgeAssignmentsPDF(
+        req.params.tournamentId,
+        tenantId
+      );
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "inline");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.send(pdfBuffer);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate PDF";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+/**
+ * GET /api/reports/export/pdf/leaderboard/:tournamentId
+ * Download PDF Classifica Torneo (FIPSAS compliant)
+ */
+router.get(
+  "/export/pdf/leaderboard/:tournamentId",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER, UserRole.JUDGE),
+  param("tournamentId").isUUID(),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = getTenantId(req);
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          message: "Seleziona un'associazione per visualizzare i dati",
+        });
+      }
+
+      const pdfBuffer = await PDFService.generateLeaderboardPDF(
+        req.params.tournamentId,
+        tenantId
+      );
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=classifica_${req.params.tournamentId.slice(0, 8)}_${new Date().toISOString().split("T")[0]}.pdf`
+      );
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.send(pdfBuffer);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate PDF";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+/**
+ * GET /api/reports/export/pdf/leaderboard/:tournamentId/preview
+ * Anteprima PDF Classifica Torneo (apre in browser)
+ */
+router.get(
+  "/export/pdf/leaderboard/:tournamentId/preview",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER, UserRole.JUDGE),
+  param("tournamentId").isUUID(),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = getTenantId(req);
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          message: "Seleziona un'associazione per visualizzare i dati",
+        });
+      }
+
+      const pdfBuffer = await PDFService.generateLeaderboardPDF(
+        req.params.tournamentId,
+        tenantId
+      );
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "inline");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.send(pdfBuffer);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate PDF";
       res.status(500).json({ success: false, message });
     }
   }

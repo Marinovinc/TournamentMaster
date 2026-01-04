@@ -32,8 +32,12 @@ COPY . .
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Railway passes env vars as build args - use them for Next.js build
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 # Build Next.js app with standalone output
-RUN npm run build
+RUN echo "Building with API URL: $NEXT_PUBLIC_API_URL" && npm run build
 
 # ============================================
 # STAGE 3: Development

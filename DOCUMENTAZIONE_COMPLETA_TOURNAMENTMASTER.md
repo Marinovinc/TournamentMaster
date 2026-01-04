@@ -3365,4 +3365,415 @@ cd android
 
 ---
 
+## Parte 5 - Funzioni Dettagliate Backend e Frontend
+
+### Panoramica Architettura
+
+TournamentMaster è un'applicazione **multi-tenant** per la gestione di tornei di pesca. L'architettura separa chiaramente:
+- **Backend**: API RESTful con Express.js + TypeScript
+- **Frontend**: Next.js 14 con App Router + TypeScript
+
+---
+
+## Funzioni Backend - Routes Dettagliate
+
+### 1. Auth Routes (`/api/auth`)
+
+**File**: `backend/src/routes/auth.routes.ts`
+
+| Endpoint | Metodo | Descrizione | Auth |
+|----------|--------|-------------|------|
+| `/register` | POST | Registrazione nuovo utente | No |
+| `/login` | POST | Autenticazione con email/password | No |
+| `/refresh` | POST | Rinnovo access token tramite refresh token | No |
+| `/logout` | POST | Invalidazione refresh token | Sì |
+
+**Validazioni Register:**
+- `email`: formato email valido, unico nel sistema
+- `password`: minimo 6 caratteri
+- `firstName`, `lastName`: obbligatori
+- `phone`: opzionale
+
+**Processo Login:**
+1. Verifica credenziali (bcrypt)
+2. Genera JWT access token (15 min) + refresh token (7 giorni)
+3. Salva refresh token nel database
+4. Restituisce tokens + dati utente
+
+---
+
+### 2. Tenant Routes (`/api/tenants`)
+
+**File**: `backend/src/routes/tenant.routes.ts`
+
+**Accesso**: Solo `SUPER_ADMIN`
+
+| Endpoint | Metodo | Descrizione |
+|----------|--------|-------------|
+| `/` | GET | Lista tutte le associazioni (paginata) |
+| `/:id` | GET | Dettaglio singola associazione |
+| `/` | POST | Crea nuova associazione con admin |
+| `/:id` | PUT | Aggiorna dati associazione |
+| `/:id/confirm` | PATCH | Conferma registrazione (attiva tenant) |
+| `/:id/freeze` | PATCH | Congela/scongela associazione |
+| `/:id/impersonate` | POST | Entra in modalità amministrazione tenant |
+| `/exit-impersonation` | POST | Esci da modalità impersonazione |
+| `/:id/stats` | GET | Statistiche associazione |
+
+**Funzionalità chiave:**
+- **Creazione tenant**: Crea associazione + utente admin in transazione atomica
+- **Impersonation**: Super admin può amministrare qualsiasi tenant generando token speciale
+- **Freeze/Unfreeze**: Blocco temporaneo associazioni (es. mancato pagamento)
+
+---
+
+### 3. User Routes (`/api/users`)
+
+**File**: `backend/src/routes/user.routes.ts`
+
+| Endpoint | Metodo | Descrizione | Permessi |
+|----------|--------|-------------|----------|
+| `/` | GET | Lista utenti (filtri: search, role, isActive) | Admin |
+| `/me` | GET | Profilo utente corrente | Autenticato |
+| `/me` | PUT | Aggiorna proprio profilo | Autenticato |
+| `/:id` | GET | Dettaglio utente specifico | Admin |
+| `/:id` | PUT | Aggiorna utente (anche ruolo) | Admin |
+| `/:id/status` | PATCH | Attiva/disattiva utente | Admin |
+| `/:id` | DELETE | Elimina utente (soft delete) | Super Admin |
+
+**Controlli sicurezza:**
+- Non-super admin vedono solo utenti del proprio tenant
+- Non si può auto-disattivare
+- Solo super admin può assegnare ruolo `SUPER_ADMIN`
+
+---
+
+### 4. Team Routes (`/api/teams`)
+
+**File**: `backend/src/routes/team.routes.ts`
+
+| Endpoint | Metodo | Descrizione | Permessi |
+|----------|--------|-------------|----------|
+| `/` | GET | Lista team (filtro per torneo) | Autenticato |
+| `/:id` | GET | Dettaglio team con membri e strike | Autenticato |
+| `/` | POST | Crea nuovo team/barca | Autenticato |
+| `/:id` | PUT | Aggiorna team | Admin/Capitano |
+| `/:id` | DELETE | Elimina team | Admin |
+| `/:id/members` | POST | Aggiungi membro equipaggio | Admin/Capitano |
+| `/:id/members/:userId` | DELETE | Rimuovi membro | Admin/Capitano |
+| `/:id/inspector` | PUT | Assegna ispettore di bordo | Admin |
+| `/tournament/:tournamentId` | GET | Team di un torneo specifico | Autenticato |
+
+**Campi Team:**
+- `name`: Nome team
+- `boatName`: Nome barca
+- `boatNumber`: Numero assegnato (solo admin)
+- `clubName`, `clubCode`: Dati circolo
+- `inspectorId`, `inspectorName`, `inspectorClub`: Ispettore bordo
+
+---
+
+### 5. Strike Routes (`/api/strikes`)
+
+**File**: `backend/src/routes/strike.routes.ts`
+
+**Strike = Abboccata durante la gara**
+
+| Endpoint | Metodo | Descrizione | Permessi |
+|----------|--------|-------------|----------|
+| `/` | GET | Lista strike (filtri: torneo, team) | Autenticato |
+| `/:id` | GET | Dettaglio strike | Autenticato |
+| `/` | POST | Registra nuovo strike | Membro team/Ispettore/Admin |
+| `/:id` | PUT | Aggiorna strike | Reporter/Capitano/Ispettore/Admin |
+| `/:id` | DELETE | Elimina strike | Admin/Judge |
+| `/team/:teamId` | GET | Strike di un team + statistiche | Autenticato |
+| `/tournament/:tournamentId/live` | GET | Feed live strike torneo | Autenticato |
+| `/:id/result` | POST | Aggiorna risultato (CATCH/LOST/RELEASED) | Autorizzato |
+
+**Dati Strike:**
+- `rodCount`: Numero canne (1-10)
+- `strikeAt`: Timestamp abboccata
+- `latitude`, `longitude`: Coordinate GPS (opzionali)
+- `result`: CATCH, LOST, RELEASED
+- `notes`: Note aggiuntive
+
+**Validazioni:**
+- Torneo deve essere in stato `ONGOING`
+- Team deve essere iscritto al torneo
+- Solo membri team, ispettori o admin possono registrare
+
+---
+
+### 6. Catch Routes (`/api/catches`)
+
+**File**: `backend/src/routes/catch.routes.ts`
+
+| Endpoint | Metodo | Descrizione | Permessi |
+|----------|--------|-------------|----------|
+| `/` | GET | Lista catture (filtri multipli) | Autenticato |
+| `/:id` | GET | Dettaglio cattura con validazioni | Autenticato |
+| `/` | POST | Registra nuova cattura | Partecipante |
+| `/:id` | PUT | Aggiorna cattura (solo pending) | Owner |
+| `/:id` | DELETE | Elimina cattura | Owner (se pending) o Admin |
+| `/:id/approve` | POST | Approva cattura | Judge/Admin |
+| `/:id/reject` | POST | Rifiuta cattura | Judge/Admin |
+| `/user/:userId` | GET | Catture di un utente | Autenticato |
+
+**Dati Cattura:**
+- `weight`: Peso in grammi (obbligatorio)
+- `length`: Lunghezza cm (opzionale)
+- `photoUrl`, `videoUrl`: Media cattura
+- `latitude`, `longitude`: GPS obbligatorio
+- `speciesId`: Specie (opzionale)
+- `status`: PENDING → APPROVED/REJECTED
+
+**Validazione GPS:**
+- Coordinate devono essere all'interno delle zone di pesca del torneo
+- Usa libreria Turf.js per calcoli geospaziali
+
+---
+
+### 7. Leaderboard Routes (`/api/leaderboard`)
+
+**File**: `backend/src/routes/leaderboard.routes.ts`
+
+| Endpoint | Metodo | Descrizione | Auth |
+|----------|--------|-------------|------|
+| `/tournament/:tournamentId` | GET | Classifica completa torneo | No |
+| `/tournament/:tournamentId/top/:n` | GET | Top N partecipanti | No |
+| `/tournament/:tournamentId/user/:userId` | GET | Posizione specifico utente | No |
+| `/tournament/:tournamentId/stats` | GET | Statistiche aggregate torneo | No |
+
+**Statistiche disponibili:**
+- Totale catture, peso totale, media peso
+- Distribuzione per specie
+- Partecipanti attivi
+
+---
+
+### 8. Upload Routes (`/api/upload`)
+
+**File**: `backend/src/routes/upload.routes.ts`
+
+**Storage**: Cloudinary CDN
+
+| Endpoint | Metodo | Descrizione | Limiti |
+|----------|--------|-------------|--------|
+| `/catch-photo` | POST | Upload foto cattura | Max 10MB, JPG/PNG |
+| `/catch-video` | POST | Upload video cattura | Max 100MB, MP4/MOV |
+| `/file` | DELETE | Elimina file da Cloudinary | - |
+
+**Trasformazioni automatiche:**
+- Foto: resize a max 1920px, qualità 80%
+- Thumbnail: 400x400px automatico
+- Video: streaming ottimizzato
+
+---
+
+## Funzioni Frontend - Pagine e Componenti
+
+### Contesti React (State Management)
+
+#### AuthContext (`contexts/AuthContext.tsx`)
+
+**Gestione globale autenticazione:**
+
+```typescript
+interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email, password) => Promise<void>;
+  logout: () => void;
+  register: (data) => Promise<void>;
+  refreshToken: () => Promise<void>;
+}
+```
+
+**Helper functions per ruoli:**
+- `isAdmin()`: SUPER_ADMIN o TENANT_ADMIN
+- `isJudge()`: Ruolo JUDGE
+- `isOrganizer()`: Ruolo ORGANIZER
+- `isPresident()`: Ruolo PRESIDENT
+- `isSuperAdmin()`: Solo SUPER_ADMIN
+
+---
+
+### Pagine Dashboard
+
+#### 1. Dashboard Admin (`/dashboard/admin`)
+**Accesso**: SUPER_ADMIN, TENANT_ADMIN
+
+**Funzionalità:**
+- Statistiche generali (utenti, tornei, catture)
+- Gestione rapida tornei attivi
+- Link a gestione utenti e impostazioni
+
+#### 2. Dashboard Judge (`/dashboard/judge`)
+**Accesso**: JUDGE
+
+**Funzionalità:**
+- Lista catture da approvare
+- Workflow approvazione/rifiuto
+- Statistiche validazioni giornaliere
+
+#### 3. Dashboard Reports (`/dashboard/reports`)
+**Funzionalità:**
+- Report aggregati per torneo
+- Export dati (CSV/PDF)
+- Grafici performance
+
+#### 4. Dashboard Strikes (`/dashboard/strikes`)
+**Funzionalità:**
+- Monitoraggio strike live
+- Statistiche per team
+- Timeline eventi
+
+#### 5. Dashboard Super Admin (`/dashboard/super-admin`)
+**Accesso**: Solo SUPER_ADMIN
+
+**Funzionalità:**
+- Gestione multi-tenant
+- Creazione nuove associazioni
+- Monitoraggio sistema globale
+
+#### 6. Dashboard Teams (`/dashboard/teams`)
+**Funzionalità:**
+- Lista team per torneo
+- Creazione/modifica team
+- Gestione equipaggio
+- Assegnazione ispettori
+
+#### 7. Dashboard Tournaments (`/dashboard/tournaments`)
+**Funzionalità:**
+- Lista tornei (draft, attivi, completati)
+- Creazione nuovo torneo
+- Gestione lifecycle (DRAFT → REGISTRATION → ONGOING → COMPLETED)
+
+#### 8. Dashboard Users (`/dashboard/users`)
+**Accesso**: Admin
+
+**Funzionalità:**
+- Lista utenti con filtri
+- Modifica ruoli
+- Attivazione/disattivazione
+
+---
+
+### Componenti UI Principali
+
+#### CatchCamera (`components/native/CatchCamera.tsx`)
+**Funzione**: Acquisizione foto/video catture con GPS
+
+**Caratteristiche:**
+- Interfaccia fotocamera nativa (Capacitor)
+- Overlay per peso e note
+- Acquisizione coordinate GPS automatica
+- Preview prima dell'invio
+
+#### LiveLeaderboard (`components/native/LiveLeaderboard.tsx`)
+**Funzione**: Classifica in tempo reale
+
+**Caratteristiche:**
+- Auto-refresh configurabile
+- Animazioni per cambi posizione
+- Filtri per categoria/specie
+
+#### Header (`components/Header.tsx`)
+**Funzione**: Navigazione principale
+
+**Elementi:**
+- Logo/nome app
+- Menu navigazione
+- Selettore lingua
+- Menu utente (login/logout)
+
+#### LanguageSelector (`components/LanguageSelector.tsx`)
+**Funzione**: Cambio lingua interfaccia
+
+**Lingue supportate:**
+- Italiano (it)
+- English (en)
+- Deutsch (de)
+- Español (es)
+- Français (fr)
+
+---
+
+### Sistema i18n
+
+**Configurazione**: `i18n/config.ts`
+
+**Struttura traduzioni** (`i18n/locales/[lang]/`):
+```
+├── common.json      # Testi generici
+├── auth.json        # Login/registrazione
+├── tournament.json  # Gestione tornei
+├── catch.json       # Catture
+├── leaderboard.json # Classifiche
+└── errors.json      # Messaggi errore
+```
+
+**Uso nei componenti:**
+```tsx
+import { useTranslations } from 'next-intl';
+const t = useTranslations('tournament');
+// t('create.title') → "Crea Torneo"
+```
+
+---
+
+## Riepilogo Ruoli e Permessi
+
+| Ruolo | Tenant | Tornei | Team | Strike | Catture | Utenti |
+|-------|--------|--------|------|--------|---------|--------|
+| SUPER_ADMIN | CRUD | CRUD | CRUD | CRUD | Approva | CRUD |
+| TENANT_ADMIN | View own | CRUD | CRUD | CRUD | Approva | CRUD tenant |
+| PRESIDENT | View own | CRUD | CRUD | CRUD | Approva | View |
+| ORGANIZER | - | Manage | View | View | View | - |
+| JUDGE | - | View | View | View | Approva | - |
+| PARTICIPANT | - | Iscriviti | Own team | Registra | Registra | Own profile |
+
+---
+
+## Flusso Operativo Tipico
+
+### 1. Setup Iniziale (Super Admin)
+1. Crea tenant (associazione)
+2. Assegna admin del tenant
+3. Configura impostazioni
+
+### 2. Preparazione Torneo (Admin/President)
+1. Crea torneo (DRAFT)
+2. Definisce zone di pesca (GeoJSON)
+3. Configura specie e punteggi
+4. Apre iscrizioni (REGISTRATION)
+
+### 3. Iscrizione (Partecipante)
+1. Registrazione account
+2. Upload documenti (licenza, certificato medico)
+3. Iscrizione torneo
+4. Creazione team/barca
+5. Aggiunta membri equipaggio
+
+### 4. Gara (ONGOING)
+1. Check-in partecipanti
+2. Registrazione strike (abboccate)
+3. Registrazione catture con foto/GPS
+4. Validazione catture (giudici)
+5. Classifica live
+
+### 5. Chiusura (COMPLETED)
+1. Validazione finale catture
+2. Calcolo classifica definitiva
+3. Generazione report
+4. Archiviazione dati
+
+---
+
+*Sezione aggiunta da Claude Code - 2026-01-02*
+
+---
+
 *Documento generato da Claude Code - 2026-01-02*

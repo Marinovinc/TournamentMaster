@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import Image from "next/image";
 import {
   MapPin,
   Timer,
@@ -44,7 +45,21 @@ export function HeroSection() {
       <div className="absolute inset-0 bg-sea-gradient opacity-5" />
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-wave-pattern opacity-50" />
 
-      <div className="container mx-auto px-4 py-20 md:py-28 text-center relative">
+      {/* Banner full-width */}
+      <div className="w-full">
+        <Image
+          src="/banner.png"
+          alt="TournamentMaster Banner"
+          width={1920}
+          height={400}
+          className="w-full h-auto object-cover"
+          priority
+          sizes="100vw"
+        />
+      </div>
+
+      <div className="container mx-auto px-4 py-12 md:py-20 text-center relative">
+
         <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-sm font-medium">
           <Sparkles className="h-3.5 w-3.5 mr-2" />
           {t("home.badge")}

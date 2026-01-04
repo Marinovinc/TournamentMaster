@@ -6,10 +6,10 @@
     "slug": "tournamentmaster",
     "version": "1.0.0",
     "orientation": "portrait",
-    
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
     "splash": {
-      
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#0066CC"
     },
@@ -17,19 +17,21 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.tournamentmaster.app",
       "buildNumber": "1",
+      "icon": "./assets/icon.png",
       "infoPlist": {
         "NSCameraUsageDescription": "Per fotografare le catture durante i tornei",
         "NSLocationWhenInUseUsageDescription": "Per validare la posizione delle catture",
         "NSLocationAlwaysUsageDescription": "Per tracking continuo durante il torneo",
         "NSPhotoLibraryUsageDescription": "Per salvare le foto delle catture",
-        "NSMicrophoneUsageDescription": "Per registrare video con audio"
+        "NSMicrophoneUsageDescription": "Per registrare video con audio",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.tournamentmaster.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0066CC"
       },
       "permissions": [
@@ -41,6 +43,18 @@
         "WRITE_EXTERNAL_STORAGE",
         "VIBRATE"
       ]
-    }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0a5f2e21-ef12-4c5a-8f3c-bf8e86ada779"
+      }
+    },
+    "owner": "marinovinc"
   }
 }

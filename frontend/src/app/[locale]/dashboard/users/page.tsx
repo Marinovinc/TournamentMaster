@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Building2,
 } from "lucide-react";
 import { HelpGuide } from "@/components/HelpGuide";
 
@@ -142,6 +143,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
+  const [tenantFilter, setTenantFilter] = useState<string>("ALL");
   const [sortField, setSortField] = useState<SortField>("role");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -189,6 +191,18 @@ export default function UsersPage() {
 
     fetchData();
   }, [token, API_URL]);
+  // Extract unique tenants from users
+  const tenants = useMemo(() => {
+    const tenantMap = new Map<string, { id: string; name: string }>();
+    users.forEach((u) => {
+      if (u.tenant) {
+        tenantMap.set(u.tenant.id, u.tenant);
+      }
+    });
+    return Array.from(tenantMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [users]);
+
+
 
   // Handle sort toggle
   const handleSort = (field: SortField) => {
@@ -218,7 +232,8 @@ export default function UsersPage() {
         u.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         u.email.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesRole = roleFilter === "ALL" || u.role === roleFilter;
-      return matchesSearch && matchesRole;
+      const matchesTenant = tenantFilter === "ALL" || u.tenant?.id === tenantFilter;
+      return matchesSearch && matchesRole && matchesTenant;
     })
     .sort((a, b) => {
       let comparison = 0;
@@ -460,6 +475,20 @@ export default function UsersPage() {
                   className="pl-9 w-full sm:w-[200px]"
                 />
               </div>
+              <Select value={tenantFilter} onValueChange={setTenantFilter}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <Building2 className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filtra per associazione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tutte le associazioni</SelectItem>
+                  {tenants.map((tenant) => (
+                    <SelectItem key={tenant.id} value={tenant.id}>
+                      {tenant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Filtra per ruolo" />

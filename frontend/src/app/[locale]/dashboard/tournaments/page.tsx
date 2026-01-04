@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,7 @@ import {
   Users,
   Download,
   FileText,
+  Building2,
 } from "lucide-react";
 import { HelpGuide } from "@/components/HelpGuide";
 
@@ -86,6 +87,10 @@ interface Tournament {
   registrationFee?: number;
   participantCount?: number;
   bannerImage?: string;
+  tenant?: {
+    id: string;
+    name: string;
+  };
   _count?: {
     teams: number;
   };
@@ -101,6 +106,7 @@ export default function TournamentsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [tenantFilter, setTenantFilter] = useState<string>("ALL");
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -125,6 +131,17 @@ export default function TournamentsPage() {
   });
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+  // Extract unique tenants for filter
+  const tenants = useMemo(() => {
+    const tenantMap = new Map<string, { id: string; name: string }>();
+    tournaments.forEach((t) => {
+      if (t.tenant) {
+        tenantMap.set(t.tenant.id, t.tenant);
+      }
+    });
+    return Array.from(tenantMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [tournaments]);
 
   // Fetch tournaments
   useEffect(() => {
@@ -191,7 +208,8 @@ export default function TournamentsPage() {
     const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           t.location.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "ALL" || t.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesTenant = tenantFilter === "ALL" || t.tenant?.id === tenantFilter;
+    return matchesSearch && matchesStatus && matchesTenant;
   });
 
   // Handle create tournament
@@ -446,6 +464,22 @@ export default function TournamentsPage() {
                   className="pl-9 w-full sm:w-[200px]"
                 />
               </div>
+              <Select value={tenantFilter} onValueChange={setTenantFilter}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    <SelectValue placeholder="Tutte le associazioni" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tutte le associazioni</SelectItem>
+                  {tenants.map((tenant) => (
+                    <SelectItem key={tenant.id} value={tenant.id}>
+                      {tenant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Filtra per stato" />

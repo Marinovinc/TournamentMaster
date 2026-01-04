@@ -1,15 +1,17 @@
 /**
  * =============================================================================
- * DASHBOARD LAYOUT
+ * DASHBOARD LAYOUT - Sidebar Contestuale v2.0
  * =============================================================================
- * Layout condiviso per tutte le pagine dashboard
- * Include sidebar navigazione e header con info utente
+ * Layout con sidebar organizzata in sezioni collassabili
+ * - Filtro per RUOLO utente
+ * - Espansione contestuale basata sulla pagina corrente
+ * - Sezioni personalizzate per PARTICIPANT
  * =============================================================================
  */
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter, usePathname, useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,14 +26,19 @@ import {
   Menu,
   X,
   CheckCircle,
-  FileText,
   BarChart3,
   Bell,
   ChevronDown,
+  ChevronRight,
   Ship,
   Zap,
   Building2,
   Palette,
+  Anchor,
+  Award,
+  Calendar,
+  CreditCard,
+  FileText,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -47,6 +54,95 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   roles?: string[];
+  badge?: number;
+}
+
+interface SidebarSection {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  items: NavItem[];
+  roles?: string[];
+}
+
+function SidebarSectionComponent({
+  section,
+  isExpanded,
+  onToggle,
+  pathname,
+  locale,
+  onItemClick,
+  userRole,
+}: {
+  section: SidebarSection;
+  isExpanded: boolean;
+  onToggle: () => void;
+  pathname: string;
+  locale: string;
+  onItemClick: () => void;
+  userRole: string;
+}) {
+  const visibleItems = section.items.filter((item) => {
+    if (!item.roles) return true;
+    return item.roles.includes(userRole);
+  });
+
+  if (visibleItems.length === 0) return null;
+
+  const hasActiveItem = visibleItems.some((item) => pathname === item.href);
+
+  return (
+    <div className="mb-2">
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+          hasActiveItem
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          {section.icon}
+          <span>{section.label}</span>
+        </div>
+        <ChevronRight
+          className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
+        />
+      </button>
+
+      <div
+        className={`overflow-hidden transition-all duration-200 ease-in-out ${
+          isExpanded ? "max-h-96 opacity-100 mt-1" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="pl-4 space-y-1">
+          {visibleItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={onItemClick}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function DashboardLayout({
@@ -54,93 +150,230 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isAuthenticated, isLoading, logout, hasRole } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
-  const locale = params.locale as string || "it";
+  const locale = (params.locale as string) || "it";
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set()
+  );
+
+  const operationalSections: SidebarSection[] = useMemo(
+    () => [
+      {
+        id: "gestione",
+        label: "Gestione",
+        icon: <Settings className="h-4 w-4" />,
+        roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
+        items: [
+          {
+            href: `/${locale}/dashboard/super-admin`,
+            label: "Associazioni",
+            icon: <Building2 className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN"],
+          },
+          {
+            href: `/${locale}/dashboard/users`,
+            label: "Utenti",
+            icon: <Users className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
+          },
+
+        ],
+      },
+      {
+        id: "admin",
+        label: "Amministrazione",
+        icon: <CreditCard className="h-4 w-4" />,
+        roles: ["SUPER_ADMIN"],
+        items: [
+          {
+            href: `/${locale}/dashboard/subscriptions`,
+            label: "Abbonamenti",
+            icon: <CreditCard className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN"],
+          },
+          {
+            href: `/${locale}/dashboard/payments`,
+            label: "Pagamenti",
+            icon: <FileText className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN"],
+          },
+        ],
+      },
+      {
+        id: "tornei",
+        label: "Tornei per Associazione",
+        icon: <Trophy className="h-4 w-4" />,
+        roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+        items: [
+          {
+            href: `/${locale}/dashboard/strikes`,
+            label: "Strike Live",
+            icon: <Zap className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+          },
+          {
+            href: `/${locale}/dashboard/judge`,
+            label: "Catture da Validare",
+            icon: <CheckCircle className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+          },
+          {
+            href: `/${locale}/dashboard/teams`,
+            label: "Barche/Team",
+            icon: <Ship className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+          },
+        ],
+      },
+      {
+        id: "report",
+        label: "Report e Statistiche",
+        icon: <BarChart3 className="h-4 w-4" />,
+        roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+        items: [
+          {
+            href: `/${locale}/dashboard/reports`,
+            label: "Report & Classifiche",
+            icon: <BarChart3 className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+          },
+          {
+            href: `/${locale}/dashboard/admin`,
+            label: "Pannello Admin",
+            icon: <Settings className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+          },
+          {
+            href: `/${locale}/dashboard/admin/branding`,
+            label: "Branding",
+            icon: <Palette className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
+          },
+        ],
+      },
+    ],
+    [locale]
+  );
+
+  const participantSections: SidebarSection[] = useMemo(
+    () => [
+      {
+        id: "miei-tornei",
+        label: "I Miei Tornei",
+        icon: <Trophy className="h-4 w-4" />,
+        items: [
+          {
+            href: `/${locale}/dashboard/my-tournaments`,
+            label: "Tornei Iscritti",
+            icon: <Calendar className="h-4 w-4" />,
+          },
+          {
+            href: `/${locale}/dashboard/my-catches`,
+            label: "Le Mie Catture",
+            icon: <Fish className="h-4 w-4" />,
+          },
+          {
+            href: `/${locale}/dashboard/my-results`,
+            label: "I Miei Risultati",
+            icon: <Award className="h-4 w-4" />,
+          },
+        ],
+      },
+      {
+        id: "mia-barca",
+        label: "La Mia Barca",
+        icon: <Anchor className="h-4 w-4" />,
+        items: [
+          {
+            href: `/${locale}/dashboard/my-team`,
+            label: "Il Mio Equipaggio",
+            icon: <Users className="h-4 w-4" />,
+          },
+          {
+            href: `/${locale}/dashboard/my-boat`,
+            label: "Dati Barca",
+            icon: <Ship className="h-4 w-4" />,
+          },
+        ],
+      },
+    ],
+    [locale]
+  );
+
+  const getExpandedSectionsForPath = (path: string): Set<string> => {
+    const expanded = new Set<string>();
+    const pathMappings: Record<string, string[]> = {
+      [`/${locale}/dashboard/super-admin`]: ["gestione"],
+      [`/${locale}/dashboard/users`]: ["gestione"],
+      [`/${locale}/dashboard/subscriptions`]: ["admin"],
+      [`/${locale}/dashboard/payments`]: ["admin"],
+      [`/${locale}/dashboard/strikes`]: ["tornei"],
+      [`/${locale}/dashboard/judge`]: ["tornei"],
+      [`/${locale}/dashboard/teams`]: ["tornei"],
+      [`/${locale}/dashboard/reports`]: ["report"],
+      [`/${locale}/dashboard/admin`]: ["report"],
+      [`/${locale}/dashboard/admin/branding`]: ["report"],
+      [`/${locale}/dashboard/my-tournaments`]: ["miei-tornei"],
+      [`/${locale}/dashboard/my-catches`]: ["miei-tornei"],
+      [`/${locale}/dashboard/my-results`]: ["miei-tornei"],
+      [`/${locale}/dashboard/my-team`]: ["mia-barca"],
+      [`/${locale}/dashboard/my-boat`]: ["mia-barca"],
+    };
+    if (pathMappings[path]) {
+      pathMappings[path].forEach((s) => expanded.add(s));
+    }
+    Object.entries(pathMappings).forEach(([pattern, sections]) => {
+      if (path.startsWith(pattern + "/")) {
+        sections.forEach((s) => expanded.add(s));
+      }
+    });
+    return expanded;
+  };
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push(`/${locale}/login`);
     }
   }, [isLoading, isAuthenticated, router, locale]);
 
-  // Navigation items based on role
-  const navItems: NavItem[] = [
-    {
-      href: `/${locale}/dashboard`,
-      label: "Dashboard",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      href: `/${locale}/dashboard/super-admin`,
-      label: "Gestione Associazioni",
-      icon: <Building2 className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN"],
-    },
-    {
-      href: `/${locale}/dashboard/admin`,
-      label: "Admin",
-      icon: <Settings className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
-    },
-    {
-      href: `/${locale}/dashboard/judge`,
-      label: "Catture da Validare",
-      icon: <CheckCircle className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
-    },
-    {
-      href: `/${locale}/dashboard/teams`,
-      label: "Barche/Team",
-      icon: <Ship className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
-    },
-    {
-      href: `/${locale}/dashboard/strikes`,
-      label: "Strike Live",
-      icon: <Zap className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
-    },
-    {
-      href: `/${locale}/dashboard/tournaments`,
-      label: "Tornei",
-      icon: <Trophy className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
-    },
-    {
-      href: `/${locale}/dashboard/users`,
-      label: "Utenti",
-      icon: <Users className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
-    },
-    {
-      href: `/${locale}/dashboard/reports`,
-      label: "Report",
-      icon: <BarChart3 className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
-    },
-    {
-      href: `/${locale}/dashboard/admin/branding`,
-      label: "Branding",
-      icon: <Palette className="h-5 w-5" />,
-      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
-    },
-  ];
+  useEffect(() => {
+    const newExpanded = getExpandedSectionsForPath(pathname);
+    setExpandedSections(newExpanded);
+  }, [pathname, locale]);
 
-  // Filter nav items based on user role
-  const filteredNavItems = navItems.filter((item) => {
-    if (!item.roles) return true;
-    return user && item.roles.includes(user.role);
-  });
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  };
+
+  const closeSidebar = () => setSidebarOpen(false);
+
+  const sectionsToShow = useMemo(() => {
+    if (!user) return [];
+    if (user.role === "PARTICIPANT") {
+      return participantSections;
+    }
+    return operationalSections.filter((section) => {
+      if (!section.roles) return true;
+      return section.roles.includes(user.role);
+    });
+  }, [user, operationalSections, participantSections]);
 
   if (!mounted || isLoading) {
     return (
@@ -156,21 +389,18 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-muted/30">
-      {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 z-50 h-full w-64 bg-card border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b">
           <Link href={`/${locale}`} className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary text-primary-foreground">
@@ -182,36 +412,41 @@ export default function DashboardLayout({
             variant="ghost"
             size="icon"
             className="lg:hidden"
-            onClick={() => setSidebarOpen(false)}
+            onClick={closeSidebar}
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Navigation */}
-        <nav className="p-4 space-y-1">
-          {filteredNavItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+        <nav className="p-4 flex-1 overflow-y-auto" style={{ maxHeight: "calc(100vh - 180px)" }}>
+          <Link
+            href={`/${locale}/dashboard`}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors mb-4 ${
+              pathname === `/${locale}/dashboard`
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={closeSidebar}
+          >
+            <LayoutDashboard className="h-5 w-5" />
+            <span>Dashboard</span>
+          </Link>
+
+          {sectionsToShow.map((section) => (
+            <SidebarSectionComponent
+              key={section.id}
+              section={section}
+              isExpanded={expandedSections.has(section.id)}
+              onToggle={() => toggleSection(section.id)}
+              pathname={pathname}
+              locale={locale}
+              onItemClick={closeSidebar}
+              userRole={user?.role || ""}
+            />
+          ))}
         </nav>
 
-        {/* User Section at Bottom */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
               {user?.firstName?.[0]}
@@ -238,9 +473,7 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className="lg:pl-64">
-        {/* Top Header */}
         <header className="h-16 border-b bg-card flex items-center justify-between px-4 sticky top-0 z-30">
           <Button
             variant="ghost"
@@ -253,15 +486,12 @@ export default function DashboardLayout({
 
           <div className="flex-1" />
 
-          {/* Right side actions */}
           <div className="flex items-center gap-2">
-            {/* Notifications */}
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
             </Button>
 
-            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2">
@@ -269,9 +499,7 @@ export default function DashboardLayout({
                     {user?.firstName?.[0]}
                     {user?.lastName?.[0]}
                   </div>
-                  <span className="hidden sm:inline">
-                    {user?.firstName}
-                  </span>
+                  <span className="hidden sm:inline">{user?.firstName}</span>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -299,7 +527,6 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="p-4 lg:p-6">{children}</main>
       </div>
     </div>

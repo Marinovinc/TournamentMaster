@@ -4,7 +4,8 @@
  * =============================================================================
  * Percorso: src/screens/SubmitCatchScreen.tsx
  * Creato: 2025-12-30
- * Descrizione: Schermata invio cattura con foto e GPS
+ * Aggiornato: 2026-01-02 - Supporto offline-first
+ * Descrizione: Schermata invio cattura con foto, GPS e supporto offline
  * =============================================================================
  */
 
@@ -26,6 +27,7 @@ import { launchCamera, CameraOptions } from 'react-native-image-picker';
 
 import { catchesApi } from '@api/catches';
 import { useGPS } from '@hooks/useGPS';
+import { useNetwork } from '@hooks/useNetwork';
 import { RootStackParamList, Species, MediaFile, GPSPosition } from '@/types';
 
 type RouteProps = RouteProp<RootStackParamList, 'SubmitCatch'>;
@@ -34,6 +36,7 @@ const SubmitCatchScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const navigation = useNavigation();
   const { position, error: gpsError, loading: gpsLoading, requestLocation } = useGPS();
+  const { isOnline, isConnected } = useNetwork();
 
   const [species, setSpecies] = useState<Species[]>([]);
   const [selectedSpecies, setSelectedSpecies] = useState<string>('');
@@ -42,6 +45,7 @@ const SubmitCatchScreen: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<MediaFile[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [speciesLoading, setSpeciesLoading] = useState(true);
 
   useEffect(() => {
     loadSpecies();
@@ -49,11 +53,21 @@ const SubmitCatchScreen: React.FC = () => {
   }, []);
 
   const loadSpecies = async () => {
+    setSpeciesLoading(true);
     try {
       const data = await catchesApi.getSpecies(route.params.tournamentId);
       setSpecies(data);
     } catch (error) {
       console.error('Error loading species:', error);
+      // In offline mode, mostro messaggio ma permetto comunque cattura
+      if (!isOnline) {
+        Alert.alert(
+          'Modalita Offline',
+          'Non e\' possibile caricare le specie. Potrai selezionarla dopo la sincronizzazione.'
+        );
+      }
+    } finally {
+      setSpeciesLoading(false);
     }
   };
 
@@ -86,7 +100,7 @@ const SubmitCatchScreen: React.FC = () => {
       Alert.alert('Errore', 'Scatta almeno una foto della cattura');
       return;
     }
-    if (!selectedSpecies) {
+    if (!selectedSpecies && species.length > 0) {
       Alert.alert('Errore', 'Seleziona la specie');
       return;
     }
@@ -95,15 +109,15 @@ const SubmitCatchScreen: React.FC = () => {
       return;
     }
     if (!position) {
-      Alert.alert('Errore', 'Posizione GPS non disponibile');
+      Alert.alert('Errore', 'Posizione GPS non disponibile. Riprova.');
       return;
     }
 
     setSubmitting(true);
     try {
-      await catchesApi.submit({
+      const result = await catchesApi.submit({
         tournamentId: route.params.tournamentId,
-        speciesId: selectedSpecies,
+        speciesId: selectedSpecies || 'unknown', // In offline potrebbe essere vuoto
         weight: parseFloat(weight),
         length: length ? parseFloat(length) : undefined,
         notes: notes || undefined,
@@ -116,11 +130,27 @@ const SubmitCatchScreen: React.FC = () => {
         photos,
       });
 
-      Alert.alert('Successo', 'Cattura inviata! In attesa di validazione.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      if (result.savedOffline) {
+        // Salvato offline - mostro messaggio appropriato
+        Alert.alert(
+          'Cattura Salvata',
+          isOnline
+            ? 'Cattura salvata. Verra\' sincronizzata a breve.'
+            : 'Cattura salvata in modalita offline.\n\nVerra\' sincronizzata automaticamente quando tornerai online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        // Inviato con successo online
+        Alert.alert('Successo', 'Cattura inviata! In attesa di validazione.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      }
     } catch (error) {
-      Alert.alert('Errore', 'Impossibile inviare la cattura. Riprova.');
+      console.error('Submit error:', error);
+      Alert.alert(
+        'Errore',
+        'Impossibile salvare la cattura. Verifica lo spazio disponibile e riprova.'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -128,6 +158,16 @@ const SubmitCatchScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
+      {/* Offline Banner */}
+      {!isOnline && (
+        <View style={styles.offlineBanner}>
+          <Icon name="cloud-offline" size={20} color="#fff" />
+          <Text style={styles.offlineBannerText}>
+            Modalita Offline - Le catture verranno sincronizzate quando tornerai online
+          </Text>
+        </View>
+      )}
+
       {/* GPS Status */}
       <View style={styles.gpsSection}>
         <Icon
@@ -141,7 +181,7 @@ const SubmitCatchScreen: React.FC = () => {
           ) : position ? (
             <>
               <Text style={styles.gpsText}>
-                {position.latitude.toFixed(5)}°, {position.longitude.toFixed(5)}°
+                {position.latitude.toFixed(5)}, {position.longitude.toFixed(5)}
               </Text>
               <Text style={styles.gpsAccuracy}>Precisione: {position.accuracy.toFixed(0)}m</Text>
             </>
@@ -181,19 +221,30 @@ const SubmitCatchScreen: React.FC = () => {
       {/* Species */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Specie *</Text>
-        <View style={styles.speciesGrid}>
-          {species.map(s => (
-            <TouchableOpacity
-              key={s.id}
-              style={[styles.speciesChip, selectedSpecies === s.id && styles.speciesChipSelected]}
-              onPress={() => setSelectedSpecies(s.id)}
-            >
-              <Text style={[styles.speciesText, selectedSpecies === s.id && styles.speciesTextSelected]}>
-                {s.commonName}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {speciesLoading ? (
+          <ActivityIndicator size="small" color="#0066CC" />
+        ) : species.length > 0 ? (
+          <View style={styles.speciesGrid}>
+            {species.map(s => (
+              <TouchableOpacity
+                key={s.id}
+                style={[styles.speciesChip, selectedSpecies === s.id && styles.speciesChipSelected]}
+                onPress={() => setSelectedSpecies(s.id)}
+              >
+                <Text style={[styles.speciesText, selectedSpecies === s.id && styles.speciesTextSelected]}>
+                  {s.commonName}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.speciesOffline}>
+            <Icon name="fish-outline" size={24} color="#8E8E93" />
+            <Text style={styles.speciesOfflineText}>
+              Specie non disponibili offline.{'\n'}La cattura verra' registrata comunque.
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Weight & Length */}
@@ -243,17 +294,45 @@ const SubmitCatchScreen: React.FC = () => {
           <ActivityIndicator color="#fff" />
         ) : (
           <>
-            <Icon name="fish" size={24} color="#fff" />
-            <Text style={styles.submitButtonText}>Invia Cattura</Text>
+            <Icon name={isOnline ? 'fish' : 'save'} size={24} color="#fff" />
+            <Text style={styles.submitButtonText}>
+              {isOnline ? 'Invia Cattura' : 'Salva Offline'}
+            </Text>
           </>
         )}
       </TouchableOpacity>
+
+      {/* Offline Explanation */}
+      {!isOnline && (
+        <Text style={styles.offlineNote}>
+          La cattura sara salvata sul dispositivo e sincronizzata automaticamente quando avrai connessione internet.
+        </Text>
+      )}
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F2F7', padding: 16 },
+
+  // Offline Banner
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF9500',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  offlineBannerText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // GPS Section
   gpsSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -266,8 +345,12 @@ const styles = StyleSheet.create({
   gpsText: { fontSize: 14, fontWeight: '500', color: '#1C1C1E' },
   gpsAccuracy: { fontSize: 12, color: '#8E8E93', marginTop: 2 },
   gpsError: { fontSize: 14, color: '#FF3B30' },
+
+  // Sections
   section: { marginBottom: 16 },
   sectionTitle: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 8 },
+
+  // Photos
   photosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   photoContainer: { position: 'relative' },
   photo: { width: 100, height: 100, borderRadius: 8 },
@@ -283,11 +366,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addPhotoText: { fontSize: 12, color: '#0066CC', marginTop: 4 },
+
+  // Species
   speciesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   speciesChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#E5E5EA' },
   speciesChipSelected: { backgroundColor: '#0066CC' },
   speciesText: { fontSize: 14, color: '#1C1C1E' },
   speciesTextSelected: { color: '#fff', fontWeight: '600' },
+  speciesOffline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    gap: 12,
+  },
+  speciesOfflineText: { flex: 1, fontSize: 13, color: '#8E8E93' },
+
+  // Input
   row: { flexDirection: 'row' },
   input: {
     backgroundColor: '#fff',
@@ -298,6 +394,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5EA',
   },
   textArea: { height: 80, textAlignVertical: 'top' },
+
+  // Submit
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -306,11 +404,19 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 10,
     marginTop: 16,
-    marginBottom: 32,
+    marginBottom: 8,
     gap: 8,
   },
   submitButtonDisabled: { opacity: 0.6 },
   submitButtonText: { fontSize: 18, fontWeight: '600', color: '#fff' },
+
+  // Offline note
+  offlineNote: {
+    fontSize: 12,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
 });
 
 export default SubmitCatchScreen;

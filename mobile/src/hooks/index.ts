@@ -10,3 +10,5 @@
 
 export { useAuth } from './useAuth';
 export { useGPS } from './useGPS';
+export { useNetwork, useIsOnline, useNetworkStore } from './useNetwork';
+export { useOfflineSync, usePendingCount, useIsSyncing, useOfflineSyncStore } from './useOfflineSync';

@@ -15,8 +15,17 @@
  * =============================================================================
  */
 
-import Config from 'react-native-config';
 import { Platform } from 'react-native';
+
+// Conditional import for react-native-config (not available on web)
+let Config: any = {};
+if (Platform.OS !== 'web') {
+  try {
+    Config = require('react-native-config').default;
+  } catch (e) {
+    console.log('[Config] react-native-config not available');
+  }
+}
 
 export interface Environment {
   apiBaseUrl: string;
@@ -27,6 +36,10 @@ export interface Environment {
 
 // Fallback per development se Config non carica
 const getDeviceApiUrl = (): string => {
+  // Web usa Railway backend direttamente
+  if (Platform.OS === 'web') {
+    return 'https://backend-production-70dd0.up.railway.app/api';
+  }
   // Android Emulator usa 10.0.2.2 per localhost
   // iOS Simulator puo' usare localhost direttamente
   if (Platform.OS === 'android') {
@@ -36,6 +49,9 @@ const getDeviceApiUrl = (): string => {
 };
 
 const getDeviceWsUrl = (): string => {
+  if (Platform.OS === 'web') {
+    return 'wss://backend-production-70dd0.up.railway.app';
+  }
   if (Platform.OS === 'android') {
     return 'ws://10.0.2.2:3001';
   }
@@ -43,10 +59,10 @@ const getDeviceWsUrl = (): string => {
 };
 
 export const environment: Environment = {
-  apiBaseUrl: Config.API_BASE_URL || getDeviceApiUrl(),
-  wsBaseUrl: Config.WS_BASE_URL || getDeviceWsUrl(),
-  frontendUrl: Config.FRONTEND_URL || 'http://localhost:3000',
-  env: (Config.ENV as Environment['env']) || 'development',
+  apiBaseUrl: Config?.API_BASE_URL || getDeviceApiUrl(),
+  wsBaseUrl: Config?.WS_BASE_URL || getDeviceWsUrl(),
+  frontendUrl: Config?.FRONTEND_URL || 'http://localhost:3000',
+  env: (Config?.ENV as Environment['env']) || 'development',
 };
 
 // Helpers

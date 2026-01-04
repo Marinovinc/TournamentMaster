@@ -26,27 +26,33 @@ export const authApi = {
    * Login con email e password
    */
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
+    const response = await apiClient.post<{ success: boolean; data: AuthResponse }>('/auth/login', credentials);
+
+    // Backend wraps response in { success, data }
+    const authData = response.data.data;
 
     // Salva tokens
-    await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.data.accessToken);
-    await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.data.refreshToken);
-    await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(response.data.user));
+    await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, authData.accessToken);
+    await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, authData.refreshToken);
+    await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(authData.user));
 
-    return response.data;
+    return authData;
   },
 
   /**
    * Registrazione nuovo utente
    */
   register: async (data: RegisterData): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/register', data);
+    const response = await apiClient.post<{ success: boolean; data: AuthResponse }>('/auth/register', data);
 
-    await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.data.accessToken);
-    await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.data.refreshToken);
-    await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(response.data.user));
+    // Backend wraps response in { success, data }
+    const authData = response.data.data;
 
-    return response.data;
+    await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, authData.accessToken);
+    await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, authData.refreshToken);
+    await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(authData.user));
+
+    return authData;
   },
 
   /**

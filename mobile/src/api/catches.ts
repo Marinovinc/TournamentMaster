@@ -4,11 +4,14 @@
  * =============================================================================
  * Percorso: src/api/catches.ts
  * Creato: 2025-12-30
- * Descrizione: API per gestione catture (submit, view, validate)
+ * Aggiornato: 2026-01-02 - Aggiunto supporto offline-first
+ * Descrizione: API per gestione catture con supporto offline
  *
  * Dipendenze:
  * - @api/client
  * - @types (Catch, CatchSubmission)
+ * - @services/offline (OfflineStorage, SyncService)
+ * - @hooks/useNetwork
  *
  * Utilizzato da:
  * - src/screens/SubmitCatchScreen.tsx
@@ -19,12 +22,72 @@
 
 import apiClient from './client';
 import { Catch, CatchSubmission, Species } from '@/types';
+import { offlineStorage, syncService, PendingCatch } from '@services/offline';
+import { useNetworkStore } from '@hooks/useNetwork';
+
+export interface SubmitResult {
+  success: boolean;
+  localId?: string;       // Se salvato offline
+  catch?: Catch;          // Se inviato online
+  savedOffline: boolean;
+}
 
 export const catchesApi = {
   /**
-   * Invia nuova cattura
+   * Invia nuova cattura (OFFLINE-FIRST)
+   * - Se online: invia subito al server
+   * - Se offline: salva localmente e sincronizza dopo
    */
-  submit: async (data: CatchSubmission): Promise<Catch> => {
+  submit: async (data: CatchSubmission): Promise<SubmitResult> => {
+    const networkState = useNetworkStore.getState();
+    const isOnline = networkState.isConnected && networkState.isInternetReachable === true;
+
+    // SEMPRE salva prima localmente (per sicurezza)
+    const localId = await offlineStorage.savePendingCatch(data);
+    console.log(`[CatchesAPI] Saved locally: ${localId}`);
+
+    if (isOnline) {
+      // Prova a sincronizzare immediatamente
+      try {
+        const result = await syncService.syncAll();
+
+        if (result.syncedCount > 0) {
+          // Successo - cattura inviata
+          return {
+            success: true,
+            savedOffline: false,
+          };
+        } else {
+          // Sync fallito ma salvato localmente
+          return {
+            success: true,
+            localId,
+            savedOffline: true,
+          };
+        }
+      } catch (error) {
+        console.error('[CatchesAPI] Sync failed after save:', error);
+        return {
+          success: true,
+          localId,
+          savedOffline: true,
+        };
+      }
+    } else {
+      // Offline - cattura salvata localmente
+      console.log('[CatchesAPI] Offline - saved for later sync');
+      return {
+        success: true,
+        localId,
+        savedOffline: true,
+      };
+    }
+  },
+
+  /**
+   * [LEGACY] Invia direttamente (usare submit() invece)
+   */
+  submitDirect: async (data: CatchSubmission): Promise<Catch> => {
     const formData = new FormData();
 
     // Aggiungi dati base
@@ -69,13 +132,49 @@ export const catchesApi = {
   },
 
   /**
-   * Le mie catture (per un torneo specifico o tutte)
+   * Le mie catture (OFFLINE-FIRST)
+   * - Se online: fetch da server + aggiorna cache
+   * - Se offline: restituisci dalla cache
    */
   getMyCatches: async (tournamentId?: string): Promise<Catch[]> => {
-    const response = await apiClient.get<Catch[]>('/catches/my', {
-      params: tournamentId ? { tournamentId } : undefined,
-    });
-    return response.data;
+    const networkState = useNetworkStore.getState();
+    const isOnline = networkState.isConnected && networkState.isInternetReachable === true;
+
+    if (isOnline) {
+      try {
+        const response = await apiClient.get<Catch[]>('/catches/my', {
+          params: tournamentId ? { tournamentId } : undefined,
+        });
+
+        // Aggiorna cache
+        await offlineStorage.cacheMyCatches(response.data);
+
+        return response.data;
+      } catch (error) {
+        console.error('[CatchesAPI] Failed to fetch catches online:', error);
+        // Fallback a cache
+        const cached = await offlineStorage.getCachedCatches();
+        return cached?.data || [];
+      }
+    } else {
+      // Offline - usa cache
+      const cached = await offlineStorage.getCachedCatches();
+      return cached?.data || [];
+    }
+  },
+
+  /**
+   * Catture pendenti (non ancora sincronizzate)
+   */
+  getPendingCatches: async (): Promise<PendingCatch[]> => {
+    return offlineStorage.getPendingCatches();
+  },
+
+  /**
+   * Conta catture pendenti
+   */
+  getPendingCount: async (): Promise<number> => {
+    return offlineStorage.getPendingCount();
   },
 
   /**
@@ -87,7 +186,7 @@ export const catchesApi = {
   },
 
   /**
-   * Lista specie disponibili per un torneo
+   * Lista specie disponibili per un torneo (con cache)
    */
   getSpecies: async (tournamentId: string): Promise<Species[]> => {
     const response = await apiClient.get<Species[]>(`/tournaments/${tournamentId}/species`);
@@ -116,6 +215,13 @@ export const catchesApi = {
   reject: async (id: string, reason: string): Promise<Catch> => {
     const response = await apiClient.put<Catch>(`/catches/${id}/reject`, { reason });
     return response.data;
+  },
+
+  /**
+   * Forza sincronizzazione manuale
+   */
+  forceSync: async () => {
+    return syncService.syncAll();
   },
 };
 

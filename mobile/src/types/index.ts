@@ -254,7 +254,8 @@ export interface ZoneValidationResult {
 // =============================================================================
 
 export type RootStackParamList = {
-  // Auth
+  // Auth Navigator (wrapper)
+  Auth: undefined;
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;

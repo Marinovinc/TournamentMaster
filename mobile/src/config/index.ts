@@ -8,5 +8,6 @@
  * =============================================================================
  */
 
-export { default as environment, env } from './environment';
+export { default as environment, isDevelopment, isProduction } from './environment';
+export type { Environment } from './environment';
 export { default as theme, colors, spacing, borderRadius, typography, shadows } from './theme';

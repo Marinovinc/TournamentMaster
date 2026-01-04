@@ -21,7 +21,7 @@ import apiClient from './client';
 import { Tournament, TournamentDetail, LeaderboardEntry, FishingZone } from '@/types';
 
 export interface TournamentFilters {
-  status?: 'DRAFT' | 'PUBLISHED' | 'REGISTRATION_OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  status?: 'DRAFT' | 'PUBLISHED' | 'REGISTRATION_OPEN' | 'REGISTRATION_CLOSED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   discipline?: string;
   search?: string;
   page?: number;
@@ -90,7 +90,7 @@ export const tournamentsApi = {
    * Tornei in corso (live)
    */
   getLive: async (): Promise<Tournament[]> => {
-    const response = await apiClient.get<Tournament[]>('/tournaments', {
+    const response = await apiClient.get<TournamentsResponse>('/tournaments', {
       params: { status: 'IN_PROGRESS' },
     });
     return response.data.data;

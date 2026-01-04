@@ -26,3 +26,4 @@ export { default as TournamentLeaderboardScreen } from './TournamentLeaderboardS
 export { default as SubmitCatchScreen } from './SubmitCatchScreen';
 export { default as CatchDetailScreen } from './CatchDetailScreen';
 export { default as MyCatchesScreen } from './MyCatchesScreen';
+export { default as PendingCatchesScreen } from './PendingCatchesScreen';

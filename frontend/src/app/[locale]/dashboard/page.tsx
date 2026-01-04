@@ -80,6 +80,7 @@ export default function DashboardPage() {
     const labels: Record<string, string> = {
       SUPER_ADMIN: "Super Admin",
       TENANT_ADMIN: "Amministratore",
+      PRESIDENT: "Presidente",
       ORGANIZER: "Organizzatore",
       JUDGE: "Giudice",
       PARTICIPANT: "Partecipante",
@@ -88,7 +89,7 @@ export default function DashboardPage() {
   };
 
   const getRoleBadgeVariant = (role: string) => {
-    if (role === "SUPER_ADMIN" || role === "TENANT_ADMIN") return "default";
+    if (role === "SUPER_ADMIN" || role === "TENANT_ADMIN" || role === "PRESIDENT") return "default";
     if (role === "ORGANIZER") return "secondary";
     if (role === "JUDGE") return "outline";
     return "secondary";
@@ -219,7 +220,28 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* For Participants */}
+        {/* For Participants - New Catch */}
+        <Card className="border-primary/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Fish className="h-5 w-5 text-green-600" />
+              Registra Cattura
+            </CardTitle>
+            <CardDescription>
+              Fotografa e registra una nuova cattura
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href={`/${locale}/catch/new`}>
+              <Button className="w-full bg-green-600 hover:bg-green-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Nuova Cattura
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* For Participants - Browse Tournaments */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

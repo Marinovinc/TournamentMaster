@@ -137,6 +137,26 @@ interface PlatformOverview {
   totalStrikes: number;
 }
 
+interface TournamentDetailedReport {
+  tournament: any;
+  stats: {
+    totalTeams: number;
+    totalCatches: number;
+    approvedCatches: number;
+    pendingCatches: number;
+    rejectedCatches: number;
+    totalStrikes: number;
+    totalWeight: number;
+    biggestCatch: number;
+  };
+  leaderboard: any[];
+  teamRankings: any[];
+  catchDistribution: {
+    bySpecies: { species: string; count: number }[];
+    byStatus: { status: string; count: number }[];
+  };
+}
+
 interface TenantComparison {
   id: string;
   name: string;
@@ -172,6 +192,7 @@ export default function ReportsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<string>("");
   const [tournamentStats, setTournamentStats] = useState<TournamentStats | null>(null);
+  const [tournamentDetailedReport, setTournamentDetailedReport] = useState<TournamentDetailedReport | null>(null);
   const [teamRankings, setTeamRankings] = useState<TeamStats[]>([]);
   const [loadingStats, setLoadingStats] = useState(false);
 
@@ -331,8 +352,21 @@ export default function ReportsPage() {
 
   const fetchTournamentStats = async (tournamentId: string) => {
     setLoadingStats(true);
+    setTournamentDetailedReport(null);
     try {
       const token = getToken();
+      const tenantParam = isSuperAdmin && selectedTenantId ? `?tenantId=${selectedTenantId}` : "";
+
+      // Fetch detailed tournament report from API
+      const reportRes = await fetch(
+        `${API_URL}/api/reports/association/tournaments/${tournamentId}${tenantParam}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const reportData = await reportRes.json();
+
+      if (reportData.success && reportData.data) {
+        setTournamentDetailedReport(reportData.data);
+      }
 
       // Fetch teams for this tournament
       const teamsRes = await fetch(`${API_URL}/api/teams/tournament/${tournamentId}`, {
@@ -567,6 +601,7 @@ export default function ReportsPage() {
                 loadingStats={loadingStats}
                 exportToCsv={exportToCsv}
                 getStatusColor={getStatusColor}
+                tournamentDetailedReport={tournamentDetailedReport}
               />
             ) : (
               <Card>
@@ -592,6 +627,7 @@ export default function ReportsPage() {
           loadingStats={loadingStats}
           exportToCsv={exportToCsv}
           getStatusColor={getStatusColor}
+          tournamentDetailedReport={tournamentDetailedReport}
         />
       )}
     </div>
@@ -748,6 +784,7 @@ interface AssociationReportsContentProps {
   loadingStats: boolean;
   exportToCsv: () => void;
   getStatusColor: (status: string) => string;
+  tournamentDetailedReport: TournamentDetailedReport | null;
 }
 
 function AssociationReportsContent({
@@ -760,6 +797,7 @@ function AssociationReportsContent({
   loadingStats,
   exportToCsv,
   getStatusColor,
+  tournamentDetailedReport,
 }: AssociationReportsContentProps) {
   return (
     <div className="space-y-6">
@@ -1083,6 +1121,140 @@ function AssociationReportsContent({
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Weight Statistics from Detailed Report */}
+              {tournamentDetailedReport && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Peso Totale Catture</CardTitle>
+                      <Fish className="h-4 w-4 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {tournamentDetailedReport.stats.totalWeight.toFixed(2)} kg
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Solo catture approvate
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Cattura Maggiore</CardTitle>
+                      <Award className="h-4 w-4 text-yellow-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {tournamentDetailedReport.stats.biggestCatch.toFixed(2)} kg
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Record del torneo
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Catch Distribution Charts from Detailed Report */}
+              {tournamentDetailedReport && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Catches by Status Pie Chart */}
+                  {tournamentDetailedReport.catchDistribution.byStatus.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Fish className="h-5 w-5" />
+                          Distribuzione Catture per Stato
+                        </CardTitle>
+                        <CardDescription>
+                          Approvate, in attesa e rifiutate
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <PieChart>
+                            <Pie
+                              data={tournamentDetailedReport.catchDistribution.byStatus.map(item => ({
+                                name: item.status === "APPROVED" ? "Approvate" :
+                                      item.status === "PENDING" ? "In Attesa" :
+                                      item.status === "REJECTED" ? "Rifiutate" : item.status,
+                                value: item.count,
+                              }))}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="value"
+                            >
+                              {tournamentDetailedReport.catchDistribution.byStatus.map((_, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={index === 0 ? "#22c55e" : index === 1 ? "#f59e0b" : "#ef4444"}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "hsl(var(--card))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: "8px",
+                              }}
+                            />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Catches by Species Bar Chart */}
+                  {tournamentDetailedReport.catchDistribution.bySpecies.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <BarChart3 className="h-5 w-5" />
+                          Catture per Specie
+                        </CardTitle>
+                        <CardDescription>
+                          Distribuzione delle catture approvate
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <BarChart
+                            data={tournamentDetailedReport.catchDistribution.bySpecies.map(item => ({
+                              name: item.species.length > 12 ? item.species.substring(0, 12) + "..." : item.species,
+                              Catture: item.count,
+                            }))}
+                            margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                            <XAxis
+                              dataKey="name"
+                              angle={-45}
+                              textAnchor="end"
+                              height={60}
+                              className="text-xs"
+                            />
+                            <YAxis allowDecimals={false} className="text-xs" />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "hsl(var(--card))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: "8px",
+                              }}
+                            />
+                            <Bar dataKey="Catture" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
 
               {/* Team Performance Chart */}
               {tournamentStats.topTeams.length > 0 && (

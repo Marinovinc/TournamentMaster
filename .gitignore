@@ -61,6 +61,7 @@ frontend/.capacitor/
 # Test screenshots
 *.png
 !frontend/public/**/*.png
+!mobile/assets/**/*.png
 frontend/nul
 nul
 

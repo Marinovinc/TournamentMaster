@@ -41,7 +41,7 @@ export interface Tournament {
   name: string;
   description: string | null;
   discipline: string;
-  status: "DRAFT" | "PUBLISHED" | "ONGOING" | "COMPLETED" | "CANCELLED";
+  status: "DRAFT" | "PUBLISHED" | "REGISTRATION_OPEN" | "ONGOING" | "COMPLETED" | "CANCELLED";
   startDate: string;
   endDate: string;
   registrationOpens: string;
@@ -72,6 +72,7 @@ interface TournamentCardProps {
 const statusConfig: Record<Tournament["status"], { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   DRAFT: { label: "Bozza", variant: "secondary" },
   PUBLISHED: { label: "Aperto", variant: "default" },
+  REGISTRATION_OPEN: { label: "Iscrizioni Aperte", variant: "default" },
   ONGOING: { label: "In Corso", variant: "destructive" },
   COMPLETED: { label: "Completato", variant: "outline" },
   CANCELLED: { label: "Annullato", variant: "secondary" },
@@ -89,7 +90,7 @@ const disciplineLabels: Record<string, string> = {
 };
 
 export function TournamentCard({ tournament, locale = "it" }: TournamentCardProps) {
-  const status = statusConfig[tournament.status];
+  const status = statusConfig[tournament.status] || { label: tournament.status || "N/A", variant: "secondary" as const };
   const startDate = new Date(tournament.startDate);
   const endDate = new Date(tournament.endDate);
   const regCloses = new Date(tournament.registrationCloses);

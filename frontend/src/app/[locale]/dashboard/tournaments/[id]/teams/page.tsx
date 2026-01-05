@@ -175,6 +175,9 @@ export default function TeamsPage() {
   const [newCaptainId, setNewCaptainId] = useState("");
   const [captainPopoverOpen, setCaptainPopoverOpen] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; firstName: string; lastName: string; email: string }>>([]);
+  // Representing club fields (for provincial/regional/national tournaments)
+  const [representingClubName, setRepresentingClubName] = useState("");
+  const [representingClubCode, setRepresentingClubCode] = useState("");
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -462,6 +465,8 @@ export default function TeamsPage() {
     setNewTeamName("");
     setNewBoatName("");
     setNewCaptainId("");
+    setRepresentingClubName("");
+    setRepresentingClubCode("");
     fetchAvailableUsers();
     setCreateTeamDialogOpen(true);
   };
@@ -494,6 +499,8 @@ export default function TeamsPage() {
           boatName: newBoatName.trim(),
           tournamentId,
           captainId: newCaptainId,
+          ...(representingClubName.trim() && { representingClubName: representingClubName.trim() }),
+          ...(representingClubCode.trim() && { representingClubCode: representingClubCode.trim() }),
         }),
       });
 
@@ -727,6 +734,12 @@ export default function TeamsPage() {
                                   {team.clubCode}
                                 </Badge>
                               )}
+                              {team.representingClubCode && (
+                                <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                                  <Building2 className="h-3 w-3" />
+                                  {team.representingClubCode}
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-3 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
@@ -840,6 +853,18 @@ export default function TeamsPage() {
                                 <div className="flex justify-between">
                                   <dt className="text-muted-foreground">Club:</dt>
                                   <dd className="font-medium">{team.clubName}</dd>
+                                </div>
+                              )}
+                              {team.representingClubName && (
+                                <div className="flex justify-between">
+                                  <dt className="text-muted-foreground">Rappresenta:</dt>
+                                  <dd className="font-medium flex items-center gap-1">
+                                    <Building2 className="h-3 w-3" />
+                                    {team.representingClubName}
+                                    {team.representingClubCode && (
+                                      <Badge variant="outline" className="text-xs ml-1">{team.representingClubCode}</Badge>
+                                    )}
+                                  </dd>
                                 </div>
                               )}
                             </dl>
@@ -1210,6 +1235,39 @@ export default function TeamsPage() {
                 Il capitano sarà automaticamente aggiunto come Capoequipaggio (TEAM_LEADER)
               </p>
             </div>
+
+            {/* Representing Club - only for provincial/regional/national/international tournaments */}
+            {tournament && ["PROVINCIAL", "REGIONAL", "NATIONAL", "INTERNATIONAL"].includes(tournament.level) && (
+              <div className="border-t pt-4 mt-2">
+                <Label className="flex items-center gap-2 mb-3">
+                  <Building2 className="h-4 w-4" />
+                  Associazione Rappresentata (opzionale)
+                </Label>
+                <div className="grid gap-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="representingClubName" className="text-sm font-normal">Nome Associazione</Label>
+                    <Input
+                      id="representingClubName"
+                      value={representingClubName}
+                      onChange={(e) => setRepresentingClubName(e.target.value)}
+                      placeholder="Es: Circolo Nautico Napoli"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="representingClubCode" className="text-sm font-normal">Codice FIPs</Label>
+                    <Input
+                      id="representingClubCode"
+                      value={representingClubCode}
+                      onChange={(e) => setRepresentingClubCode(e.target.value)}
+                      placeholder="Es: NA001"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Per tornei provinciali/nazionali, indica l'associazione che il team rappresenta (se diversa dal club di appartenenza)
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

@@ -38,11 +38,21 @@ const updateTeamValidation = [
   body("inspectorId").optional().isUUID(),
   body("inspectorName").optional().trim(),
   body("inspectorClub").optional().trim(),
+  // Representing club (for provincial/national tournaments)
+  body("representingClubName").optional().trim(),
+  body("representingClubCode").optional().trim(),
 ];
 
 const addMemberValidation = [
   body("userId").isUUID().withMessage("Valid user ID required"),
-  body("role").optional().isIn(["CAPTAIN", "CREW", "ANGLER"]).withMessage("Invalid role"),
+  body("role").optional().isIn(["SKIPPER", "TEAM_LEADER", "CREW", "ANGLER", "GUEST"]).withMessage("Invalid role"),
+];
+
+const addExternalMemberValidation = [
+  body("name").trim().notEmpty().withMessage("External member name is required"),
+  body("role").isIn(["SKIPPER", "GUEST"]).withMessage("External members can only be SKIPPER or GUEST"),
+  body("phone").optional().trim(),
+  body("email").optional().isEmail().withMessage("Invalid email format"),
 ];
 
 // =============================================================================
@@ -213,12 +223,12 @@ router.post(
         },
       });
 
-      // Auto-add captain as team member
+      // Auto-add captain as team member (with TEAM_LEADER role)
       await prisma.teamMember.create({
         data: {
           teamId: team.id,
           userId: req.user.userId,
-          role: "CAPTAIN",
+          role: "TEAM_LEADER",
         },
       });
 
@@ -283,6 +293,9 @@ router.put(
         if (req.body.inspectorId !== undefined) updateData.inspectorId = req.body.inspectorId;
         if (req.body.inspectorName !== undefined) updateData.inspectorName = req.body.inspectorName;
         if (req.body.inspectorClub !== undefined) updateData.inspectorClub = req.body.inspectorClub;
+        // Representing club (for provincial/national tournaments)
+        if (req.body.representingClubName !== undefined) updateData.representingClubName = req.body.representingClubName;
+        if (req.body.representingClubCode !== undefined) updateData.representingClubCode = req.body.representingClubCode;
       }
 
       const updatedTeam = await prisma.team.update({
@@ -448,6 +461,76 @@ router.delete(
       res.json({ success: true, message: "Member removed successfully" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to remove member";
+      res.status(400).json({ success: false, message });
+    }
+  }
+);
+
+// =============================================================================
+// POST /api/teams/:id/members/external - Aggiungi membro esterno (skipper/ospite)
+// =============================================================================
+router.post(
+  "/:id/members/external",
+  authenticate,
+  param("id").isUUID(),
+  addExternalMemberValidation,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+      }
+
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: "Not authenticated" });
+      }
+
+      const team = await prisma.team.findUnique({
+        where: { id: req.params.id },
+        include: { tournament: { select: { level: true } } },
+      });
+
+      if (!team) {
+        return res.status(404).json({ success: false, message: "Team not found" });
+      }
+
+      // Check permission: admin/president or captain
+      const isAdmin = [UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT].includes(req.user.role);
+      const isCaptain = team.captainId === req.user.userId;
+
+      if (!isAdmin && !isCaptain) {
+        return res.status(403).json({ success: false, message: "Only team captain or admin can add members" });
+      }
+
+      // External members (SKIPPER/GUEST) are only allowed for SOCIAL/CLUB tournaments
+      const allowedLevels = ["SOCIAL", "CLUB"];
+      if (!allowedLevels.includes(team.tournament.level)) {
+        return res.status(400).json({
+          success: false,
+          message: "External members are only allowed for internal (SOCIAL/CLUB) tournaments",
+        });
+      }
+
+      // Create external member
+      const member = await prisma.teamMember.create({
+        data: {
+          teamId: req.params.id,
+          userId: null, // No registered user
+          isExternal: true,
+          externalName: req.body.name,
+          externalPhone: req.body.phone || null,
+          externalEmail: req.body.email || null,
+          role: req.body.role,
+        },
+      });
+
+      res.status(201).json({
+        success: true,
+        message: "External member added successfully",
+        data: member,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to add external member";
       res.status(400).json({ success: false, message });
     }
   }

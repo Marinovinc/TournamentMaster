@@ -1,5 +1,45 @@
 # TournamentMaster - Guida Completa Gestione Barche e Strike
 
+---
+
+## TODO - Implementazione Crew Roles Drifting (v1.1.0)
+
+> **Data:** 2026-01-05 | **Priorità:** CRITICA
+
+### Blocchi Critici
+
+- [ ] **Sbloccare Prisma Client** - File `query_engine-windows.dll.node` locked
+  ```powershell
+  taskkill /F /IM node.exe /T
+  cd C:\Users\marin\Downloads\TournamentMaster\backend
+  npx prisma generate
+  ```
+
+### Backend ✅ COMPLETATO
+
+- [x] **team.routes.ts:46** - Validazione ruoli aggiornata a `["SKIPPER", "TEAM_LEADER", "CREW", "ANGLER", "GUEST"]`
+- [x] **Nuovo endpoint** - `POST /teams/:id/members/external` per membri esterni (SKIPPER/GUEST)
+- [x] **Campi representing club** - `representingClubName`, `representingClubCode` in update validation
+- [ ] **Migrazione dati** - `UPDATE team_members SET role = 'TEAM_LEADER' WHERE role = 'CAPTAIN'`
+
+### Frontend da Completare
+
+- [ ] **teams/page.tsx** - Aggiornare `getRoleBadge()` con nuovi ruoli
+- [ ] **teams/page.tsx** - Interfaccia TeamMember con campi esterni
+- [ ] **teams/page.tsx** - Dialog "Aggiungi membro esterno"
+- [ ] **teams/page.tsx** - Campo "Associazione Rappresentata" per provinciali
+
+---
+
+## Documenti Correlati
+
+| Documento | Descrizione |
+|-----------|-------------|
+| [HANDOVER_SESSIONE_CREW_ROLES_20260105.md](./HANDOVER_SESSIONE_CREW_ROLES_20260105.md) | Handover sessione con errori confessati |
+| [DOCUMENTAZIONE_TECNICA_CREW_ROLES_20260105.md](./DOCUMENTAZIONE_TECNICA_CREW_ROLES_20260105.md) | Documentazione tecnica completa con API, schema, interfacce |
+
+---
+
 ## Indice
 
 1. [Panoramica](#panoramica)
@@ -8,6 +48,8 @@
 4. [Strike Live](#strike-live)
 5. [API Reference](#api-reference)
 6. [Credenziali di Test](#credenziali-di-test)
+7. [Ruoli Equipaggio Drifting](#ruoli-equipaggio-drifting-v110) ← **NUOVO**
+8. [Changelog](#changelog)
 
 ---
 
@@ -403,7 +445,57 @@ L'eliminazione di un team è irreversibile e comporta:
 
 ---
 
+---
+
+## Ruoli Equipaggio Drifting (v1.1.0)
+
+### Nuovo Enum CrewRole
+
+La versione 1.1.0 introduce un sistema di ruoli specifico per le discipline drifting:
+
+| Ruolo | Enum | Può essere Esterno | Descrizione |
+|-------|------|-------------------|-------------|
+| **Skipper** | `SKIPPER` | ✅ Sì | Conduttore barca, può essere non iscritto |
+| **Capoequipaggio** | `TEAM_LEADER` | ❌ No | Responsabile team, deve essere registrato |
+| **Equipaggio** | `CREW` | ❌ No | Membro equipaggio (2-3 membri) |
+| **Pescatore** | `ANGLER` | ❌ No | Pescatore registrato |
+| **Ospite** | `GUEST` | ✅ Sì | Ospite a bordo, può essere non iscritto |
+
+### Membri Esterni
+
+Per tornei interni (SOCIAL), skipper e ospiti possono essere persone non registrate:
+
+```typescript
+interface ExternalMember {
+  externalName: string;      // Nome completo
+  externalPhone?: string;    // Telefono opzionale
+  externalEmail?: string;    // Email opzionale
+  isExternal: true;
+  role: "SKIPPER" | "GUEST";
+}
+```
+
+### Associazione Rappresentata
+
+Per tornei provinciali/nazionali, i team possono rappresentare un'associazione diversa:
+
+| Campo | Tipo | Descrizione |
+|-------|------|-------------|
+| `representingClubName` | String? | Nome associazione rappresentata |
+| `representingClubCode` | String? | Codice associazione (es. FIPs) |
+
+---
+
 ## Changelog
+
+### v1.1.0 (2026-01-05) - IN SVILUPPO
+- **Schema:** Aggiunto enum `CrewRole` (SKIPPER, TEAM_LEADER, CREW, ANGLER, GUEST)
+- **Schema:** Aggiunti campi esterni per TeamMember (externalName, externalPhone, externalEmail, isExternal)
+- **Schema:** Aggiunti campi Team per associazione rappresentata (representingClubName, representingClubCode)
+- **Database:** Migrazione completata con `db push`
+- **⚠️ BLOCCATO:** Prisma client non rigenerato (file locked)
+- **TODO:** Aggiornamento API team.routes.ts
+- **TODO:** Aggiornamento UI teams/page.tsx
 
 ### v1.0.0 (2025-01-02)
 - Implementazione iniziale gestione Team/Barche

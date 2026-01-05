@@ -174,6 +174,8 @@ model Document {
 enum TournamentStatus {
   DRAFT
   PUBLISHED
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
   ONGOING
   COMPLETED
   CANCELLED
@@ -380,19 +382,33 @@ model TournamentRegistration {
 // TEAM (Equipaggio Barca)
 // ================================
 
+// Ruoli equipaggio per discipline come Drifting
+enum CrewRole {
+  SKIPPER       // Skipper/Conduttore barca (può essere esterno)
+  TEAM_LEADER   // Capoequipaggio
+  CREW          // Membro equipaggio
+  ANGLER        // Pescatore
+  GUEST         // Ospite (può essere esterno)
+}
+
 model Team {
   id            String   @id @default(uuid())
   name          String   @db.VarChar(255) // Nome squadra
   boatName      String   @db.VarChar(255) // Nome barca
   boatNumber    Int?     // Numero barca assegnato nel torneo
 
-  // Capoequipaggio
+  // Capoequipaggio (responsabile iscrizione)
   captainId     String
   captain       User     @relation("TeamCaptain", fields: [captainId], references: [id])
 
-  // Società di provenienza (per tornei provinciali/nazionali)
+  // Società di appartenenza del team
   clubName      String?  @db.VarChar(255)
   clubCode      String?  @db.VarChar(50) // Codice FIPSAS
+
+  // Associazione RAPPRESENTATA nel torneo (per tornei provinciali/nazionali)
+  // Può essere diversa dalla società di appartenenza
+  representingClubName String?  @db.VarChar(255)
+  representingClubCode String?  @db.VarChar(50)
 
   // Ispettore di bordo assegnato
   inspectorId   String?  @db.VarChar(36)
@@ -418,6 +434,9 @@ model Team {
 // ================================
 // TEAM MEMBER (Membro Equipaggio)
 // ================================
+// Supporta sia membri registrati (userId) che esterni (nome/cognome)
+// Per tornei interni: skipper e ospiti possono essere esterni
+// Per tornei provinciali: tutti devono essere tesserati
 
 model TeamMember {
   id        String   @id @default(uuid())
@@ -425,13 +444,22 @@ model TeamMember {
   teamId    String
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  // Utente registrato (opzionale per membri esterni)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
 
-  role      String   @default("CREW") @db.VarChar(50) // CAPTAIN, CREW, ANGLER
+  // Dati per membri esterni (skipper/ospiti non iscritti)
+  externalName      String?  @db.VarChar(255) // Nome completo se esterno
+  externalPhone     String?  @db.VarChar(30)
+  externalEmail     String?  @db.VarChar(255)
+  isExternal        Boolean  @default(false)
+
+  // Ruolo nell'equipaggio
+  role      CrewRole @default(CREW)
 
   createdAt DateTime @default(now())
 
+  // Vincolo: un utente registrato può essere in un team una sola volta
   @@unique([teamId, userId])
   @@index([teamId])
   @@index([userId])

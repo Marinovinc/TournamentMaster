@@ -2,32 +2,34 @@
 
 ---
 
-## TODO - Implementazione Crew Roles Drifting (v1.1.0)
+## TODO - Stato Attuale (2026-01-05)
 
-> **Data:** 2026-01-05 | **Priorità:** CRITICA
+> **Ultimo aggiornamento:** 2026-01-05 18:30 | **Priorita:** CRITICA
+
+### Funzionalita Completate (Sessione Delete Team)
+
+- [x] **Delete Team** - Eliminazione barca con conferma dialog (commit 456da9d)
+- [x] **Create Team con Captain** - Selezione capitano alla creazione
+- [x] **REGISTRATION_OPEN status** - Fix crash TournamentCard (commit a61bbd3)
+- [x] **Backend Crew Roles** - Validazione ruoli
+- [x] **Nuovo endpoint** - POST /teams/:id/members/external per membri esterni
+- [x] **Campi representing club** - representingClubName, representingClubCode
 
 ### Blocchi Critici
 
-- [ ] **Sbloccare Prisma Client** - File `query_engine-windows.dll.node` locked
-  ```powershell
-  taskkill /F /IM node.exe /T
-  cd C:\Users\marin\Downloads\TournamentMaster\backend
-  npx prisma generate
-  ```
+- [ ] **Sbloccare Prisma Client** - File query_engine-windows.dll.node locked
 
-### Backend ✅ COMPLETATO
+### Backend da Completare
 
-- [x] **team.routes.ts:46** - Validazione ruoli aggiornata a `["SKIPPER", "TEAM_LEADER", "CREW", "ANGLER", "GUEST"]`
-- [x] **Nuovo endpoint** - `POST /teams/:id/members/external` per membri esterni (SKIPPER/GUEST)
-- [x] **Campi representing club** - `representingClubName`, `representingClubCode` in update validation
-- [ ] **Migrazione dati** - `UPDATE team_members SET role = 'TEAM_LEADER' WHERE role = 'CAPTAIN'`
+- [ ] **Migrazione dati** - UPDATE team_members SET role = TEAM_LEADER WHERE role = CAPTAIN
+- [ ] **Test E2E Delete** - Verificare cascade delete team_members
 
 ### Frontend da Completare
 
-- [ ] **teams/page.tsx** - Aggiornare `getRoleBadge()` con nuovi ruoli
+- [ ] **teams/page.tsx** - Aggiornare getRoleBadge() con nuovi ruoli
 - [ ] **teams/page.tsx** - Interfaccia TeamMember con campi esterni
-- [ ] **teams/page.tsx** - Dialog "Aggiungi membro esterno"
-- [ ] **teams/page.tsx** - Campo "Associazione Rappresentata" per provinciali
+- [ ] **teams/page.tsx** - Dialog Aggiungi membro esterno
+- [ ] **teams/page.tsx** - Campo Associazione Rappresentata per provinciali
 
 ---
 
@@ -35,8 +37,11 @@
 
 | Documento | Descrizione |
 |-----------|-------------|
-| [HANDOVER_SESSIONE_CREW_ROLES_20260105.md](./HANDOVER_SESSIONE_CREW_ROLES_20260105.md) | Handover sessione con errori confessati |
-| [DOCUMENTAZIONE_TECNICA_CREW_ROLES_20260105.md](./DOCUMENTAZIONE_TECNICA_CREW_ROLES_20260105.md) | Documentazione tecnica completa con API, schema, interfacce |
+| [HANDOVER_SESSIONE_DELETE_TEAM_20260105.md](./HANDOVER_SESSIONE_DELETE_TEAM_20260105.md) | Handover sessione Delete Team (con errori confessati) |
+| [DOCUMENTAZIONE_TECNICA_DELETE_TEAM_20260105.md](./DOCUMENTAZIONE_TECNICA_DELETE_TEAM_20260105.md) | Documentazione tecnica Delete Team + Fix REGISTRATION_OPEN |
+| [HANDOVER_SESSIONE_CREW_ROLES_20260105.md](./HANDOVER_SESSIONE_CREW_ROLES_20260105.md) | Handover sessione Crew Roles |
+| [DOCUMENTAZIONE_TECNICA_CREW_ROLES_20260105.md](./DOCUMENTAZIONE_TECNICA_CREW_ROLES_20260105.md) | Documentazione tecnica Crew Roles |
+| [ARCHITETTURA_FRONTEND_BACKEND_E_GITHUB.md](./ARCHITETTURA_FRONTEND_BACKEND_E_GITHUB.md) | Architettura sistema e workflow GitHub |
 
 ---
 
@@ -488,13 +493,19 @@ Per tornei provinciali/nazionali, i team possono rappresentare un'associazione d
 
 ## Changelog
 
-### v1.1.0 (2026-01-05) - IN SVILUPPO
+### v1.1.1 (2026-01-05) - Delete Team & REGISTRATION_OPEN
+- **Feature:** Delete Team con conferma dialog (commit 456da9d)
+- **Feature:** Create Team con selezione Captain
+- **Fix:** TournamentCard crash su status REGISTRATION_OPEN (commit a61bbd3)
+- **Frontend:** Aggiunto status REGISTRATION_OPEN a statusConfig
+- **Backend:** Validazione ruoli crew completata
+
+### v1.1.0 (2026-01-05) - Crew Roles Drifting
 - **Schema:** Aggiunto enum `CrewRole` (SKIPPER, TEAM_LEADER, CREW, ANGLER, GUEST)
 - **Schema:** Aggiunti campi esterni per TeamMember (externalName, externalPhone, externalEmail, isExternal)
 - **Schema:** Aggiunti campi Team per associazione rappresentata (representingClubName, representingClubCode)
 - **Database:** Migrazione completata con `db push`
 - **⚠️ BLOCCATO:** Prisma client non rigenerato (file locked)
-- **TODO:** Aggiornamento API team.routes.ts
 - **TODO:** Aggiornamento UI teams/page.tsx
 
 ### v1.0.0 (2025-01-02)

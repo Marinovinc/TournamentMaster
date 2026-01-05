@@ -4,9 +4,9 @@
 
 ## TODO - Stato Attuale (2026-01-05)
 
-> **Ultimo aggiornamento:** 2026-01-05 18:30 | **Priorita:** CRITICA
+> **Ultimo aggiornamento:** 2026-01-05 22:00 | **Priorita:** MEDIA
 
-### Funzionalita Completate (Sessione Delete Team)
+### Funzionalita Completate
 
 - [x] **Delete Team** - Eliminazione barca con conferma dialog (commit 456da9d)
 - [x] **Create Team con Captain** - Selezione capitano alla creazione
@@ -14,6 +14,10 @@
 - [x] **Backend Crew Roles** - Validazione ruoli
 - [x] **Nuovo endpoint** - POST /teams/:id/members/external per membri esterni
 - [x] **Campi representing club** - representingClubName, representingClubCode
+- [x] **Frontend getRoleBadge()** - Aggiornato con nuovi ruoli (commit b697823)
+- [x] **Frontend TeamMember** - Interfaccia con campi esterni
+- [x] **Frontend Dialog membro esterno** - Completo
+- [x] **Frontend Associazione Rappresentata** - Campo condizionale per provinciali (commit b697823)
 
 ### Blocchi Critici
 
@@ -23,13 +27,6 @@
 
 - [ ] **Migrazione dati** - UPDATE team_members SET role = TEAM_LEADER WHERE role = CAPTAIN
 - [ ] **Test E2E Delete** - Verificare cascade delete team_members
-
-### Frontend da Completare
-
-- [ ] **teams/page.tsx** - Aggiornare getRoleBadge() con nuovi ruoli
-- [ ] **teams/page.tsx** - Interfaccia TeamMember con campi esterni
-- [ ] **teams/page.tsx** - Dialog Aggiungi membro esterno
-- [ ] **teams/page.tsx** - Campo Associazione Rappresentata per provinciali
 
 ---
 

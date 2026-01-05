@@ -513,7 +513,9 @@ export class PDFService {
     });
 
     const userToTeamMap = new Map<string, string>();
-    teamMembers.forEach((m) => userToTeamMap.set(m.userId, m.teamId));
+    teamMembers.forEach((m) => {
+      if (m.userId) userToTeamMap.set(m.userId, m.teamId);
+    });
 
     // Aggiungi anche i capitani alla mappa
     teams.forEach((t) => userToTeamMap.set(t.captainId, t.id));

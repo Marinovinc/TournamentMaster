@@ -655,3 +655,111 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+// ================================
+// CMS - FEATURES
+// ================================
+
+model Feature {
+  id          String   @id @default(uuid())
+  icon        String   @db.VarChar(50)
+  title       String   @db.VarChar(255)
+  description String   @db.Text
+  badge       String   @db.VarChar(50)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  locale      String   @db.VarChar(5) @default("it")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([locale, isActive])
+  @@index([sortOrder])
+  @@map("features")
+}
+
+// ================================
+// CMS - PRICING PLANS
+// ================================
+
+model PricingPlan {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(100)
+  description  String   @db.VarChar(255)
+  price        String   @db.VarChar(50)
+  priceDetail  String   @db.VarChar(50)
+  icon         String   @db.VarChar(50)
+  highlighted  Boolean  @default(false)
+  badge        String?  @db.VarChar(50)
+  cta          String   @db.VarChar(100)
+  ctaVariant   String   @db.VarChar(20) @default("outline")
+  ctaLink      String?  @db.VarChar(255)
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  locale       String   @db.VarChar(5) @default("it")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  features     PlanFeature[]
+
+  @@index([locale, isActive])
+  @@index([sortOrder])
+  @@map("pricing_plans")
+}
+
+model PlanFeature {
+  id        String      @id @default(uuid())
+  planId    String
+  plan      PricingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  text      String      @db.VarChar(255)
+  included  Boolean     @default(true)
+  sortOrder Int         @default(0)
+
+  @@index([planId])
+  @@map("plan_features")
+}
+
+// ================================
+// CMS - FAQ
+// ================================
+
+model Faq {
+  id        String   @id @default(uuid())
+  question  String   @db.VarChar(500)
+  answer    String   @db.Text
+  link      String?  @db.VarChar(255)
+  linkText  String?  @db.VarChar(100)
+  category  String   @db.VarChar(50) @default("pricing")
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  locale    String   @db.VarChar(5) @default("it")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category, locale, isActive])
+  @@index([sortOrder])
+  @@map("faqs")
+}
+
+// ================================
+// CMS - DISCIPLINES (Extended info)
+// ================================
+
+model DisciplineInfo {
+  id            String   @id @default(uuid())
+  code          String   @db.VarChar(50)
+  name          String   @db.VarChar(100)
+  subtitle      String   @db.VarChar(100)
+  description   String   @db.Text
+  icon          String   @db.VarChar(50)
+  category      String   @db.VarChar(20)
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  locale        String   @db.VarChar(5) @default("it")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([code, locale])
+  @@index([category, locale, isActive])
+  @@index([sortOrder])
+  @@map("discipline_info")
+}

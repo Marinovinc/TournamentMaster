@@ -15,6 +15,7 @@ import teamRoutes from "./routes/team.routes";
 import strikeRoutes from "./routes/strike.routes";
 import tenantRoutes from "./routes/tenant.routes";
 import reportsRoutes from "./routes/reports.routes";
+import cmsRoutes from "./routes/cms.routes";
 
 // Create Express app
 const app: Application = express();
@@ -73,6 +74,7 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/strikes", strikeRoutes);
 app.use("/api/tenants", tenantRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/cms", cmsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

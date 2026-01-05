@@ -4,6 +4,7 @@
  * =============================================================================
  * Percorso: src/app/[locale]/pricing/page.tsx
  * Creato: 2026-01-02
+ * Aggiornato: 2026-01-05 - Convertito a pagina dinamica con fetch da API CMS
  * Descrizione: Pricing - Pagina piani e prezzi per organizzatori
  * =============================================================================
  */
@@ -20,108 +21,75 @@ import {
   HelpCircle,
   BookOpen,
   ArrowRight,
+  LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-const plans = [
-  {
-    name: "Starter",
-    description: "Per piccoli tornei locali",
-    price: "Gratis",
-    priceDetail: "per sempre",
-    icon: Zap,
-    highlighted: false,
-    features: [
-      { text: "Fino a 3 tornei/anno", included: true },
-      { text: "Max 30 partecipanti/torneo", included: true },
-      { text: "Classifiche in tempo reale", included: true },
-      { text: "Validazione GPS base", included: true },
-      { text: "Supporto email", included: true },
-      { text: "Statistiche avanzate", included: false },
-      { text: "Personalizzazione brand", included: false },
-      { text: "API access", included: false },
-    ],
-    cta: "Inizia Gratis",
-    ctaVariant: "outline" as const,
-  },
-  {
-    name: "Pro",
-    description: "Per associazioni e circoli",
-    price: "29",
-    priceDetail: "/mese",
-    icon: Building2,
-    highlighted: true,
-    badge: "Piu popolare",
-    features: [
-      { text: "Tornei illimitati", included: true },
-      { text: "Max 200 partecipanti/torneo", included: true },
-      { text: "Classifiche in tempo reale", included: true },
-      { text: "Validazione GPS avanzata", included: true },
-      { text: "Supporto prioritario", included: true },
-      { text: "Statistiche avanzate", included: true },
-      { text: "Personalizzazione brand", included: true },
-      { text: "API access", included: false },
-    ],
-    cta: "Prova 14 giorni gratis",
-    ctaVariant: "default" as const,
-  },
-  {
-    name: "Enterprise",
-    description: "Per federazioni e grandi eventi",
-    price: "Personalizzato",
-    priceDetail: "contattaci",
-    icon: Crown,
-    highlighted: false,
-    features: [
-      { text: "Tornei illimitati", included: true },
-      { text: "Partecipanti illimitati", included: true },
-      { text: "Classifiche in tempo reale", included: true },
-      { text: "Validazione multi-livello", included: true },
-      { text: "Account manager dedicato", included: true },
-      { text: "Statistiche avanzate", included: true },
-      { text: "White-label completo", included: true },
-      { text: "API access completo", included: true },
-    ],
-    cta: "Contattaci",
-    ctaVariant: "outline" as const,
-  },
-];
+// Icon mapping from string to Lucide component
+const iconMap: Record<string, LucideIcon> = {
+  Zap,
+  Building2,
+  Crown,
+};
 
-interface FAQ {
-  question: string;
-  answer: string;
-  link?: string;
-  linkText?: string;
+// Types for API data
+interface PlanFeature {
+  id: string;
+  text: string;
+  included: boolean;
 }
 
-const faqs: FAQ[] = [
-  {
-    question: "Posso cambiare piano in qualsiasi momento?",
-    answer: "Si, puoi fare upgrade o downgrade del tuo piano in qualsiasi momento. Le modifiche saranno effettive dal ciclo di fatturazione successivo.",
-  },
-  {
-    question: "C'e un periodo di prova?",
-    answer: "Il piano Pro include 14 giorni di prova gratuita. Non e richiesta carta di credito per iniziare.",
-  },
-  {
-    question: "Come funziona il pagamento?",
-    answer: "Accettiamo carte di credito, Apple Pay, Google Pay e bonifico bancario (solo per piani annuali). La fatturazione e mensile o annuale con 2 mesi gratis.",
-    link: "/payments/guide",
-    linkText: "Vedi Guida Tariffe Completa",
-  },
-  {
-    question: "Cosa succede se supero i limiti del piano?",
-    answer: "Ti avviseremo quando ti avvicini ai limiti. Potrai fare upgrade o completare il torneo corrente prima di dover cambiare piano.",
-  },
-  {
-    question: "Quanto guadagna la mia associazione dalle iscrizioni?",
-    answer: "La tua associazione trattiene tutto tranne EUR5 fissi per iscrizione (es. quota EUR20 = EUR15 per te). Le commissioni Stripe sono ripartite proporzionalmente.",
-    link: "/payments/guide",
-    linkText: "Vedi Simulazione Guadagni",
-  },
-];
+interface PricingPlan {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  priceDetail: string;
+  icon: string;
+  highlighted: boolean;
+  badge: string | null;
+  cta: string;
+  ctaVariant: string;
+  ctaLink: string | null;
+  features: PlanFeature[];
+}
+
+interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+  link: string | null;
+  linkText: string | null;
+}
+
+// Fetch pricing data from CMS API
+async function getPricingData(locale: string): Promise<{ plans: PricingPlan[]; faqs: FAQ[] }> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+  try {
+    const [plansRes, faqsRes] = await Promise.all([
+      fetch(`${apiUrl}/api/cms/pricing-plans?locale=${locale}`, {
+        next: { revalidate: 60 },
+      }),
+      fetch(`${apiUrl}/api/cms/faqs?locale=${locale}&category=pricing`, {
+        next: { revalidate: 60 },
+      }),
+    ]);
+
+    const plansData = plansRes.ok ? await plansRes.json() : { success: false };
+    const faqsData = faqsRes.ok ? await faqsRes.json() : { success: false };
+
+    return {
+      plans: plansData.success ? plansData.data : [],
+      faqs: faqsData.success ? faqsData.data : [],
+    };
+  } catch (error) {
+    console.error("Error fetching pricing data:", error);
+    return { plans: [], faqs: [] };
+  }
+}
 
 export default async function PricingPage({
   params,
@@ -129,6 +97,7 @@ export default async function PricingPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  const { plans, faqs } = await getPricingData(locale);
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -170,11 +139,12 @@ export default async function PricingPage({
 
       {/* Pricing Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-        {plans.map((plan, index) => {
-          const Icon = plan.icon;
+        {plans.map((plan) => {
+          const Icon = iconMap[plan.icon] || Zap;
+          const ctaVariant = plan.ctaVariant === "default" ? "default" : "outline";
           return (
             <Card
-              key={index}
+              key={plan.id}
               className={`relative ${
                 plan.highlighted
                   ? "border-primary shadow-xl scale-105"
@@ -196,7 +166,7 @@ export default async function PricingPage({
                   <span className="text-4xl font-bold">
                     {plan.price === "Gratis" || plan.price === "Personalizzato"
                       ? plan.price
-                      : `€${plan.price}`}
+                      : `\u20AC${plan.price}`}
                   </span>
                   <span className="text-muted-foreground ml-1">
                     {plan.priceDetail}
@@ -205,8 +175,8 @@ export default async function PricingPage({
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">
-                  {plan.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-center gap-2">
+                  {plan.features.map((feature) => (
+                    <li key={feature.id} className="flex items-center gap-2">
                       {feature.included ? (
                         <Check className="h-4 w-4 text-green-500 shrink-0" />
                       ) : (
@@ -227,13 +197,13 @@ export default async function PricingPage({
                 <Button
                   asChild
                   className="w-full"
-                  variant={plan.ctaVariant}
+                  variant={ctaVariant}
                   size="lg"
                 >
-                  <Link href={plan.name === "Enterprise"
+                  <Link href={plan.ctaLink || (plan.name === "Enterprise"
                     ? "mailto:sales@tournamentmaster.it"
                     : `/${locale}/payments?plan=${plan.name.toLowerCase()}`
-                  }>
+                  )}>
                     {plan.cta}
                   </Link>
                 </Button>
@@ -242,6 +212,13 @@ export default async function PricingPage({
           );
         })}
       </div>
+
+      {/* Empty state for plans */}
+      {plans.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground mb-16">
+          <p>Nessun piano disponibile al momento.</p>
+        </div>
+      )}
 
       {/* FAQ Section */}
       <div className="max-w-3xl mx-auto">
@@ -252,8 +229,8 @@ export default async function PricingPage({
           </h2>
         </div>
         <div className="space-y-4">
-          {faqs.map((faq, index) => (
-            <Card key={index}>
+          {faqs.map((faq) => (
+            <Card key={faq.id}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-medium">
                   {faq.question}

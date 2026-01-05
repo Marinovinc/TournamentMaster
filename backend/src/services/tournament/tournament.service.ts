@@ -48,6 +48,8 @@ export class TournamentService {
 
   // Lifecycle Operations (delegato a TournamentLifecycleService)
   static publish = TournamentLifecycleService.publish;
+  static openRegistration = TournamentLifecycleService.openRegistration;
+  static closeRegistration = TournamentLifecycleService.closeRegistration;
   static start = TournamentLifecycleService.start;
   static complete = TournamentLifecycleService.complete;
   static cancel = TournamentLifecycleService.cancel;
@@ -61,8 +63,10 @@ export class TournamentService {
   // Registration Operations (delegato a TournamentRegistrationService)
   static registerParticipant = TournamentRegistrationService.registerParticipant;
   static getParticipants = TournamentRegistrationService.getParticipants;
+  static getAllRegistrations = TournamentRegistrationService.getAllRegistrations;
   static cancelRegistration = TournamentRegistrationService.cancelRegistration;
   static confirmRegistration = TournamentRegistrationService.confirmRegistration;
+  static recordPayment = TournamentRegistrationService.recordPayment;
 }
 
 export default TournamentService;

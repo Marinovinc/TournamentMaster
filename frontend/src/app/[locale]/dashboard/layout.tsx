@@ -39,6 +39,7 @@ import {
   Calendar,
   CreditCard,
   FileText,
+  History,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -161,6 +162,7 @@ export default function DashboardLayout({
     new Set()
   );
   const [impersonatingTenant, setImpersonatingTenant] = useState<{id: string; name: string} | null>(null);
+  const [activeTournament, setActiveTournament] = useState<{id: string; name: string; status: string} | null>(null);
 
   // Check for impersonation mode
   useEffect(() => {
@@ -198,6 +200,45 @@ export default function DashboardLayout({
     localStorage.removeItem("impersonatingTenant");
     setImpersonatingTenant(null);
     router.push(`/${locale}/dashboard/super-admin`);
+  };
+
+  // Check for active tournament mode
+  useEffect(() => {
+    const checkActiveTournament = () => {
+      const tournamentStr = localStorage.getItem("activeTournament");
+      if (tournamentStr) {
+        try {
+          setActiveTournament(JSON.parse(tournamentStr));
+        } catch {
+          setActiveTournament(null);
+        }
+      } else {
+        setActiveTournament(null);
+      }
+    };
+
+    // Check on mount
+    checkActiveTournament();
+
+    // Listen to custom event for tournament changes
+    const handleTournamentChanged = () => checkActiveTournament();
+    window.addEventListener("tournamentChanged", handleTournamentChanged);
+
+    // Listen to storage events (for cross-tab sync)
+    window.addEventListener("storage", checkActiveTournament);
+
+    return () => {
+      window.removeEventListener("tournamentChanged", handleTournamentChanged);
+      window.removeEventListener("storage", checkActiveTournament);
+    };
+  }, []);
+
+  // Exit tournament mode
+  const exitTournamentMode = () => {
+    localStorage.removeItem("activeTournament");
+    setActiveTournament(null);
+    window.dispatchEvent(new Event("tournamentChanged"));
+    router.push(`/${locale}/dashboard/tournaments`);
   };
 
   const operationalSections: SidebarSection[] = useMemo(
@@ -297,26 +338,7 @@ export default function DashboardLayout({
           },
         ],
       },
-      {
-        id: "assoc-tornei",
-        label: "Operazioni Torneo",
-        icon: <Trophy className="h-4 w-4" />,
-        roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
-        items: [
-          {
-            href: `/${locale}/dashboard/strikes`,
-            label: "Strike Live",
-            icon: <Zap className="h-4 w-4" />,
-            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
-          },
-          {
-            href: `/${locale}/dashboard/judge`,
-            label: "Catture da Validare",
-            icon: <CheckCircle className="h-4 w-4" />,
-            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
-          },
-        ],
-      },
+      // Tournament sections are added dynamically based on activeTournament
       {
         id: "assoc-report",
         label: "Report",
@@ -445,23 +467,137 @@ export default function DashboardLayout({
 
   const closeSidebar = () => setSidebarOpen(false);
 
+  // Dynamic tournament sections based on active tournament
+  const tournamentSections: SidebarSection[] = useMemo(() => {
+    if (!activeTournament) return [];
+
+    const isCompleted = activeTournament.status === "COMPLETED";
+    const isOngoing = activeTournament.status === "ONGOING";
+    const tournamentId = activeTournament.id;
+
+    const sections: SidebarSection[] = [];
+
+    // Gestione Torneo - always shown when tournament is active
+    sections.push({
+      id: "tournament-manage",
+      label: "Gestione Torneo",
+      icon: <Settings className="h-4 w-4" />,
+      roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+      items: [
+        {
+          href: `/${locale}/dashboard/tournaments/${tournamentId}`,
+          label: "Panoramica",
+          icon: <Trophy className="h-4 w-4" />,
+          roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+        },
+        {
+          href: `/${locale}/dashboard/tournaments/${tournamentId}/participants`,
+          label: "Partecipanti",
+          icon: <Users className="h-4 w-4" />,
+          roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+        },
+        {
+          href: `/${locale}/dashboard/tournaments/${tournamentId}/teams`,
+          label: "Barche/Equipaggi",
+          icon: <Ship className="h-4 w-4" />,
+          roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+        },
+        {
+          href: `/${locale}/dashboard/tournaments/${tournamentId}/judges`,
+          label: "Ispettori",
+          icon: <Award className="h-4 w-4" />,
+          roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+        },
+        {
+          href: `/${locale}/dashboard/tournaments/${tournamentId}/payments`,
+          label: "Pagamenti",
+          icon: <CreditCard className="h-4 w-4" />,
+          roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+        },
+      ],
+    });
+
+    if (isCompleted) {
+      // Statistiche Torneo for completed tournaments
+      sections.push({
+        id: "tournament-stats",
+        label: "Statistiche Torneo",
+        icon: <BarChart3 className="h-4 w-4" />,
+        roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+        items: [
+          {
+            href: `/${locale}/dashboard/strikes?tournamentId=${tournamentId}&mode=history`,
+            label: "Storico Strike",
+            icon: <History className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+          },
+          {
+            href: `/${locale}/dashboard/judge?tournamentId=${tournamentId}&mode=history`,
+            label: "Storico Catture",
+            icon: <Fish className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+          },
+        ],
+      });
+    } else if (isOngoing) {
+      // Operazioni Live for ongoing tournaments
+      sections.push({
+        id: "tournament-ops",
+        label: "Operazioni Live",
+        icon: <Zap className="h-4 w-4" />,
+        roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+        items: [
+          {
+            href: `/${locale}/dashboard/strikes?tournamentId=${tournamentId}`,
+            label: "Strike Live",
+            icon: <Zap className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+          },
+          {
+            href: `/${locale}/dashboard/judge?tournamentId=${tournamentId}`,
+            label: "Catture da Validare",
+            icon: <CheckCircle className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER", "JUDGE"],
+          },
+        ],
+      });
+    }
+
+    return sections;
+  }, [activeTournament, locale]);
+
   const sectionsToShow = useMemo(() => {
     if (!user) return [];
     if (user.role === "PARTICIPANT") {
       return participantSections;
     }
+    
+    let baseSections: SidebarSection[] = [];
+    
     // In association mode, show association-specific sections
     if (impersonatingTenant) {
-      return associationSections.filter((section) => {
+      baseSections = associationSections.filter((section) => {
+        if (!section.roles) return true;
+        return section.roles.includes(user.role);
+      });
+    } else {
+      baseSections = operationalSections.filter((section) => {
         if (!section.roles) return true;
         return section.roles.includes(user.role);
       });
     }
-    return operationalSections.filter((section) => {
-      if (!section.roles) return true;
-      return section.roles.includes(user.role);
-    });
-  }, [user, operationalSections, participantSections, associationSections, impersonatingTenant]);
+    
+    // Add tournament sections if a tournament is active
+    if (activeTournament && tournamentSections.length > 0) {
+      const filteredTournamentSections = tournamentSections.filter((section) => {
+        if (!section.roles) return true;
+        return section.roles.includes(user.role);
+      });
+      baseSections = [...baseSections, ...filteredTournamentSections];
+    }
+    
+    return baseSections;
+  }, [user, operationalSections, participantSections, associationSections, impersonatingTenant, activeTournament, tournamentSections]);
 
   if (!mounted || isLoading) {
     return (
@@ -524,6 +660,30 @@ export default function DashboardLayout({
             >
               <LogOut className="h-3 w-3 mr-1" />
               Esci dalla modalità
+            </Button>
+          </div>
+        )}
+
+        {/* Tournament Mode Banner */}
+        {activeTournament && (
+          <div className="mx-3 mt-3 p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 mb-2">
+              <Trophy className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                {activeTournament.status === "COMPLETED" ? "Statistiche Torneo" : "Torneo Attivo"}
+              </span>
+            </div>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mb-2 font-semibold">
+              {activeTournament.name}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs h-7 border-amber-300 text-amber-700 hover:bg-amber-100"
+              onClick={exitTournamentMode}
+            >
+              <LogOut className="h-3 w-3 mr-1" />
+              Chiudi torneo
             </Button>
           </div>
         )}

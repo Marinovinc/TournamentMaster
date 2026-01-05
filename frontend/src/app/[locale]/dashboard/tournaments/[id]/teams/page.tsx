@@ -50,6 +50,19 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
   ArrowLeft,
   Ship,
   Search,
@@ -70,6 +83,8 @@ import {
   Building2,
   Phone,
   Mail,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 
 interface TeamMember {
@@ -140,6 +155,7 @@ export default function TeamsPage() {
   const [boatNumberDialogOpen, setBoatNumberDialogOpen] = useState(false);
   const [inspectorDialogOpen, setInspectorDialogOpen] = useState(false);
   const [externalMemberDialogOpen, setExternalMemberDialogOpen] = useState(false);
+  const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [boatNumber, setBoatNumber] = useState("");
   const [inspectorName, setInspectorName] = useState("");
@@ -150,6 +166,15 @@ export default function TeamsPage() {
   const [externalMemberPhone, setExternalMemberPhone] = useState("");
   const [externalMemberEmail, setExternalMemberEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Delete team state
+  const [deleteTeamDialogOpen, setDeleteTeamDialogOpen] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
+  // Create team form state
+  const [newTeamName, setNewTeamName] = useState("");
+  const [newBoatName, setNewBoatName] = useState("");
+  const [newCaptainId, setNewCaptainId] = useState("");
+  const [captainPopoverOpen, setCaptainPopoverOpen] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; firstName: string; lastName: string; email: string }>>([]);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -388,6 +413,143 @@ export default function TeamsPage() {
     }
   };
 
+  // Fetch available users for captain selection (all association members)
+  const fetchAvailableUsers = async () => {
+    console.log("[DEBUG] fetchAvailableUsers called, token:", token ? "present" : "missing", "tournamentId:", tournamentId);
+    try {
+      // First try to get all users (requires admin role)
+      console.log("[DEBUG] Trying /api/users...");
+      const usersRes = await fetch(`${API_URL}/api/users?limit=500`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("[DEBUG] /api/users response status:", usersRes.status);
+
+      if (usersRes.ok) {
+        const data = await usersRes.json();
+        console.log("[DEBUG] /api/users data:", data.data?.length, "users");
+        setAvailableUsers(data.data || []);
+        return;
+      }
+
+      // Fallback: try tournament participants (for non-admin users)
+      console.log("[DEBUG] Trying /api/tournaments/participants...");
+      const participantsRes = await fetch(`${API_URL}/api/tournaments/${tournamentId}/participants`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("[DEBUG] /participants response status:", participantsRes.status);
+
+      if (participantsRes.ok) {
+        const data = await participantsRes.json();
+        console.log("[DEBUG] /participants data:", data.data?.length, "participants");
+        // Map participants to the expected format
+        const participants = (data.data || []).map((p: any) => ({
+          id: p.user?.id || p.userId,
+          firstName: p.user?.firstName || p.firstName || "",
+          lastName: p.user?.lastName || p.lastName || "",
+          email: p.user?.email || p.email || "",
+        })).filter((u: any) => u.id); // Filter out any without valid id
+
+        console.log("[DEBUG] Mapped participants:", participants.length);
+        setAvailableUsers(participants);
+      }
+    } catch (error) {
+      console.error("[DEBUG] Error fetching users:", error);
+    }
+  };
+
+  // Open create team dialog
+  const openCreateTeamDialog = () => {
+    setNewTeamName("");
+    setNewBoatName("");
+    setNewCaptainId("");
+    fetchAvailableUsers();
+    setCreateTeamDialogOpen(true);
+  };
+
+  // Submit new team
+  const handleCreateTeam = async () => {
+    if (!newTeamName.trim()) {
+      alert("Inserisci il nome del team");
+      return;
+    }
+    if (!newBoatName.trim()) {
+      alert("Inserisci il nome della barca");
+      return;
+    }
+    if (!newCaptainId) {
+      alert("Seleziona un capitano");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_URL}/api/teams`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: newTeamName.trim(),
+          boatName: newBoatName.trim(),
+          tournamentId,
+          captainId: newCaptainId,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Refresh teams list
+        const teamsRes = await fetch(`${API_URL}/api/teams/tournament/${tournamentId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (teamsRes.ok) {
+          const teamsData = await teamsRes.json();
+          setTeams(teamsData.data || []);
+        }
+        setCreateTeamDialogOpen(false);
+      } else {
+        const data = await res.json();
+        alert(`Errore: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Error creating team:", error);
+      alert("Errore di rete");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle delete team
+  const handleDeleteTeam = async () => {
+    if (!teamToDelete) return;
+
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_URL}/api/teams/${teamToDelete.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        // Remove team from list
+        setTeams(teams.filter(t => t.id !== teamToDelete.id));
+        setDeleteTeamDialogOpen(false);
+        setTeamToDelete(null);
+      } else {
+        const data = await res.json();
+        alert(`Errore: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Error deleting team:", error);
+      alert("Errore di rete");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Check if external members are allowed for this tournament
   const canAddExternalMembers = tournament?.level === "SOCIAL" || tournament?.level === "CLUB";
 
@@ -443,6 +605,10 @@ export default function TeamsPage() {
             Gestisci le barche iscritte e i loro equipaggi
           </p>
         </div>
+        <Button onClick={openCreateTeamDialog} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Nuova Barca
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -621,6 +787,17 @@ export default function TeamsPage() {
                               <DropdownMenuItem>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Modifica
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTeamToDelete(team);
+                                  setDeleteTeamDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Elimina Barca
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -936,6 +1113,156 @@ export default function TeamsPage() {
             <Button onClick={handleSubmitExternalMember} disabled={submitting || !externalMemberName.trim()}>
               {submitting && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
               Aggiungi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Team Dialog */}
+      <Dialog open={createTeamDialogOpen} onOpenChange={setCreateTeamDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ship className="h-5 w-5" />
+              Nuova Barca
+            </DialogTitle>
+            <DialogDescription>
+              Aggiungi una nuova barca al torneo {tournament?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="teamName">Nome Team *</Label>
+              <Input
+                id="teamName"
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                placeholder="Es: Team Ischia Fishing"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="boatName">Nome Barca *</Label>
+              <div className="relative">
+                <Anchor className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="boatName"
+                  value={newBoatName}
+                  onChange={(e) => setNewBoatName(e.target.value)}
+                  placeholder="Es: Blue Marlin"
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Capitano (Capoequipaggio) *</Label>
+              <Popover open={captainPopoverOpen} onOpenChange={setCaptainPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={captainPopoverOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {newCaptainId
+                      ? (() => {
+                          const user = availableUsers.find((u) => u.id === newCaptainId);
+                          return user ? `${user.firstName} ${user.lastName}` : "Seleziona capitano...";
+                        })()
+                      : "Seleziona capitano..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Cerca per nome o email..." />
+                    <CommandList className="max-h-[300px]">
+                      <CommandEmpty>Nessun utente trovato.</CommandEmpty>
+                      <CommandGroup heading={`${availableUsers.length} utenti disponibili`}>
+                        {availableUsers.map((user) => (
+                          <CommandItem
+                            key={user.id}
+                            value={`${user.firstName} ${user.lastName} ${user.email}`}
+                            onSelect={() => {
+                              setNewCaptainId(user.id);
+                              setCaptainPopoverOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                newCaptainId === user.id ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                            <div className="flex flex-col">
+                              <span>{user.firstName} {user.lastName}</span>
+                              <span className="text-xs text-muted-foreground">{user.email}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <p className="text-xs text-muted-foreground">
+                Il capitano sarà automaticamente aggiunto come Capoequipaggio (TEAM_LEADER)
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateTeamDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button
+              onClick={handleCreateTeam}
+              disabled={submitting || !newTeamName.trim() || !newBoatName.trim() || !newCaptainId}
+            >
+              {submitting && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
+              Crea Barca
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Team Confirmation Dialog */}
+      <Dialog open={deleteTeamDialogOpen} onOpenChange={setDeleteTeamDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Elimina Barca
+            </DialogTitle>
+            <DialogDescription>
+              Stai per eliminare la barca "{teamToDelete?.boatName}" del team "{teamToDelete?.name}".
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Questa azione rimuovera la barca dal torneo corrente.
+              I dati della barca saranno mantenuti nel sistema per poter essere riutilizzati in tornei futuri.
+            </p>
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-800">
+                <strong>Attenzione:</strong> L'equipaggio attuale ({teamToDelete?.members.length || 0} membri) sara dissociato da questa barca.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTeamDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteTeam}
+              disabled={submitting}
+            >
+              {submitting && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
+              Elimina
             </Button>
           </DialogFooter>
         </DialogContent>

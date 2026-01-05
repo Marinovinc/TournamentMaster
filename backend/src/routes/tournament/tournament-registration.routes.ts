@@ -192,4 +192,93 @@ router.post(
   }
 );
 
+/**
+ * POST /:id/registrations/:registrationId/payment - Record manual payment
+ * Used by organizers to record cash/bank transfer payments
+ */
+router.post(
+  "/:id/registrations/:registrationId/payment",
+  authenticate,
+  tournamentIdParam,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Not authenticated",
+        });
+      }
+
+      const { amount, method, notes } = req.body;
+
+      if (!amount || typeof amount !== "number" || amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid amount",
+        });
+      }
+
+      if (!method || !["CASH", "BANK_TRANSFER", "OTHER"].includes(method)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid payment method. Must be CASH, BANK_TRANSFER, or OTHER",
+        });
+      }
+
+      const result = await TournamentService.recordPayment(
+        req.params.id,
+        req.params.registrationId,
+        {
+          amount,
+          method,
+          notes,
+          receivedBy: req.user.userId,
+        }
+      );
+
+      res.json({
+        success: true,
+        message: "Payment recorded successfully",
+        data: result,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to record payment";
+      res.status(400).json({
+        success: false,
+        message,
+      });
+    }
+  }
+);
+
+/**
+ * GET /:id/registrations - Get all registrations (organizer view)
+ * Returns all statuses, not just confirmed
+ */
+router.get(
+  "/:id/registrations",
+  authenticate,
+  tournamentIdParam,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const registrations = await TournamentService.getAllRegistrations(
+        req.params.id
+      );
+
+      res.json({
+        success: true,
+        data: registrations,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to get registrations";
+      res.status(500).json({
+        success: false,
+        message,
+      });
+    }
+  }
+);
+
 export default router;

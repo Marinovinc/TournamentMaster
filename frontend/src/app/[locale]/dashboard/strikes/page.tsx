@@ -38,7 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   Zap,
   Plus,
@@ -51,6 +51,8 @@ import {
   XCircle,
   CheckCircle,
   Waves,
+  History,
+  BarChart3,
 } from "lucide-react";
 import { HelpGuide } from "@/components/HelpGuide";
 
@@ -101,7 +103,9 @@ interface TeamStats {
 export default function StrikesPage() {
   const { user, token, isAdmin } = useAuth();
   const params = useParams();
+  const searchParams = useSearchParams();
   const locale = params.locale as string || "it";
+  const isHistoryMode = searchParams.get("mode") === "history";
 
   const [strikes, setStrikes] = useState<Strike[]>([]);
   const [teamStats, setTeamStats] = useState<TeamStats[]>([]);
@@ -109,7 +113,7 @@ export default function StrikesPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTournament, setSelectedTournament] = useState<string>("");
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(!isHistoryMode);
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -139,11 +143,17 @@ export default function StrikesPage() {
 
         if (res.ok) {
           const data = await res.json();
-          // Filter only ONGOING tournaments for strike registration
-          const ongoing = (data.data || []).filter((t: Tournament) =>
-            t.status === "ONGOING" || t.status === "ACTIVE"
-          );
-          setTournaments(ongoing);
+          // Filter tournaments based on mode
+          const filtered = (data.data || []).filter((t: Tournament) => {
+            if (isHistoryMode) {
+              // History mode: show COMPLETED tournaments
+              return t.status === "COMPLETED";
+            } else {
+              // Live mode: show ONGOING/ACTIVE tournaments
+              return t.status === "ONGOING" || t.status === "ACTIVE";
+            }
+          });
+          setTournaments(filtered);
           if (ongoing.length > 0 && !selectedTournament) {
             setSelectedTournament(ongoing[0].id);
           }
@@ -347,31 +357,46 @@ export default function StrikesPage() {
         <div className="flex items-start gap-3">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3">
-              <Zap className="h-8 w-8 text-yellow-500" />
-              Strike Live
+              {isHistoryMode ? (
+                <><History className="h-8 w-8 text-blue-500" /> Storico Strike</>
+              ) : (
+                <><Zap className="h-8 w-8 text-yellow-500" /> Strike Live</>
+              )}
             </h1>
             <p className="text-muted-foreground mt-1">
-              Monitoraggio abboccate in tempo reale
+              {isHistoryMode 
+                ? "Statistiche e storico abboccate dei tornei completati"
+                : "Monitoraggio abboccate in tempo reale"}
             </p>
           </div>
           <HelpGuide pageKey="strikes" position="inline" />
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant={autoRefresh ? "default" : "outline"}
-            size="sm"
-            onClick={() => setAutoRefresh(!autoRefresh)}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? "animate-spin" : ""}`} />
-            {autoRefresh ? "Auto ON" : "Auto OFF"}
-          </Button>
-          <Button onClick={() => {
-            setFormData({ ...formData, tournamentId: selectedTournament });
-            setCreateDialogOpen(true);
-          }} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nuovo Strike
-          </Button>
+          {!isHistoryMode && (
+            <>
+              <Button
+                variant={autoRefresh ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAutoRefresh(!autoRefresh)}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? "animate-spin" : ""}`} />
+                {autoRefresh ? "Auto ON" : "Auto OFF"}
+              </Button>
+              <Button onClick={() => {
+                setFormData({ ...formData, tournamentId: selectedTournament });
+                setCreateDialogOpen(true);
+              }} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nuovo Strike
+              </Button>
+            </>
+          )}
+          {isHistoryMode && (
+            <Button variant="outline" onClick={fetchStrikesData}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Aggiorna
+            </Button>
+          )}
         </div>
       </div>
 
@@ -379,14 +404,14 @@ export default function StrikesPage() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Torneo Attivo</CardTitle>
+            <CardTitle className="text-lg">{isHistoryMode ? "Torneo Completato" : "Torneo Attivo"}</CardTitle>
             <Select value={selectedTournament} onValueChange={setSelectedTournament}>
               <SelectTrigger className="w-[250px]">
                 <SelectValue placeholder="Seleziona torneo" />
               </SelectTrigger>
               <SelectContent>
                 {tournaments.length === 0 ? (
-                  <SelectItem value="none" disabled>Nessun torneo attivo</SelectItem>
+                  <SelectItem value="none" disabled>{isHistoryMode ? "Nessun torneo completato" : "Nessun torneo attivo"}</SelectItem>
                 ) : (
                   tournaments.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -428,9 +453,11 @@ export default function StrikesPage() {
       {/* Strikes Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Strike Recenti</CardTitle>
+          <CardTitle>{isHistoryMode ? "Storico Strike" : "Strike Recenti"}</CardTitle>
           <CardDescription>
-            Ultimi 50 strike registrati - Aggiornamento {autoRefresh ? "automatico" : "manuale"}
+            {isHistoryMode 
+              ? "Tutti gli strike del torneo selezionato"
+              : `Ultimi 50 strike registrati - Aggiornamento ${autoRefresh ? "automatico" : "manuale"}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -500,7 +527,7 @@ export default function StrikesPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        {!strike.result && (
+                        {!strike.result && !isHistoryMode && (
                           <Button
                             variant="outline"
                             size="sm"

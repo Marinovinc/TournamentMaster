@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TournamentMaster - Guida Utente Mobile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #0066CC 0%, #004499 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #0066CC;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        .card h3 {
+            color: #333;
+            margin: 20px 0 10px 0;
+        }
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #0066CC;
+        }
+        .step-number {
+            background: #0066CC;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .step-content {
+            flex: 1;
+        }
+        .step-content strong {
+            color: #0066CC;
+        }
+        .download-section {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .download-btn {
+            display: inline-block;
+            padding: 15px 40px;
+            background: white;
+            color: #28a745;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin: 20px 10px 10px;
+            transition: transform 0.2s;
+        }
+        .download-btn:hover {
+            transform: scale(1.05);
+        }
+        .qr-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        #qrcode {
+            margin: 0 auto;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .warning strong {
+            color: #856404;
+        }
+        .tip {
+            background: #d1ecf1;
+            border: 1px solid #17a2b8;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .tip strong {
+            color: #0c5460;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .feature-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .feature-item .icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        .permission-list {
+            list-style: none;
+            padding: 0;
+        }
+        .permission-list li {
+            padding: 10px 15px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+        }
+        .permission-list li::before {
+            content: "✓";
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #f8f9fa;
+            color: #0066CC;
+        }
+        code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>TournamentMaster Mobile</h1>
+        <p>Guida Utente per l'App Android</p>
+    </div>
+
+    <div class="container">
+        <!-- Download Section -->
+        <div class="download-section">
+            <h2>Scarica l'App Android</h2>
+            <p>Versione 1.0.0 - Ultima build disponibile</p>
+            <a href="https://expo.dev/artifacts/eas/gc1YShEvTAqQq4C27sSGx4.apk" class="download-btn">
+                Download APK
+            </a>
+            <div class="qr-container">
+                <div id="qrcode"></div>
+                <p style="color: #666; margin-top: 10px; font-size: 0.9rem;">Scansiona con la fotocamera</p>
+            </div>
+        </div>
+
+        <!-- Installazione -->
+        <div class="card">
+            <h2>1. Installazione</h2>
+
+            <h3>Requisiti Minimi</h3>
+            <table>
+                <tr>
+                    <th>Requisito</th>
+                    <th>Valore</th>
+                </tr>
+                <tr>
+                    <td>Sistema Operativo</td>
+                    <td>Android 7.0 (Nougat) o superiore</td>
+                </tr>
+                <tr>
+                    <td>Spazio Libero</td>
+                    <td>Almeno 100 MB</td>
+                </tr>
+                <tr>
+                    <td>Connessione</td>
+                    <td>Internet per sincronizzazione</td>
+                </tr>
+                <tr>
+                    <td>GPS</td>
+                    <td>Richiesto per geolocalizzazione catture</td>
+                </tr>
+            </table>
+
+            <h3>Procedura di Installazione</h3>
+
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <strong>Scarica il file APK</strong><br>
+                    Clicca sul pulsante "Download APK" qui sopra oppure scansiona il QR code con la fotocamera del telefono.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <strong>Abilita Origini Sconosciute</strong><br>
+                    Vai in <code>Impostazioni > Sicurezza > Origini sconosciute</code> e abilita l'installazione da fonti esterne al Play Store.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <strong>Installa l'APK</strong><br>
+                    Apri il file APK scaricato e conferma l'installazione quando richiesto.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <strong>Concedi i Permessi</strong><br>
+                    Al primo avvio, l'app richiede alcuni permessi necessari per il funzionamento.
+                </div>
+            </div>
+
+            <div class="warning">
+                <strong>Nota:</strong> Su Android 8.0+, potrebbe essere necessario abilitare l'installazione da browser/file manager specifico invece che globalmente.
+            </div>
+        </div>
+
+        <!-- Permessi -->
+        <div class="card">
+            <h2>2. Permessi Richiesti</h2>
+            <p>L'app richiede i seguenti permessi per funzionare correttamente:</p>
+
+            <ul class="permission-list">
+                <li><strong>Fotocamera</strong> - Per scattare foto delle catture</li>
+                <li><strong>Posizione GPS</strong> - Per geolocalizzare le catture</li>
+                <li><strong>Archiviazione</strong> - Per salvare le foto sul dispositivo</li>
+                <li><strong>Microfono</strong> - Per registrare video delle catture</li>
+            </ul>
+
+            <div class="tip">
+                <strong>Suggerimento:</strong> Assicurati di avere il GPS attivo durante i tornei per registrare correttamente la posizione delle catture.
+            </div>
+        </div>
+
+        <!-- Primo Accesso -->
+        <div class="card">
+            <h2>3. Primo Accesso</h2>
+
+            <h3>Registrazione Nuovo Account</h3>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <strong>Apri l'app</strong> e tocca "Registrati"
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <strong>Compila i dati</strong>: Nome, Cognome, Email, Password
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <strong>Conferma l'email</strong> cliccando sul link ricevuto
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <strong>Effettua il login</strong> con le credenziali create
+                </div>
+            </div>
+
+            <h3>Login con Account Esistente</h3>
+            <p>Se hai gia un account (web o mobile), inserisci email e password per accedere.</p>
+
+            <div class="tip">
+                <strong>Account Demo:</strong> Puoi provare l'app con le credenziali di test:<br>
+                Email: <code>user@test.com</code> | Password: <code>Test123!</code>
+            </div>
+        </div>
+
+        <!-- Funzionalita -->
+        <div class="card">
+            <h2>4. Funzionalita Principali</h2>
+
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="icon">🏆</div>
+                    <strong>Tornei</strong>
+                    <p>Visualizza e iscriviti ai tornei disponibili</p>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">🐟</div>
+                    <strong>Catture</strong>
+                    <p>Registra le tue catture con foto e GPS</p>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">📊</div>
+                    <strong>Classifica</strong>
+                    <p>Segui la classifica in tempo reale</p>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">👤</div>
+                    <strong>Profilo</strong>
+                    <p>Gestisci il tuo profilo e statistiche</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registrare Cattura -->
+        <div class="card">
+            <h2>5. Come Registrare una Cattura</h2>
+
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <strong>Accedi al torneo attivo</strong><br>
+                    Dalla home, seleziona il torneo a cui sei iscritto.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <strong>Tocca "Nuova Cattura"</strong><br>
+                    Il pulsante si trova nella barra inferiore o nella schermata del torneo.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <strong>Scatta la foto</strong><br>
+                    Fotografa il pesce con il metro visibile. La foto deve mostrare chiaramente la specie e la dimensione.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <strong>Inserisci i dettagli</strong><br>
+                    - Specie del pesce<br>
+                    - Lunghezza in cm<br>
+                    - Peso (se richiesto dal regolamento)<br>
+                    - Note opzionali
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <strong>Invia la cattura</strong><br>
+                    Tocca "Registra Cattura". Il GPS e il timestamp vengono salvati automaticamente.
+                </div>
+            </div>
+
+            <div class="warning">
+                <strong>Importante:</strong> Assicurati di avere connessione internet per inviare le catture. In caso contrario, verranno salvate localmente e inviate appena disponibile.
+            </div>
+        </div>
+
+        <!-- Classifica Live -->
+        <div class="card">
+            <h2>6. Classifica Live</h2>
+            <p>La classifica si aggiorna automaticamente in tempo reale grazie alla tecnologia WebSocket.</p>
+
+            <h3>Visualizzazione</h3>
+            <ul>
+                <li><strong>Posizione</strong> - Il tuo ranking attuale</li>
+                <li><strong>Punti</strong> - Punteggio totale accumulato</li>
+                <li><strong>Catture</strong> - Numero di catture valide</li>
+                <li><strong>Miglior Cattura</strong> - La tua cattura con punteggio piu alto</li>
+            </ul>
+
+            <div class="tip">
+                <strong>Suggerimento:</strong> Tira verso il basso per aggiornare manualmente la classifica.
+            </div>
+        </div>
+
+        <!-- Troubleshooting -->
+        <div class="card">
+            <h2>7. Risoluzione Problemi</h2>
+
+            <table>
+                <tr>
+                    <th>Problema</th>
+                    <th>Soluzione</th>
+                </tr>
+                <tr>
+                    <td>L'app non si installa</td>
+                    <td>Verifica di aver abilitato "Origini sconosciute" nelle impostazioni</td>
+                </tr>
+                <tr>
+                    <td>GPS non funziona</td>
+                    <td>Attiva la localizzazione nelle impostazioni del telefono e concedi il permesso all'app</td>
+                </tr>
+                <tr>
+                    <td>Foto non si caricano</td>
+                    <td>Verifica la connessione internet. Le foto vengono salvate localmente e inviate appena possibile</td>
+                </tr>
+                <tr>
+                    <td>Login fallisce</td>
+                    <td>Controlla email e password. Usa "Password dimenticata" se necessario</td>
+                </tr>
+                <tr>
+                    <td>Classifica non si aggiorna</td>
+                    <td>Tira verso il basso per aggiornare manualmente o verifica la connessione</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Contatti -->
+        <div class="card">
+            <h2>8. Supporto</h2>
+            <p>Per assistenza tecnica o segnalazione bug:</p>
+            <ul>
+                <li><strong>GitHub Issues:</strong> <a href="https://github.com/Marinovinc/TournamentMaster/issues">github.com/Marinovinc/TournamentMaster/issues</a></li>
+                <li><strong>Web App:</strong> <a href="https://tournamentmaster.app">tournamentmaster.app</a></li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>TournamentMaster v1.0.0 | Guida Utente Mobile</p>
+            <p>Ultimo aggiornamento: 4 Gennaio 2026</p>
+        </div>
+    </div>
+
+    <script>
+        new QRCode(document.getElementById("qrcode"), {
+            text: "https://expo.dev/artifacts/eas/gc1YShEvTAqQq4C27sSGx4.apk",
+            width: 180,
+            height: 180,
+            colorDark: "#28a745",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    </script>
+</body>
+</html>

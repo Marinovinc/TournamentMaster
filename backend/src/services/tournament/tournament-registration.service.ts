@@ -258,4 +258,112 @@ export class TournamentRegistrationService {
 
     return updated;
   }
+
+  /**
+   * Record manual payment (cash, bank transfer, etc.)
+   * Used by organizers to confirm payments received outside the platform
+   */
+  static async recordPayment(
+    tournamentId: string,
+    registrationId: string,
+    paymentData: {
+      amount: number;
+      method: "CASH" | "BANK_TRANSFER" | "OTHER";
+      notes?: string;
+      receivedBy: string; // userId of the organizer recording the payment
+    }
+  ) {
+    const registration = await prisma.tournamentRegistration.findFirst({
+      where: {
+        id: registrationId,
+        tournamentId,
+      },
+      include: {
+        tournament: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!registration) {
+      throw new Error("Registration not found");
+    }
+
+    if (registration.status === "CANCELLED" || registration.status === "REFUNDED") {
+      throw new Error("Cannot record payment for cancelled or refunded registration");
+    }
+
+    // Update registration with payment info
+    // Note: payment method and notes are stored in paymentId field as JSON for now
+    const paymentInfo = JSON.stringify({
+      method: paymentData.method,
+      amount: paymentData.amount,
+      notes: paymentData.notes,
+      recordedAt: new Date().toISOString(),
+      recordedBy: paymentData.receivedBy,
+    });
+
+    const updated = await prisma.tournamentRegistration.update({
+      where: { id: registrationId },
+      data: {
+        status: "CONFIRMED",
+        amountPaid: paymentData.amount,
+        confirmedAt: new Date(),
+        paymentId: paymentInfo, // Store payment details as JSON
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        tournament: {
+          select: {
+            id: true,
+            name: true,
+            registrationFee: true,
+          },
+        },
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Get all registrations for a tournament (for organizer view)
+   * Unlike getParticipants, this returns ALL statuses
+   */
+  static async getAllRegistrations(tournamentId: string) {
+    const registrations = await prisma.tournamentRegistration.findMany({
+      where: { tournamentId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: [
+        { boatNumber: "asc" },
+        { registeredAt: "asc" },
+      ],
+    });
+
+    return registrations;
+  }
 }

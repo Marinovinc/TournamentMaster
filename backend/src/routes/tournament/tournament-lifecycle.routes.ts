@@ -78,6 +78,82 @@ router.post(
 );
 
 /**
+ * POST /:id/open-registration - Open registration for tournament
+ */
+router.post(
+  "/:id/open-registration",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
+  tournamentIdParam,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Not authenticated",
+        });
+      }
+
+      const tournament = await TournamentService.openRegistration(
+        req.params.id,
+        req.user.userId
+      );
+
+      res.json({
+        success: true,
+        message: "Registration opened successfully",
+        data: tournament,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to open registration";
+      res.status(400).json({
+        success: false,
+        message,
+      });
+    }
+  }
+);
+
+/**
+ * POST /:id/close-registration - Close registration for tournament
+ */
+router.post(
+  "/:id/close-registration",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
+  tournamentIdParam,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Not authenticated",
+        });
+      }
+
+      const tournament = await TournamentService.closeRegistration(
+        req.params.id,
+        req.user.userId
+      );
+
+      res.json({
+        success: true,
+        message: "Registration closed successfully",
+        data: tournament,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to close registration";
+      res.status(400).json({
+        success: false,
+        message,
+      });
+    }
+  }
+);
+
+/**
  * POST /:id/start - Start tournament
  */
 router.post(

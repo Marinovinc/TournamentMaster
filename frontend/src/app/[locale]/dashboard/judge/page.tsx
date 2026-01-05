@@ -15,6 +15,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ import {
   RefreshCw,
   Video,
   Image,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -98,9 +100,14 @@ interface Catch {
 
 export default function JudgeDashboardPage() {
   const { token, hasRole } = useAuth();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const locale = params.locale as string || "it";
+  const isHistoryMode = searchParams.get("mode") === "history";
+  
   const [catches, setCatches] = useState<Catch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("PENDING");
+  const [statusFilter, setStatusFilter] = useState<string>(isHistoryMode ? "ALL" : "PENDING");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Dialog state
@@ -394,9 +401,17 @@ export default function JudgeDashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-3xl font-bold">Validazione Catture</h1>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              {isHistoryMode ? (
+                <><History className="h-8 w-8 text-blue-500" /> Storico Catture</>
+              ) : (
+                <>Validazione Catture</>
+              )}
+            </h1>
             <p className="text-muted-foreground mt-1">
-              {pendingCount} catture in attesa di validazione
+              {isHistoryMode 
+                ? "Archivio catture validate dei tornei completati"
+                : `${pendingCount} catture in attesa di validazione`}
             </p>
           </div>
           <HelpGuide pageKey="judge" position="inline" />
@@ -538,7 +553,7 @@ export default function JudgeDashboardPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {catchItem.status === "PENDING" && (
+                        {catchItem.status === "PENDING" && !isHistoryMode && (
                           <>
                             <Button
                               variant="ghost"

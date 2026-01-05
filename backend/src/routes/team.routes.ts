@@ -25,6 +25,7 @@ const createTeamValidation = [
   body("name").trim().notEmpty().withMessage("Team name is required"),
   body("boatName").trim().notEmpty().withMessage("Boat name is required"),
   body("tournamentId").notEmpty().withMessage("Tournament ID is required"),
+  body("captainId").optional().isUUID().withMessage("Valid captain ID required"),
   body("clubName").optional().trim(),
   body("clubCode").optional().trim(),
 ];
@@ -207,12 +208,26 @@ router.post(
         return res.status(403).json({ success: false, message: "Access denied" });
       }
 
+      // Determine captain: use provided captainId or fall back to logged-in user
+      const captainId = req.body.captainId || req.user.userId;
+
+      // Verify captain exists if explicitly provided
+      if (req.body.captainId) {
+        const captainExists = await prisma.user.findUnique({
+          where: { id: req.body.captainId },
+          select: { id: true },
+        });
+        if (!captainExists) {
+          return res.status(400).json({ success: false, message: "Captain user not found" });
+        }
+      }
+
       // Create team with captain
       const team = await prisma.team.create({
         data: {
           name: req.body.name,
           boatName: req.body.boatName,
-          captainId: req.user.userId,
+          captainId: captainId,
           tournamentId: req.body.tournamentId,
           clubName: req.body.clubName,
           clubCode: req.body.clubCode,
@@ -227,7 +242,7 @@ router.post(
       await prisma.teamMember.create({
         data: {
           teamId: team.id,
-          userId: req.user.userId,
+          userId: captainId,
           role: "TEAM_LEADER",
         },
       });

@@ -39,8 +39,9 @@ export class TournamentLifecycleService {
       throw new Error("Tournament not found");
     }
 
-    if (existing.organizerId !== userId) {
-      throw new Error("Only the organizer can publish this tournament");
+    const canManage = await TournamentLifecycleService.canManageTournament(existing, userId);
+    if (!canManage) {
+      throw new Error("You don't have permission to publish this tournament");
     }
 
     if (existing.status !== TournamentStatus.DRAFT) {
@@ -61,6 +62,97 @@ export class TournamentLifecycleService {
   }
 
   /**
+   * Check if user can manage tournament (organizer or admin)
+   */
+  private static async canManageTournament(
+    tournament: { organizerId: string; tenantId: string },
+    userId: string
+  ): Promise<boolean> {
+    // Organizer can always manage
+    if (tournament.organizerId === userId) {
+      return true;
+    }
+
+    // Check if user is admin
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, tenantId: true },
+    });
+
+    if (!user) return false;
+
+    // SUPER_ADMIN can manage any tournament
+    if (user.role === "SUPER_ADMIN") {
+      return true;
+    }
+
+    // TENANT_ADMIN can manage tournaments in their tenant
+    if (user.role === "TENANT_ADMIN" && user.tenantId === tournament.tenantId) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Open registration (PUBLISHED -> REGISTRATION_OPEN)
+   */
+  static async openRegistration(id: string, userId: string) {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id },
+    });
+
+    if (!tournament) {
+      throw new Error("Tournament not found");
+    }
+
+    const canManage = await TournamentLifecycleService.canManageTournament(tournament, userId);
+    if (!canManage) {
+      throw new Error("You don't have permission to manage this tournament");
+    }
+
+    if (tournament.status !== TournamentStatus.PUBLISHED) {
+      throw new Error("Only published tournaments can open registration");
+    }
+
+    const updated = await prisma.tournament.update({
+      where: { id },
+      data: { status: TournamentStatus.REGISTRATION_OPEN },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Close registration (REGISTRATION_OPEN -> REGISTRATION_CLOSED)
+   */
+  static async closeRegistration(id: string, userId: string) {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id },
+    });
+
+    if (!tournament) {
+      throw new Error("Tournament not found");
+    }
+
+    const canManage = await TournamentLifecycleService.canManageTournament(tournament, userId);
+    if (!canManage) {
+      throw new Error("You don't have permission to manage this tournament");
+    }
+
+    if (tournament.status !== TournamentStatus.REGISTRATION_OPEN) {
+      throw new Error("Only tournaments with open registration can be closed");
+    }
+
+    const updated = await prisma.tournament.update({
+      where: { id },
+      data: { status: TournamentStatus.REGISTRATION_CLOSED },
+    });
+
+    return updated;
+  }
+
+  /**
    * Start tournament (change status to ONGOING)
    */
   static async start(id: string, userId: string) {
@@ -77,12 +169,13 @@ export class TournamentLifecycleService {
       throw new Error("Tournament not found");
     }
 
-    if (tournament.organizerId !== userId) {
-      throw new Error("Only the organizer can start this tournament");
+    const canManage = await TournamentLifecycleService.canManageTournament(tournament, userId);
+    if (!canManage) {
+      throw new Error("You don't have permission to start this tournament");
     }
 
-    if (tournament.status !== TournamentStatus.PUBLISHED) {
-      throw new Error("Only published tournaments can be started");
+    if (tournament.status !== TournamentStatus.REGISTRATION_CLOSED) {
+      throw new Error("Only tournaments with closed registration can be started");
     }
 
     // Check minimum participants
@@ -115,8 +208,9 @@ export class TournamentLifecycleService {
       throw new Error("Tournament not found");
     }
 
-    if (tournament.organizerId !== userId) {
-      throw new Error("Only the organizer can complete this tournament");
+    const canManage = await TournamentLifecycleService.canManageTournament(tournament, userId);
+    if (!canManage) {
+      throw new Error("You don't have permission to complete this tournament");
     }
 
     if (tournament.status !== TournamentStatus.ONGOING) {
@@ -143,8 +237,9 @@ export class TournamentLifecycleService {
       throw new Error("Tournament not found");
     }
 
-    if (tournament.organizerId !== userId) {
-      throw new Error("Only the organizer can cancel this tournament");
+    const canManage = await TournamentLifecycleService.canManageTournament(tournament, userId);
+    if (!canManage) {
+      throw new Error("You don't have permission to cancel this tournament");
     }
 
     if (tournament.status === TournamentStatus.COMPLETED) {

@@ -68,6 +68,10 @@ import {
   Download,
   FileText,
   Building2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Settings,
 } from "lucide-react";
 import { HelpGuide } from "@/components/HelpGuide";
 
@@ -96,6 +100,10 @@ interface Tournament {
   };
 }
 
+// Sorting types
+type SortColumn = "name" | "discipline" | "startDate" | "teams" | "status";
+type SortDirection = "asc" | "desc";
+
 export default function TournamentsPage() {
   const { user, token, isAdmin } = useAuth();
   const params = useParams();
@@ -107,6 +115,18 @@ export default function TournamentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [tenantFilter, setTenantFilter] = useState<string>("ALL");
+
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<SortColumn>("startDate");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  // Check if in association mode (either user has tenantId or is impersonating)
+  const [isInAssociationMode, setIsInAssociationMode] = useState(false);
+  
+  useEffect(() => {
+    const impersonatingTenant = localStorage.getItem("impersonatingTenant");
+    setIsInAssociationMode(!!user?.tenantId || !!impersonatingTenant);
+  }, [user]);
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -203,14 +223,59 @@ export default function TournamentsPage() {
     );
   };
 
-  // Filter tournaments
-  const filteredTournaments = tournaments.filter((t) => {
-    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          t.location.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "ALL" || t.status === statusFilter;
-    const matchesTenant = tenantFilter === "ALL" || t.tenant?.id === tenantFilter;
-    return matchesSearch && matchesStatus && matchesTenant;
-  });
+  // Sorting handlers
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: SortColumn) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="ml-1 h-4 w-4 text-muted-foreground/50" />;
+    }
+    return sortDirection === "asc"
+      ? <ArrowUp className="ml-1 h-4 w-4" />
+      : <ArrowDown className="ml-1 h-4 w-4" />;
+  };
+
+  // Filter and sort tournaments
+  const filteredTournaments = useMemo(() => {
+    const filtered = tournaments.filter((t) => {
+      const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            t.location.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === "ALL" || t.status === statusFilter;
+      const matchesTenant = tenantFilter === "ALL" || t.tenant?.id === tenantFilter;
+      return matchesSearch && matchesStatus && matchesTenant;
+    });
+
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      switch (sortColumn) {
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case "discipline":
+          comparison = a.discipline.localeCompare(b.discipline);
+          break;
+        case "startDate":
+          comparison = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+          break;
+        case "teams":
+          const teamsA = a._count?.teams || a.participantCount || 0;
+          const teamsB = b._count?.teams || b.participantCount || 0;
+          comparison = teamsA - teamsB;
+          break;
+        case "status":
+          comparison = a.status.localeCompare(b.status);
+          break;
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [tournaments, searchQuery, statusFilter, tenantFilter, sortColumn, sortDirection]);
 
   // Handle create tournament
   const handleCreateTournament = async () => {
@@ -314,7 +379,7 @@ export default function TournamentsPage() {
     }
   };
 
-  // Handle change status
+  // Handle change status using dedicated lifecycle endpoints
   const handleChangeStatus = async (tournament: Tournament, newStatus: string) => {
     const statusLabels: Record<string, string> = {
       DRAFT: "Bozza",
@@ -326,29 +391,46 @@ export default function TournamentsPage() {
       CANCELLED: "Annullato",
     };
 
+    // Map status to endpoint
+    const endpointMap: Record<string, string> = {
+      PUBLISHED: "publish",
+      REGISTRATION_OPEN: "open-registration",
+      REGISTRATION_CLOSED: "close-registration",
+      ONGOING: "start",
+      COMPLETED: "complete",
+      CANCELLED: "cancel",
+    };
+
+    const endpoint = endpointMap[newStatus];
+    if (!endpoint) {
+      alert("Operazione non supportata");
+      return;
+    }
+
     const confirm_msg = `Vuoi cambiare lo stato del torneo "${tournament.name}" a "${statusLabels[newStatus]}"?`;
     if (!confirm(confirm_msg)) return;
 
     try {
-      const response = await fetch(`${API_URL}/api/tournaments/${tournament.id}`, {
-        method: "PUT",
+      const response = await fetch(`${API_URL}/api/tournaments/${tournament.id}/${endpoint}`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status: newStatus }),
       });
 
       const data = await response.json();
+
       if (response.ok) {
         setTournaments(tournaments.map((t) =>
           t.id === tournament.id ? { ...t, status: newStatus as Tournament["status"] } : t
         ));
       } else {
-        alert(`Errore: ${data.message || "Cambio stato fallito"}`);
+        alert(`Errore: ${data.message || data.error || "Cambio stato fallito"}`);
       }
     } catch (error) {
       console.error("Error changing status:", error);
+      alert(`Errore di rete: ${error}`);
     }
   };
 
@@ -396,6 +478,25 @@ export default function TournamentsPage() {
       month: "short",
       year: "numeric",
     });
+  };
+
+  // Open tournament mode - activates sidebar operations/statistics
+  const openTournamentMode = (tournament: Tournament) => {
+    const tournamentData = {
+      id: tournament.id,
+      name: tournament.name,
+      status: tournament.status,
+    };
+    localStorage.setItem("activeTournament", JSON.stringify(tournamentData));
+    window.dispatchEvent(new Event("tournamentChanged"));
+
+    // Navigate to appropriate page based on tournament status
+    const isCompleted = tournament.status === "COMPLETED";
+    if (isCompleted) {
+      router.push(`/${locale}/dashboard/strikes?tournamentId=${tournament.id}&mode=history`);
+    } else {
+      router.push(`/${locale}/dashboard/strikes?tournamentId=${tournament.id}`);
+    }
   };
 
   // Discipline labels
@@ -464,22 +565,24 @@ export default function TournamentsPage() {
                   className="pl-9 w-full sm:w-[200px]"
                 />
               </div>
-              <Select value={tenantFilter} onValueChange={setTenantFilter}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    <SelectValue placeholder="Tutte le associazioni" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Tutte le associazioni</SelectItem>
-                  {tenants.map((tenant) => (
-                    <SelectItem key={tenant.id} value={tenant.id}>
-                      {tenant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {!isInAssociationMode && (
+                <Select value={tenantFilter} onValueChange={setTenantFilter}>
+                  <SelectTrigger className="w-full sm:w-[200px]">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      <SelectValue placeholder="Tutte le associazioni" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Tutte le associazioni</SelectItem>
+                    {tenants.map((tenant) => (
+                      <SelectItem key={tenant.id} value={tenant.id}>
+                        {tenant.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Filtra per stato" />
@@ -503,11 +606,56 @@ export default function TournamentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Torneo</TableHead>
-                  <TableHead>Disciplina</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Team</TableHead>
-                  <TableHead>Stato</TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("name")}
+                      className="h-8 px-2 -ml-2 font-medium hover:bg-transparent"
+                    >
+                      Torneo
+                      {getSortIcon("name")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("discipline")}
+                      className="h-8 px-2 -ml-2 font-medium hover:bg-transparent"
+                    >
+                      Disciplina
+                      {getSortIcon("discipline")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("startDate")}
+                      className="h-8 px-2 -ml-2 font-medium hover:bg-transparent"
+                    >
+                      Date
+                      {getSortIcon("startDate")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("teams")}
+                      className="h-8 px-2 -ml-2 font-medium hover:bg-transparent"
+                    >
+                      Team
+                      {getSortIcon("teams")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("status")}
+                      className="h-8 px-2 -ml-2 font-medium hover:bg-transparent"
+                    >
+                      Stato
+                      {getSortIcon("status")}
+                    </Button>
+                  </TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
                 </TableRow>
               </TableHeader>
@@ -578,6 +726,24 @@ export default function TournamentsPage() {
                               <Eye className="h-4 w-4 mr-2" />
                               Visualizza
                             </DropdownMenuItem>
+                            {/* Gestisci - Enter Tournament Management Mode */}
+                            <DropdownMenuItem
+                              onClick={() => router.push(`/${locale}/dashboard/tournaments/${tournament.id}`)}
+                              className="text-primary font-medium"
+                            >
+                              <Settings className="h-4 w-4 mr-2" />
+                              Gestisci
+                            </DropdownMenuItem>
+                            {/* Open Tournament Mode - only for ONGOING/ACTIVE/COMPLETED tournaments */}
+                            {(tournament.status === "ONGOING" || tournament.status === "ACTIVE" || tournament.status === "COMPLETED") && (
+                              <DropdownMenuItem
+                                onClick={() => openTournamentMode(tournament)}
+                                className={tournament.status === "COMPLETED" ? "text-blue-600" : "text-green-600"}
+                              >
+                                <Trophy className="h-4 w-4 mr-2" />
+                                {tournament.status === "COMPLETED" ? "Statistiche" : "Operazioni Live"}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => openEditDialog(tournament)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Modifica

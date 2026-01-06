@@ -206,7 +206,17 @@ export class TournamentCrudService {
       ];
     }
 
-    const [tournaments, total] = await Promise.all([
+    // Status priority: ONGOING > REGISTRATION_OPEN > PUBLISHED > DRAFT > COMPLETED > CANCELLED
+    const statusPriority: Record<string, number> = {
+      ONGOING: 1,
+      REGISTRATION_OPEN: 2,
+      PUBLISHED: 3,
+      DRAFT: 4,
+      COMPLETED: 5,
+      CANCELLED: 6,
+    };
+
+    const [allTournaments, total] = await Promise.all([
       prisma.tournament.findMany({
         where,
         include: {
@@ -231,12 +241,26 @@ export class TournamentCrudService {
             },
           },
         },
-        orderBy: { startDate: "asc" },
-        skip: (pagination.page - 1) * pagination.limit,
-        take: pagination.limit,
       }),
       prisma.tournament.count({ where }),
     ]);
+
+    // Sort by status priority, then by startDate
+    const sortedTournaments = allTournaments.sort((a, b) => {
+      const priorityA = statusPriority[a.status] || 99;
+      const priorityB = statusPriority[b.status] || 99;
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // Same status: sort by startDate (upcoming first, past last)
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    });
+
+    // Apply pagination
+    const skip = (pagination.page - 1) * pagination.limit;
+    const tournaments = sortedTournaments.slice(skip, skip + pagination.limit);
 
     return {
       tournaments,

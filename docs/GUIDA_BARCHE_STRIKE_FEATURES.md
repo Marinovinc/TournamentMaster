@@ -4,7 +4,7 @@
 
 ## TODO - Stato Attuale (2026-01-05)
 
-> **Ultimo aggiornamento:** 2026-01-05 22:00 | **Priorita:** MEDIA
+> **Ultimo aggiornamento:** 2026-01-05 23:20 | **Priorita:** COMPLETATO
 
 ### Funzionalita Completate
 
@@ -18,15 +18,17 @@
 - [x] **Frontend TeamMember** - Interfaccia con campi esterni
 - [x] **Frontend Dialog membro esterno** - Completo
 - [x] **Frontend Associazione Rappresentata** - Campo condizionale per provinciali (commit b697823)
+- [x] **Prisma Client** - Rigenerato con successo (v5.22.0)
+- [x] **Migrazione CAPTAIN -> TEAM_LEADER** - Non necessaria (dati gia allineati)
+- [x] **Test E2E Delete** - Cascade delete verificato e funzionante
 
 ### Blocchi Critici
 
-- [ ] **Sbloccare Prisma Client** - File query_engine-windows.dll.node locked
+Nessun blocco critico.
 
 ### Backend da Completare
 
-- [ ] **Migrazione dati** - UPDATE team_members SET role = TEAM_LEADER WHERE role = CAPTAIN
-- [ ] **Test E2E Delete** - Verificare cascade delete team_members
+Tutti i task backend sono stati completati.
 
 ---
 
@@ -39,6 +41,8 @@
 | [HANDOVER_SESSIONE_CREW_ROLES_20260105.md](./HANDOVER_SESSIONE_CREW_ROLES_20260105.md) | Handover sessione Crew Roles |
 | [DOCUMENTAZIONE_TECNICA_CREW_ROLES_20260105.md](./DOCUMENTAZIONE_TECNICA_CREW_ROLES_20260105.md) | Documentazione tecnica Crew Roles |
 | [ARCHITETTURA_FRONTEND_BACKEND_E_GITHUB.md](./ARCHITETTURA_FRONTEND_BACKEND_E_GITHUB.md) | Architettura sistema e workflow GitHub |
+| [GUIDA_PRISMA_ORM_COMPLETA.md](./GUIDA_PRISMA_ORM_COMPLETA.md) | Guida completa Prisma ORM con esempi TournamentMaster |
+| [TEST_E2E_DELETE_TEAM_REPORT_20260105.md](./TEST_E2E_DELETE_TEAM_REPORT_20260105.md) | Report test E2E cascade delete |
 
 ---
 

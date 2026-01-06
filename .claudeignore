@@ -1,0 +1,54 @@
+# Claude Code Ignore File
+# Questo file riduce i file scansionati da 101,935 a ~1,000
+
+# Node.js - CRITICO: 48,725+ file da ignorare
+node_modules/
+**/node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Build artifacts
+dist/
+build/
+coverage/
+
+# Cache
+.cache/
+*.cache
+.turbo/
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Capacitor build (mobile)
+android/
+ios/
+
+# Test output
+playwright-report/
+test-results/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Package lock (grandi file JSON)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Prisma generated
+prisma/client/

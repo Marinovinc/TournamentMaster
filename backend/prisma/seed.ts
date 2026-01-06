@@ -379,16 +379,24 @@ async function main() {
     ]]
   });
 
-  // Banner images from Unsplash (free to use)
+  // Banner images from Unsplash (free to use) - Fishing & Marine themed
   const bannerImages = {
-    biggame: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=400&fit=crop',
-    fishing: 'https://images.unsplash.com/photo-1499242165961-ebe34e974e1f?w=800&h=400&fit=crop',
-    ocean: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=400&fit=crop',
-    boat: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=400&fit=crop',
-    sunset: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800&h=400&fit=crop',
+    // Deep sea fishing boat at dawn
+    biggame: 'https://images.unsplash.com/photo-1516382799247-87df95d790b7?w=800&h=400&fit=crop',
+    // Person fishing with rod at sunset
+    fishing: 'https://images.unsplash.com/photo-1480926965639-9b5245fddb74?w=800&h=400&fit=crop',
+    // Blue ocean waves
+    ocean: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&h=400&fit=crop',
+    // Fishing boat on calm sea
+    boat: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=800&h=400&fit=crop',
+    // Sunset over ocean water
+    sunset: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&h=400&fit=crop',
+    // Tropical turquoise water aerial
     tropical: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=800&h=400&fit=crop',
-    coast: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&h=400&fit=crop',
-    tuna: 'https://images.unsplash.com/photo-1534043464124-3be32fe000c9?w=800&h=400&fit=crop',
+    // Coastal pier fishing
+    coast: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&h=400&fit=crop',
+    // Tuna/big game fish catch
+    tuna: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=400&fit=crop',
   };
 
   // Torneo 1: COMPLETATO (Giugno 2024)

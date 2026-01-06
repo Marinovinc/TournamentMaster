@@ -15,25 +15,25 @@ timeout /t 3 /nobreak >nul
 
 :: Rimuovi cache Next.js (causa lock file)
 echo Pulizia cache Next.js...
-rd /s /q "C:\Users\marin\Downloads\TournamentMaster\frontend\.next" 2>nul
+rd /s /q "D:\Dev\TournamentMaster\frontend\.next" 2>nul
 echo.
 
 :: Crea cartella logs
-if not exist "C:\Users\marin\Downloads\TournamentMaster\logs" mkdir "C:\Users\marin\Downloads\TournamentMaster\logs"
+if not exist "D:\Dev\TournamentMaster\logs" mkdir "D:\Dev\TournamentMaster\logs"
 
 :: Svuota log precedenti
-echo. > "C:\Users\marin\Downloads\TournamentMaster\logs\backend.log"
-echo. > "C:\Users\marin\Downloads\TournamentMaster\logs\frontend.log"
+echo. > "D:\Dev\TournamentMaster\logs\backend.log"
+echo. > "D:\Dev\TournamentMaster\logs\frontend.log"
 
 :: Avvia Backend in nuova finestra minimizzata
 echo Avvio Backend (porta 3001)...
-start "TournamentMaster Backend" /min cmd /k "cd /d C:\Users\marin\Downloads\TournamentMaster\backend && npm run dev"
+start "TournamentMaster Backend" /min cmd /k "cd /d D:\Dev\TournamentMaster\backend && npm run dev"
 
 timeout /t 5 /nobreak >nul
 
 :: Avvia Frontend in nuova finestra minimizzata
 echo Avvio Frontend (porta 3000)...
-start "TournamentMaster Frontend" /min cmd /k "cd /d C:\Users\marin\Downloads\TournamentMaster\frontend && npm run dev"
+start "TournamentMaster Frontend" /min cmd /k "cd /d D:\Dev\TournamentMaster\frontend && npm run dev"
 
 echo.
 echo ============================================

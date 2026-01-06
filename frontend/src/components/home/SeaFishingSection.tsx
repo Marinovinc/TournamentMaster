@@ -1,32 +1,33 @@
 /**
  * =============================================================================
- * REFACTORING INFO
+ * FILE INFO
  * =============================================================================
- * File estratto da: src/app/[locale]/page.tsx (righe 213-238)
- * Data refactoring: 2025-12-29
- * Motivo: Sezione discipline mare separata per manutenibilita
- *
- * Funzionalita:
- * - Header sezione con icona ancora
- * - Griglia 3 colonne di DisciplineCard
- * - 9 discipline mare
- *
- * Dipendenze:
- * - src/lib/constants/disciplines.ts (seaDisciplines)
- * - src/components/home/DisciplineCard.tsx
+ * Percorso: src/components/home/SeaFishingSection.tsx
+ * Creato: 2025-12-29
+ * Aggiornato: 2026-01-06 - Convertito a componente dinamico con dati CMS
+ * Descrizione: Sezione discipline mare della homepage
  * =============================================================================
  */
 
-"use client";
-
-import { useTranslations } from "next-intl";
 import { Anchor } from "lucide-react";
 import { DisciplineCard } from "./DisciplineCard";
-import { seaDisciplines } from "@/lib/constants/disciplines";
 
-export function SeaFishingSection() {
-  const t = useTranslations();
+// Type for discipline from CMS
+interface Discipline {
+  id: string;
+  code: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  icon: string;
+  category: string;
+}
 
+interface SeaFishingSectionProps {
+  disciplines: Discipline[];
+}
+
+export function SeaFishingSection({ disciplines }: SeaFishingSectionProps) {
   return (
     <section className="py-16 md:py-20 relative">
       <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-transparent dark:from-blue-950/20" />
@@ -36,20 +37,27 @@ export function SeaFishingSection() {
             <Anchor className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold">{t("home.seaFishingTitle")}</h2>
-            <p className="text-muted-foreground">9 {t("home.disciplinesTitle").toLowerCase()}</p>
+            <h2 className="text-2xl md:text-3xl font-bold">Pesca in Mare</h2>
+            <p className="text-muted-foreground">{disciplines.length} discipline</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {seaDisciplines.map((discipline) => (
+          {disciplines.map((discipline) => (
             <DisciplineCard
-              key={discipline}
-              disciplineKey={discipline}
+              key={discipline.id}
+              discipline={discipline}
               variant="sea"
             />
           ))}
         </div>
+
+        {/* Empty state */}
+        {disciplines.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <p>Discipline in caricamento...</p>
+          </div>
+        )}
       </div>
     </section>
   );

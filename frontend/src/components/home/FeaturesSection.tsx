@@ -4,21 +4,11 @@
  * =============================================================================
  * Percorso: src/components/home/FeaturesSection.tsx
  * Creato: 2025-12-29
+ * Aggiornato: 2026-01-05 - Convertito a componente dinamico con props da CMS
  * Descrizione: Sezione features della homepage - stile CatchStat migliorato
- *
- * Features mostrate:
- * - Gestione iscrizioni e categorie
- * - Classifiche live in tempo reale
- * - Validazione GPS delle catture
- * - Foto verificate con metadata
- * - Multi-tenant per circuiti
- * - Supporto multilingua
  * =============================================================================
  */
 
-"use client";
-
-import { useTranslations } from "next-intl";
 import {
   Users,
   Trophy,
@@ -28,58 +18,60 @@ import {
   Globe,
   Shield,
   Smartphone,
+  Bell,
+  Zap,
+  Clock,
+  CheckCircle,
+  BarChart3,
+  LucideIcon,
 } from "lucide-react";
 
-const features = [
-  {
-    icon: Users,
-    title: "Gestione Iscrizioni",
-    description: "Registrazioni online, categorie multiple, pagamenti integrati e gestione squadre completa.",
-    color: "blue",
-  },
-  {
-    icon: Trophy,
-    title: "Classifiche Real-time",
-    description: "Leaderboard aggiornate in tempo reale durante tutto il torneo con punteggi automatici.",
-    color: "amber",
-  },
-  {
-    icon: MapPin,
-    title: "Validazione GPS",
-    description: "Ogni cattura viene geolocalizzata per verificare che sia all'interno delle zone di pesca autorizzate.",
-    color: "emerald",
-  },
-  {
-    icon: Camera,
-    title: "Foto Certificate",
-    description: "Sistema di verifica foto con analisi EXIF, timestamp e coordinate per garantire autenticità.",
-    color: "purple",
-  },
-  {
-    icon: Building2,
-    title: "Multi-Circuito",
-    description: "Piattaforma multi-tenant: ogni associazione o circuito gestisce i propri tornei in autonomia.",
-    color: "rose",
-  },
-  {
-    icon: Globe,
-    title: "Multilingua",
-    description: "Interfaccia disponibile in italiano, inglese, tedesco e spagnolo per pescatori internazionali.",
-    color: "cyan",
-  },
-];
-
-const colorClasses = {
-  blue: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
-  amber: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
-  emerald: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
-  purple: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
-  rose: "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400",
-  cyan: "bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400",
+// Icon mapping from string to Lucide component
+const iconMap: Record<string, LucideIcon> = {
+  Users,
+  Trophy,
+  MapPin,
+  Camera,
+  Building2,
+  Globe,
+  Shield,
+  Smartphone,
+  Bell,
+  Zap,
+  Clock,
+  CheckCircle,
+  BarChart3,
 };
 
-export function FeaturesSection() {
-  const t = useTranslations();
+// Color classes for badges
+const badgeColors: Record<string, string> = {
+  Core: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+  Live: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+  Sicurezza: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
+  Premium: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+  Mobile: "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400",
+  Global: "bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400",
+  Tech: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
+  Analytics: "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400",
+  Ufficiale: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+};
+
+// Type for feature from CMS
+interface Feature {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  badge: string;
+}
+
+interface FeaturesSectionProps {
+  features: Feature[];
+}
+
+export function FeaturesSection({ features }: FeaturesSectionProps) {
+  // Show only first 6 features on homepage
+  const displayFeatures = features.slice(0, 6);
 
   return (
     <section className="py-20 bg-muted/30">
@@ -96,15 +88,16 @@ export function FeaturesSection() {
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature, index) => {
-            const Icon = feature.icon;
+          {displayFeatures.map((feature) => {
+            const Icon = iconMap[feature.icon] || CheckCircle;
+            const colorClass = badgeColors[feature.badge] || badgeColors.Core;
             return (
               <div
-                key={index}
+                key={feature.id}
                 className="group p-6 rounded-2xl bg-card border shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
               >
                 <div
-                  className={`inline-flex p-3 rounded-xl ${colorClasses[feature.color as keyof typeof colorClasses]} mb-4 group-hover:scale-110 transition-transform`}
+                  className={`inline-flex p-3 rounded-xl ${colorClass} mb-4 group-hover:scale-110 transition-transform`}
                 >
                   <Icon className="h-6 w-6" />
                 </div>
@@ -114,6 +107,13 @@ export function FeaturesSection() {
             );
           })}
         </div>
+
+        {/* Empty state */}
+        {displayFeatures.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <p>Funzionalita in caricamento...</p>
+          </div>
+        )}
 
         {/* Bottom CTA - Link to App Download */}
         <div className="mt-16 text-center">

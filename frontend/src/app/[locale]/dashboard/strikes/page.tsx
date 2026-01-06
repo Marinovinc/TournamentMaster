@@ -154,8 +154,8 @@ export default function StrikesPage() {
             }
           });
           setTournaments(filtered);
-          if (ongoing.length > 0 && !selectedTournament) {
-            setSelectedTournament(ongoing[0].id);
+          if (filtered.length > 0 && !selectedTournament) {
+            setSelectedTournament(filtered[0].id);
           }
         }
       } catch (error) {

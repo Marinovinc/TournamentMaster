@@ -190,6 +190,70 @@ router.get("/disciplines", async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/cms/social-section
+ * Returns social section content for homepage
+ */
+router.get("/social-section", async (req: Request, res: Response) => {
+  try {
+    const locale = (req.query.locale as string) || "it";
+
+    // Get social discipline info for the section
+    const socialDiscipline = await prisma.disciplineInfo.findFirst({
+      where: {
+        isActive: true,
+        locale: locale,
+        category: "social"
+      },
+      select: {
+        name: true,
+        description: true
+      }
+    });
+
+    // Default texts by locale
+    const defaultTexts: Record<string, { title: string; description: string; buttonText: string }> = {
+      it: {
+        title: "Eventi Sociali",
+        description: "Partecipa ai nostri eventi sociali e incontra altri appassionati di pesca sportiva.",
+        buttonText: "Scopri i Tornei"
+      },
+      en: {
+        title: "Social Events",
+        description: "Join our social events and meet other sport fishing enthusiasts.",
+        buttonText: "Discover Tournaments"
+      },
+      de: {
+        title: "Gesellschaftliche Veranstaltungen",
+        description: "Nehmen Sie an unseren gesellschaftlichen Veranstaltungen teil und treffen Sie andere Sportfischer.",
+        buttonText: "Turniere entdecken"
+      },
+      es: {
+        title: "Eventos Sociales",
+        description: "Participa en nuestros eventos sociales y conoce a otros aficionados a la pesca deportiva.",
+        buttonText: "Descubrir Torneos"
+      }
+    };
+
+    const defaults = defaultTexts[locale] || defaultTexts.it;
+
+    res.json({
+      success: true,
+      data: {
+        title: socialDiscipline?.name || defaults.title,
+        description: socialDiscipline?.description || defaults.description,
+        buttonText: defaults.buttonText
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching social section:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch social section"
+    });
+  }
+});
+
+/**
  * GET /api/cms/landing
  * Returns all landing page content in a single request (optimized)
  */

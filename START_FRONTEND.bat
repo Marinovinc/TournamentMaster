@@ -14,7 +14,7 @@ echo ========================================
 echo.
 
 REM Vai alla cartella frontend
-cd /d "C:\Users\marin\Downloads\TournamentMaster\frontend"
+cd /d "D:\Dev\TournamentMaster\frontend"
 
 REM Verifica Node.js
 echo [1/3] Controllo Node.js...

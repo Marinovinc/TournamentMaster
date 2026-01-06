@@ -40,14 +40,14 @@ echo [3/3] Avvio servizi...
 echo.
 
 :: Backend in nuova finestra
-start "TournamentMaster Backend" cmd /k "cd /d C:\Users\marin\Downloads\TournamentMaster\backend && npx ts-node src/index.ts"
+start "TournamentMaster Backend" cmd /k "cd /d D:\Dev\TournamentMaster\backend && npx ts-node src/index.ts"
 
 :: Attendi 5 secondi per backend
 echo Attendo avvio backend...
 timeout /t 5 /nobreak >nul
 
 :: Frontend in nuova finestra
-start "TournamentMaster Frontend" cmd /k "cd /d C:\Users\marin\Downloads\TournamentMaster\frontend && npm run dev"
+start "TournamentMaster Frontend" cmd /k "cd /d D:\Dev\TournamentMaster\frontend && npm run dev"
 
 :: Attendi avvio frontend
 echo Attendo avvio frontend...

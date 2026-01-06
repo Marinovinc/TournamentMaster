@@ -1,33 +1,26 @@
 /**
  * =============================================================================
- * REFACTORING INFO
+ * FILE INFO
  * =============================================================================
- * File estratto da: src/app/[locale]/page.tsx (righe 267-292)
- * Data refactoring: 2025-12-29
- * Motivo: Sezione eventi sociali separata per manutenibilita
- *
- * Funzionalita:
- * - Card con gradiente amber/orange
- * - Icona Users
- * - Descrizione eventi sociali
- * - Link a tornei filtrati per tipo social
- *
- * Stili custom:
- * - Gradiente from-amber-50 to-orange-50 (light mode)
- * - Gradiente from-amber-950/30 to-orange-950/30 (dark mode)
+ * Percorso: src/components/home/SocialEventsSection.tsx
+ * Creato: 2025-12-29
+ * Aggiornato: 2026-01-06 - Convertito a componente dinamico con dati CMS
+ * Descrizione: Sezione eventi sociali della homepage
  * =============================================================================
  */
 
-"use client";
-
-import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Users, ChevronRight } from "lucide-react";
 
-export function SocialEventsSection() {
-  const t = useTranslations();
+interface SocialEventsSectionProps {
+  title: string;
+  description: string;
+  buttonText: string;
+}
+
+export function SocialEventsSection({ title, description, buttonText }: SocialEventsSectionProps) {
 
   return (
     <section className="py-12 md:py-16">
@@ -39,15 +32,15 @@ export function SocialEventsSection() {
             </div>
             <div className="flex-1 text-center md:text-left">
               <h3 className="text-xl md:text-2xl font-bold mb-2">
-                {t("tournament.disciplines.social")}
+                {title}
               </h3>
               <p className="text-muted-foreground max-w-xl">
-                {t("home.disciplines.social.description")}
+                {description}
               </p>
             </div>
             <Link href="/tournaments?type=social">
               <Button variant="secondary" size="lg">
-                {t("nav.tournaments")}
+                {buttonText}
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
             </Link>

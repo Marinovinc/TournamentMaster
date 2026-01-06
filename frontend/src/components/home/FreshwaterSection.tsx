@@ -1,32 +1,33 @@
 /**
  * =============================================================================
- * REFACTORING INFO
+ * FILE INFO
  * =============================================================================
- * File estratto da: src/app/[locale]/page.tsx (righe 240-265)
- * Data refactoring: 2025-12-29
- * Motivo: Sezione discipline acque interne separata per manutenibilita
- *
- * Funzionalita:
- * - Header sezione con icona pino
- * - Griglia 4 colonne di DisciplineCard
- * - 8 discipline acque interne
- *
- * Dipendenze:
- * - src/lib/constants/disciplines.ts (freshwaterDisciplines)
- * - src/components/home/DisciplineCard.tsx
+ * Percorso: src/components/home/FreshwaterSection.tsx
+ * Creato: 2025-12-29
+ * Aggiornato: 2026-01-06 - Convertito a componente dinamico con dati CMS
+ * Descrizione: Sezione discipline acque interne della homepage
  * =============================================================================
  */
 
-"use client";
-
-import { useTranslations } from "next-intl";
 import { TreePine } from "lucide-react";
 import { DisciplineCard } from "./DisciplineCard";
-import { freshwaterDisciplines } from "@/lib/constants/disciplines";
 
-export function FreshwaterSection() {
-  const t = useTranslations();
+// Type for discipline from CMS
+interface Discipline {
+  id: string;
+  code: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  icon: string;
+  category: string;
+}
 
+interface FreshwaterSectionProps {
+  disciplines: Discipline[];
+}
+
+export function FreshwaterSection({ disciplines }: FreshwaterSectionProps) {
   return (
     <section className="py-16 md:py-20 relative">
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-50/50 to-transparent dark:from-emerald-950/20" />
@@ -36,20 +37,27 @@ export function FreshwaterSection() {
             <TreePine className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold">{t("home.freshwaterFishingTitle")}</h2>
-            <p className="text-muted-foreground">8 {t("home.disciplinesTitle").toLowerCase()}</p>
+            <h2 className="text-2xl md:text-3xl font-bold">Acque Interne</h2>
+            <p className="text-muted-foreground">{disciplines.length} discipline</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {freshwaterDisciplines.map((discipline) => (
+          {disciplines.map((discipline) => (
             <DisciplineCard
-              key={discipline}
-              disciplineKey={discipline}
+              key={discipline.id}
+              discipline={discipline}
               variant="freshwater"
             />
           ))}
         </div>
+
+        {/* Empty state */}
+        {disciplines.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <p>Discipline in caricamento...</p>
+          </div>
+        )}
       </div>
     </section>
   );

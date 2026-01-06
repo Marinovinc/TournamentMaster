@@ -1,42 +1,77 @@
 /**
  * =============================================================================
- * REFACTORING INFO
+ * FILE INFO
  * =============================================================================
- * File estratto da: src/app/[locale]/page.tsx (righe 75-112)
- * Data refactoring: 2025-12-29
- * Motivo: Componente riutilizzabile per card disciplina
- *
- * Funzionalita:
- * - Mostra icona, titolo, sottotitolo e descrizione disciplina
- * - Supporta varianti "sea" (blu) e "freshwater" (verde)
- * - Effetti hover con animazioni
- *
- * Props:
- * - disciplineKey: chiave i18n della disciplina (es. "big_game")
- * - variant: "sea" | "freshwater" per colori
- *
- * Dipendenze:
- * - src/lib/constants/disciplines.ts (icone)
- * - next-intl (traduzioni)
- * - shadcn/ui (Card components)
+ * Percorso: src/components/home/DisciplineCard.tsx
+ * Creato: 2025-12-29
+ * Aggiornato: 2026-01-06 - Convertito a componente dinamico con dati CMS
+ * Descrizione: Card disciplina per homepage - riceve dati da CMS
  * =============================================================================
  */
 
-"use client";
-
-import { useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Fish } from "lucide-react";
-import { disciplineIcons } from "@/lib/constants/disciplines";
+import {
+  Fish,
+  Anchor,
+  Ship,
+  Waves,
+  Target,
+  Compass,
+  Sailboat,
+  TreePine,
+  Mountain,
+  Tent,
+  ArrowDown,
+  Sunrise,
+  Wind,
+  Package,
+  Droplets,
+  Zap,
+  Trophy,
+  Users,
+  LucideIcon,
+} from "lucide-react";
+
+// Icon mapping from string to Lucide component
+const iconMap: Record<string, LucideIcon> = {
+  Fish,
+  Anchor,
+  Ship,
+  Waves,
+  Target,
+  Compass,
+  Sailboat,
+  TreePine,
+  Mountain,
+  Tent,
+  ArrowDown,
+  Sunrise,
+  Wind,
+  Package,
+  Droplets,
+  Zap,
+  Trophy,
+  Users,
+};
+
+// Type for discipline from CMS
+interface Discipline {
+  id: string;
+  code: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  icon: string;
+  category: string;
+}
 
 export interface DisciplineCardProps {
-  disciplineKey: string;
+  discipline: Discipline;
   variant: "sea" | "freshwater";
 }
 
-export function DisciplineCard({ disciplineKey, variant }: DisciplineCardProps) {
-  const t = useTranslations();
-  const Icon = disciplineIcons[disciplineKey] || Fish;
+export function DisciplineCard({ discipline, variant }: DisciplineCardProps) {
+  const Icon = iconMap[discipline.icon] || Fish;
 
   const hoverClass = variant === "sea" ? "card-hover-sea" : "card-hover-freshwater";
   const iconBgClass = variant === "sea"
@@ -52,17 +87,17 @@ export function DisciplineCard({ disciplineKey, variant }: DisciplineCardProps) 
           </div>
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base font-semibold">
-              {t(`tournament.disciplines.${disciplineKey}`)}
+              {discipline.name}
             </CardTitle>
             <CardDescription className="text-xs mt-0.5">
-              {t(`home.disciplines.${disciplineKey}.subtitle`)}
+              {discipline.subtitle}
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
         <p className="text-sm text-muted-foreground leading-relaxed">
-          {t(`home.disciplines.${disciplineKey}.description`)}
+          {discipline.description}
         </p>
       </CardContent>
     </Card>

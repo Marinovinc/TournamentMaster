@@ -40,6 +40,7 @@ import {
   CreditCard,
   FileText,
   History,
+  Image,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -261,7 +262,12 @@ export default function DashboardLayout({
             icon: <Users className="h-4 w-4" />,
             roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
           },
-
+          {
+            href: `/${locale}/dashboard/super-admin/media`,
+            label: "Media Library",
+            icon: <Image className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN"],
+          },
         ],
       },
       {
@@ -302,6 +308,12 @@ export default function DashboardLayout({
             label: "Branding",
             icon: <Palette className="h-4 w-4" />,
             roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
+          },
+          {
+            href: `/${locale}/dashboard/admin/media`,
+            label: "Media Library",
+            icon: <Image className="h-4 w-4" />,
+            roles: ["TENANT_ADMIN", "PRESIDENT"],
           },
         ],
       },
@@ -355,6 +367,12 @@ export default function DashboardLayout({
             href: `/${locale}/dashboard/admin/branding`,
             label: "Branding",
             icon: <Palette className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
+          },
+          {
+            href: `/${locale}/dashboard/admin/media`,
+            label: "Media Library",
+            icon: <Image className="h-4 w-4" />,
             roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"],
           },
         ],
@@ -421,6 +439,8 @@ export default function DashboardLayout({
       [`/${locale}/dashboard/reports`]: ["report"],
       [`/${locale}/dashboard/admin`]: ["report"],
       [`/${locale}/dashboard/admin/branding`]: ["report"],
+      [`/${locale}/dashboard/admin/media`]: ["report", "assoc-report"],
+      [`/${locale}/dashboard/super-admin/media`]: ["gestione"],
       [`/${locale}/dashboard/my-tournaments`]: ["miei-tornei"],
       [`/${locale}/dashboard/my-catches`]: ["miei-tornei"],
       [`/${locale}/dashboard/my-results`]: ["miei-tornei"],

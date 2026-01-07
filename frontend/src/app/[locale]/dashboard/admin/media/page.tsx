@@ -50,6 +50,7 @@ import {
   Upload,
   X,
   Lock,
+  Play,
 } from "lucide-react";
 
 interface MediaItem {
@@ -68,7 +69,16 @@ interface MediaItem {
   tenant: { id: string; name: string; slug: string } | null;
   uploadedBy: { id: string; firstName: string; lastName: string } | null;
   createdAt: string;
+  mimeType: string | null;
+  thumbnailPath: string | null;
+  duration: number | null;
 }
+
+// Helper to check if file is video
+const isVideoFile = (filename: string): boolean => {
+  const ext = filename.toLowerCase();
+  return ext.endsWith('.mp4') || ext.endsWith('.mov') || ext.endsWith('.webm') || ext.endsWith('.avi') || ext.endsWith('.mkv');
+};
 
 interface Pagination {
   page: number;
@@ -357,16 +367,37 @@ export default function TenantAdminMediaPage() {
 
   const renderMediaGrid = (items: MediaItem[], isEditable: boolean) => (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-      {items.map((item) => (
+      {items.map((item) => {
+        const isVideo = isVideoFile(item.filename);
+        const previewSrc = isVideo && item.thumbnailPath
+          ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}${item.thumbnailPath}`
+          : item.path;
+
+        return (
         <div
           key={item.id}
           className="group relative rounded-lg overflow-hidden border bg-muted/50 hover:shadow-lg transition-shadow"
         >
-          <img
-            src={item.path}
-            alt={item.title}
-            className="w-full h-32 object-cover"
-          />
+          <div className="relative">
+            <img
+              src={previewSrc}
+              alt={item.title}
+              className="w-full h-32 object-cover"
+              onError={(e) => {
+                // Fallback if thumbnail fails
+                if (isVideo) {
+                  (e.target as HTMLImageElement).src = "/images/video-placeholder.png";
+                }
+              }}
+            />
+            {isVideo && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="bg-black/50 rounded-full p-2">
+                  <Play className="h-6 w-6 text-white fill-white" />
+                </div>
+              </div>
+            )}
+          </div>
           {isEditable && (
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
               <Button size="icon" variant="secondary" onClick={() => openEditDialog(item)}>
@@ -390,22 +421,36 @@ export default function TenantAdminMediaPage() {
             <Badge variant="outline" className="text-xs mt-1">{item.category}</Badge>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 
   const renderMediaList = (items: MediaItem[], isEditable: boolean) => (
     <div className="space-y-2">
-      {items.map((item) => (
+      {items.map((item) => {
+        const isVideo = isVideoFile(item.filename);
+        const previewSrc = isVideo && item.thumbnailPath
+          ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}${item.thumbnailPath}`
+          : item.path;
+
+        return (
         <div
           key={item.id}
           className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
         >
-          <img
-            src={item.path}
-            alt={item.title}
-            className="w-16 h-16 object-cover rounded"
-          />
+          <div className="relative">
+            <img
+              src={previewSrc}
+              alt={item.title}
+              className="w-16 h-16 object-cover rounded"
+            />
+            {isVideo && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Play className="h-4 w-4 text-white drop-shadow-lg" />
+              </div>
+            )}
+          </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium">{item.title}</p>
             <p className="text-sm text-muted-foreground truncate">
@@ -429,7 +474,8 @@ export default function TenantAdminMediaPage() {
             </Badge>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 

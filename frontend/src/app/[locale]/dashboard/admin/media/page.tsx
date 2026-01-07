@@ -50,6 +50,9 @@ import {
   Upload,
   X,
   Lock,
+  Video,
+  Play,
+  ExternalLink,
 } from "lucide-react";
 
 interface MediaItem {
@@ -68,6 +71,9 @@ interface MediaItem {
   tenant: { id: string; name: string; slug: string } | null;
   uploadedBy: { id: string; firstName: string; lastName: string } | null;
   createdAt: string;
+  mimeType: string | null;
+  thumbnailPath: string | null;
+  duration: number | null;
 }
 
 interface Pagination {
@@ -76,6 +82,18 @@ interface Pagination {
   total: number;
   totalPages: number;
 }
+
+// Helper function to check if a file is a video
+const isVideoFile = (filename: string) => {
+  return /\.(mp4|mov|webm|avi|mkv|mpg|mpeg)$/i.test(filename);
+};
+
+// Format duration in mm:ss
+const formatDuration = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 const CATEGORIES = [
   "tournament",
@@ -99,8 +117,10 @@ export default function TenantAdminMediaPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("global");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isDragging, setIsDragging] = useState(false);
   const [globalPagination, setGlobalPagination] = useState<Pagination>({
     page: 1,
     limit: 20,
@@ -140,12 +160,29 @@ export default function TenantAdminMediaPage() {
   // Delete dialog state
   const [deletingMedia, setDeletingMedia] = useState<MediaItem | null>(null);
 
+  // View dialog state
+  const [viewingMedia, setViewingMedia] = useState<MediaItem | null>(null);
+
   // Check if user is admin
   useEffect(() => {
     if (user && !["TENANT_ADMIN", "PRESIDENT", "SUPER_ADMIN"].includes(user.role)) {
       router.push("/dashboard");
     }
   }, [user, router]);
+
+  // Prevent browser from opening/downloading files when dropped outside drop zone
+  useEffect(() => {
+    const preventDefaultDrag = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener('dragover', preventDefaultDrag);
+    window.addEventListener('drop', preventDefaultDrag);
+    return () => {
+      window.removeEventListener('dragover', preventDefaultDrag);
+      window.removeEventListener('drop', preventDefaultDrag);
+    };
+  }, []);
 
   const fetchGlobalMedia = useCallback(async () => {
     if (!token) return;
@@ -157,6 +194,7 @@ export default function TenantAdminMediaPage() {
       params.append("onlyGlobal", "true");
       if (search) params.append("search", search);
       if (categoryFilter !== "all") params.append("category", categoryFilter);
+      if (mediaTypeFilter !== "all") params.append("mediaType", mediaTypeFilter);
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/media?${params}`,
@@ -173,7 +211,7 @@ export default function TenantAdminMediaPage() {
     } catch (error) {
       console.error("Failed to fetch global media:", error);
     }
-  }, [token, search, categoryFilter, globalPagination.page, globalPagination.limit]);
+  }, [token, search, categoryFilter, mediaTypeFilter, globalPagination.page, globalPagination.limit]);
 
   const fetchTenantMedia = useCallback(async () => {
     if (!token) return;
@@ -185,6 +223,7 @@ export default function TenantAdminMediaPage() {
       params.append("onlyTenant", "true");
       if (search) params.append("search", search);
       if (categoryFilter !== "all") params.append("category", categoryFilter);
+      if (mediaTypeFilter !== "all") params.append("mediaType", mediaTypeFilter);
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/media?${params}`,
@@ -201,7 +240,7 @@ export default function TenantAdminMediaPage() {
     } catch (error) {
       console.error("Failed to fetch tenant media:", error);
     }
-  }, [token, search, categoryFilter, tenantPagination.page, tenantPagination.limit]);
+  }, [token, search, categoryFilter, mediaTypeFilter, tenantPagination.page, tenantPagination.limit]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -216,16 +255,42 @@ export default function TenantAdminMediaPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setUploadFile(file);
+      processFile(file);
+    }
+  };
+
+  const processFile = (file: File) => {
+    setUploadFile(file);
+
+    // For videos, create a video thumbnail preview
+    if (file.type.startsWith('video/')) {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        video.currentTime = 1; // Seek to 1 second for thumbnail
+      };
+      video.onseeked = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(video, 0, 0);
+        setUploadPreview(canvas.toDataURL('image/jpeg'));
+      };
+      video.src = URL.createObjectURL(file);
+    } else {
+      // For images, use FileReader
       const reader = new FileReader();
       reader.onloadend = () => {
         setUploadPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
-      if (!uploadForm.title) {
-        const name = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-        setUploadForm({ ...uploadForm, title: name });
-      }
+    }
+
+    // Auto-fill title from filename
+    if (!uploadForm.title) {
+      const name = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+      setUploadForm({ ...uploadForm, title: name });
     }
   };
 
@@ -328,6 +393,8 @@ export default function TenantAdminMediaPage() {
 
       if (data.success) {
         setDeletingMedia(null);
+        // Reload both global and tenant media
+        fetchGlobalMedia();
         fetchTenantMedia();
       }
     } catch (error) {
@@ -353,18 +420,44 @@ export default function TenantAdminMediaPage() {
           key={item.id}
           className="group relative rounded-lg overflow-hidden border bg-muted/50 hover:shadow-lg transition-shadow"
         >
-          <img
-            src={item.path}
-            alt={item.title}
-            className="w-full h-32 object-cover"
-          />
+          {isVideoFile(item.filename) ? (
+            <div className="relative w-full h-32 bg-black cursor-pointer" onClick={() => setViewingMedia(item)}>
+              <video
+                src={item.path}
+                className="w-full h-32 object-cover"
+                muted
+                preload="metadata"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-black/50 rounded-full p-3">
+                  <Play className="h-6 w-6 text-white fill-white" />
+                </div>
+              </div>
+              <Badge className="absolute top-2 left-2 bg-black/70 text-white text-xs">
+                <Video className="h-3 w-3 mr-1" />
+                Video
+              </Badge>
+              {item.duration && (
+                <Badge className="absolute bottom-2 right-2 bg-black/70 text-white text-xs">
+                  {formatDuration(item.duration)}
+                </Badge>
+              )}
+            </div>
+          ) : (
+            <img
+              src={item.path}
+              alt={item.title}
+              className="w-full h-32 object-cover cursor-pointer"
+              onClick={() => setViewingMedia(item)}
+            />
+          )}
           {isEditable && (
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-              <Button size="icon" variant="secondary" onClick={() => openEditDialog(item)}>
-                <Edit className="h-4 w-4" />
+            <div className="absolute top-2 right-2 flex gap-1">
+              <Button size="icon" variant="secondary" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEditDialog(item); }}>
+                <Edit className="h-3 w-3" />
               </Button>
-              <Button size="icon" variant="destructive" onClick={() => setDeletingMedia(item)}>
-                <Trash2 className="h-4 w-4" />
+              <Button size="icon" variant="destructive" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDeletingMedia(item); }}>
+                <Trash2 className="h-3 w-3" />
               </Button>
             </div>
           )}
@@ -392,17 +485,40 @@ export default function TenantAdminMediaPage() {
           key={item.id}
           className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
         >
-          <img
-            src={item.path}
-            alt={item.title}
-            className="w-16 h-16 object-cover rounded"
-          />
+          {isVideoFile(item.filename) ? (
+            <div className="relative w-16 h-16 bg-black rounded cursor-pointer" onClick={() => setViewingMedia(item)}>
+              <video
+                src={item.path}
+                className="w-16 h-16 object-cover rounded"
+                muted
+                preload="metadata"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Play className="h-4 w-4 text-white fill-white" />
+              </div>
+            </div>
+          ) : (
+            <img
+              src={item.path}
+              alt={item.title}
+              className="w-16 h-16 object-cover rounded cursor-pointer"
+              onClick={() => setViewingMedia(item)}
+            />
+          )}
           <div className="flex-1 min-w-0">
             <p className="font-medium">{item.title}</p>
             <p className="text-sm text-muted-foreground truncate">
               {item.description || "Nessuna descrizione"}
             </p>
-            <Badge variant="outline" className="text-xs mt-1">{item.category}</Badge>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="outline" className="text-xs">{item.category}</Badge>
+              {isVideoFile(item.filename) && (
+                <Badge variant="secondary" className="text-xs">
+                  <Video className="h-3 w-3 mr-1" />
+                  Video
+                </Badge>
+              )}
+            </div>
           </div>
           {isEditable ? (
             <div className="flex gap-2">
@@ -472,11 +588,25 @@ export default function TenantAdminMediaPage() {
                 <Label>File *</Label>
                 {uploadPreview ? (
                   <div className="relative">
-                    <img
-                      src={uploadPreview}
-                      alt="Preview"
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
+                    {uploadFile?.type.startsWith('video/') ? (
+                      <div className="relative">
+                        <img
+                          src={uploadPreview}
+                          alt="Preview"
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                        <Badge className="absolute top-2 left-2 bg-black/70 text-white">
+                          <Video className="h-3 w-3 mr-1" />
+                          Video
+                        </Badge>
+                      </div>
+                    ) : (
+                      <img
+                        src={uploadPreview}
+                        alt="Preview"
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                    )}
                     <Button
                       variant="destructive"
                       size="icon"
@@ -491,20 +621,30 @@ export default function TenantAdminMediaPage() {
                   </div>
                 ) : (
                   <div
-                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
+                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'hover:border-primary'}`}
                     onClick={() => document.getElementById("file-input")?.click()}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const files = Array.from(e.dataTransfer.files);
+                      if (files.length > 0) {
+                        processFile(files[0]);
+                      }
+                    }}
                   >
                     <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">
                       Clicca o trascina un file qui
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      JPG, PNG, GIF, WEBP, MP4, WEBM (max 10MB)
+                      Immagini (JPG, PNG, GIF, WEBP) e Video (MP4, WEBM) - max 100MB
                     </p>
                     <input
                       id="file-input"
                       type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                      accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/mov,.mp4,.mov,.webm,.avi,.mkv"
                       className="hidden"
                       onChange={handleFileChange}
                     />
@@ -604,6 +744,16 @@ export default function TenantAdminMediaPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={mediaTypeFilter} onValueChange={setMediaTypeFilter}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti</SelectItem>
+                <SelectItem value="photo">Foto</SelectItem>
+                <SelectItem value="video">Video</SelectItem>
+              </SelectContent>
+            </Select>
             <div className="flex gap-1">
               <Button
                 variant={viewMode === "grid" ? "default" : "outline"}
@@ -688,9 +838,9 @@ export default function TenantAdminMediaPage() {
                       <p>Nessun media globale disponibile</p>
                     </div>
                   ) : viewMode === "grid" ? (
-                    renderMediaGrid(globalMedia, false)
+                    renderMediaGrid(globalMedia, true)
                   ) : (
-                    renderMediaList(globalMedia, false)
+                    renderMediaList(globalMedia, true)
                   )}
 
                   {globalPagination.totalPages > 1 && (
@@ -774,11 +924,26 @@ export default function TenantAdminMediaPage() {
 
           {editingMedia && (
             <div className="grid gap-4 py-4">
-              <img
-                src={editingMedia.path}
-                alt={editingMedia.title}
-                className="w-full h-32 object-cover rounded-lg"
-              />
+              {isVideoFile(editingMedia.filename) ? (
+                <div className="relative">
+                  <video
+                    src={editingMedia.path}
+                    className="w-full h-32 object-cover rounded-lg bg-black"
+                    muted
+                    preload="metadata"
+                  />
+                  <Badge className="absolute top-2 left-2 bg-black/70 text-white">
+                    <Video className="h-3 w-3 mr-1" />
+                    Video
+                  </Badge>
+                </div>
+              ) : (
+                <img
+                  src={editingMedia.path}
+                  alt={editingMedia.title}
+                  className="w-full h-32 object-cover rounded-lg"
+                />
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="edit-title">Titolo</Label>
@@ -844,7 +1009,7 @@ export default function TenantAdminMediaPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Elimina Media</AlertDialogTitle>
             <AlertDialogDescription>
-              Sei sicuro di voler eliminare "{deletingMedia?.title}"? Questa azione non può essere annullata.
+              Sei sicuro di voler eliminare "{deletingMedia?.title}"? Questa azione non puo essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -855,6 +1020,58 @@ export default function TenantAdminMediaPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View Media Dialog */}
+      <Dialog open={!!viewingMedia} onOpenChange={(open) => !open && setViewingMedia(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {viewingMedia?.title}
+              {viewingMedia && isVideoFile(viewingMedia.filename) && (
+                <Badge variant="secondary">
+                  <Video className="h-3 w-3 mr-1" />
+                  Video
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {viewingMedia && (
+            <div className="flex flex-col items-center">
+              {isVideoFile(viewingMedia.filename) ? (
+                <video
+                  src={viewingMedia.path}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="w-full rounded-lg bg-black"
+                  style={{ maxHeight: '70vh' }}
+                >
+                  Il tuo browser non supporta il tag video.
+                </video>
+              ) : (
+                <img
+                  src={viewingMedia.path}
+                  alt={viewingMedia.title}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg cursor-pointer"
+                  onClick={() => window.open(viewingMedia.path, '_blank', 'noopener,noreferrer')}
+                  title="Clicca per aprire in una nuova finestra"
+                />
+              )}
+              {viewingMedia.description && (
+                <p className="mt-4 text-muted-foreground text-center">{viewingMedia.description}</p>
+              )}
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline">{viewingMedia.category}</Badge>
+                {viewingMedia.tags && (
+                  <span className="text-sm text-muted-foreground">
+                    Tags: {viewingMedia.tags}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

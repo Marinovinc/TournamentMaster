@@ -52,12 +52,24 @@ const upload = multer({
   storage,
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max (for videos)
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"];
-    if (allowedTypes.includes(file.mimetype)) {
+    // Allow images
+    if (file.mimetype.startsWith("image/")) {
       cb(null, true);
-    } else {
-      cb(new Error("Tipo file non supportato"));
+      return;
     }
+    // Allow videos
+    if (file.mimetype.startsWith("video/")) {
+      cb(null, true);
+      return;
+    }
+    // Check by extension as fallback
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov", ".webm", ".avi", ".mkv"];
+    if (allowedExts.includes(ext)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Tipo file non supportato: " + file.mimetype));
   },
 });
 
@@ -76,7 +88,7 @@ const CATEGORIES = [
 ];
 
 // Video extensions for filtering
-const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm', '.avi'];
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm', '.avi', '.mpg', '.mpeg'];
 
 /**
  * GET /api/media/categories
@@ -87,6 +99,8 @@ router.get("/categories", (req: Request, res: Response) => {
     success: true,
     data: CATEGORIES,
   });
+});
+
 /**
  * GET /api/media/tenants
  * Lista tenant disponibili (solo SuperAdmin)
@@ -119,9 +133,6 @@ router.get("/tenants", authenticate, async (req: AuthenticatedRequest, res: Resp
       message: "Errore nel recupero delle associazioni",
     });
   }
-});
-
-
 });
 
 /**
@@ -315,9 +326,9 @@ router.post(
         tenantId = user.tenantId;
       }
 
-      // Determine if it's a video or image
-      const isVideo = ThumbnailService.isVideo(file.originalname);
-      const mimeType = ThumbnailService.getMimeType(file.originalname);
+      // Determine if it is a video or image - check both extension AND mimetype for robustness
+      const isVideo = ThumbnailService.isVideo(file.originalname) || file.mimetype.startsWith("video/");
+      let mimeType = isVideo ? file.mimetype : ThumbnailService.getMimeType(file.originalname);
 
       const bannersDir = path.join(__dirname, "../../../frontend/public/images/banners");
       if (!fs.existsSync(bannersDir)) {
@@ -335,12 +346,42 @@ router.post(
       if (isVideo) {
         // Handle video upload
         const ext = path.extname(file.originalname).toLowerCase();
-        filename = `${Date.now()}-${path.parse(file.originalname).name}${ext}`;
-        outputPath = path.join(bannersDir, filename);
+        const baseName = `${Date.now()}-${path.parse(file.originalname).name}`;
 
-        // Move video file to destination
-        fs.copyFileSync(file.path, outputPath);
-        fs.unlinkSync(file.path);
+        // Check if video needs conversion for browser compatibility
+        const needsConversion = !ThumbnailService.isBrowserCompatible(file.originalname);
+
+        if (needsConversion) {
+          // Convert to MP4 for browser compatibility
+          console.log(`Converting ${ext} to MP4 for browser compatibility...`);
+
+          const conversionResult = await ThumbnailService.convertToMp4(
+            file.path,
+            bannersDir,
+            baseName
+          );
+
+          if (conversionResult.success && conversionResult.outputPath) {
+            filename = `${baseName}.mp4`;
+            mimeType = "video/mp4"; // Update mimeType after conversion
+            outputPath = conversionResult.outputPath;
+            // Clean up original temp file
+            fs.unlinkSync(file.path);
+          } else {
+            // Conversion failed, keep original
+            console.warn("Video conversion failed, keeping original format:", conversionResult.error);
+            filename = `${baseName}${ext}`;
+            outputPath = path.join(bannersDir, filename);
+            fs.copyFileSync(file.path, outputPath);
+            fs.unlinkSync(file.path);
+          }
+        } else {
+          // Already compatible, just move
+          filename = `${baseName}${ext}`;
+          outputPath = path.join(bannersDir, filename);
+          fs.copyFileSync(file.path, outputPath);
+          fs.unlinkSync(file.path);
+        }
 
         // Generate thumbnail (will fail gracefully if FFmpeg not installed)
         try {
@@ -507,8 +548,10 @@ router.delete("/:id", authenticate, async (req: AuthenticatedRequest, res: Respo
     }
 
     // Check permissions
+    // SUPER_ADMIN can delete anything
+    // TENANT_ADMIN/PRESIDENT can delete their own media OR global media (tenantId = null)
     if (user.role !== 'SUPER_ADMIN') {
-      if (existing.tenantId !== user.tenantId) {
+      if (existing.tenantId !== null && existing.tenantId !== user.tenantId) {
         return res.status(403).json({
           success: false,
           message: "Non hai i permessi per eliminare questo media",

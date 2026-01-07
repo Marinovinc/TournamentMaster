@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
+import path from "path";
 import { config } from "./config";
 
 // Import routes
@@ -43,6 +44,9 @@ app.use(compression());
 
 // Static files for uploads
 app.use("/uploads", express.static(config.upload.dir));
+
+// Static files for video thumbnails
+app.use("/thumbnails", express.static(path.join(__dirname, "../public/thumbnails")));
 
 // Health check (both paths for compatibility)
 app.get("/health", (req: Request, res: Response) => {

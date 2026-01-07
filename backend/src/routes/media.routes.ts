@@ -28,6 +28,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import sharp from "sharp";
+import { ThumbnailService } from "../services/thumbnail.service";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -49,9 +50,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max (for videos)
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm"];
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -314,31 +315,78 @@ router.post(
         tenantId = user.tenantId;
       }
 
-      // Process image (resize to max 1920x1080, create thumbnail)
+      // Determine if it's a video or image
+      const isVideo = ThumbnailService.isVideo(file.originalname);
+      const mimeType = ThumbnailService.getMimeType(file.originalname);
+
       const bannersDir = path.join(__dirname, "../../../frontend/public/images/banners");
       if (!fs.existsSync(bannersDir)) {
         fs.mkdirSync(bannersDir, { recursive: true });
       }
 
-      const filename = `${Date.now()}-${path.parse(file.originalname).name}.jpg`;
-      const outputPath = path.join(bannersDir, filename);
+      let filename: string;
+      let outputPath: string;
+      let width: number | null = null;
+      let height: number | null = null;
+      let aspectRatio: string | null = null;
+      let thumbnailPath: string | null = null;
+      let duration: number | null = null;
 
-      // Get image dimensions
-      const metadata = await sharp(file.path).metadata();
+      if (isVideo) {
+        // Handle video upload
+        const ext = path.extname(file.originalname).toLowerCase();
+        filename = `${Date.now()}-${path.parse(file.originalname).name}${ext}`;
+        outputPath = path.join(bannersDir, filename);
 
-      // Resize maintaining aspect ratio
-      await sharp(file.path)
-        .resize(1920, 1080, { fit: "inside", withoutEnlargement: true })
-        .jpeg({ quality: 85 })
-        .toFile(outputPath);
+        // Move video file to destination
+        fs.copyFileSync(file.path, outputPath);
+        fs.unlinkSync(file.path);
 
-      // Clean up temp file
-      fs.unlinkSync(file.path);
+        // Generate thumbnail (will fail gracefully if FFmpeg not installed)
+        try {
+          const thumbnailResult = await ThumbnailService.generateThumbnail(
+            outputPath,
+            path.parse(filename).name
+          );
 
-      // Calculate aspect ratio
-      const aspectRatio = metadata.width && metadata.height
-        ? `${Math.round(metadata.width / Math.gcd(metadata.width, metadata.height))}:${Math.round(metadata.height / Math.gcd(metadata.width, metadata.height))}`
-        : null;
+          if (thumbnailResult.success) {
+            thumbnailPath = thumbnailResult.thumbnailPath || null;
+            duration = thumbnailResult.duration || null;
+            width = thumbnailResult.width || null;
+            height = thumbnailResult.height || null;
+          }
+        } catch (err) {
+          console.warn("Thumbnail generation failed (FFmpeg may not be installed):", err);
+        }
+
+        // Calculate aspect ratio from video dimensions
+        if (width && height) {
+          aspectRatio = `${Math.round(width / Math.gcd(width, height))}:${Math.round(height / Math.gcd(width, height))}`;
+        }
+      } else {
+        // Handle image upload
+        filename = `${Date.now()}-${path.parse(file.originalname).name}.jpg`;
+        outputPath = path.join(bannersDir, filename);
+
+        // Get image dimensions
+        const metadata = await sharp(file.path).metadata();
+        width = metadata.width || null;
+        height = metadata.height || null;
+
+        // Resize maintaining aspect ratio
+        await sharp(file.path)
+          .resize(1920, 1080, { fit: "inside", withoutEnlargement: true })
+          .jpeg({ quality: 85 })
+          .toFile(outputPath);
+
+        // Clean up temp file
+        fs.unlinkSync(file.path);
+
+        // Calculate aspect ratio
+        if (width && height) {
+          aspectRatio = `${Math.round(width / Math.gcd(width, height))}:${Math.round(height / Math.gcd(width, height))}`;
+        }
+      }
 
       // Create database entry
       const media = await prisma.bannerImage.create({
@@ -350,12 +398,15 @@ router.post(
           alt: title,
           category,
           tags: tags || null,
-          width: metadata.width || null,
-          height: metadata.height || null,
+          width,
+          height,
           aspectRatio,
           source: "upload",
           tenantId,
           uploadedById: user.userId,
+          mimeType,
+          thumbnailPath,
+          duration,
         },
         include: {
           tenant: { select: { id: true, name: true } },

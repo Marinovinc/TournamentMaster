@@ -778,6 +778,11 @@ model BannerImage {
   path        String   @db.VarChar(500)        // Local path: /images/banners/xxx.jpg
   url         String?  @db.VarChar(500)        // External URL (Unsplash, CDN, etc.)
 
+  // Media type info (for video support)
+  mimeType      String?  @db.VarChar(100)      // image/jpeg, video/mp4, etc.
+  thumbnailPath String?  @db.VarChar(500)      // Video thumbnail: /thumbnails/xxx.jpg
+  duration      Int?                            // Video duration in seconds
+
   // Metadata
   title       String   @db.VarChar(255)
   description String?  @db.Text

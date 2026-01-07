@@ -51,6 +51,9 @@ import {
   Building2,
   Upload,
   X,
+  Video,
+  Play,
+  ExternalLink,
 } from "lucide-react";
 
 interface MediaItem {
@@ -69,6 +72,9 @@ interface MediaItem {
   tenant: { id: string; name: string; slug: string } | null;
   uploadedBy: { id: string; firstName: string; lastName: string } | null;
   createdAt: string;
+  mimeType: string | null;
+  thumbnailPath: string | null;
+  duration: number | null;
 }
 
 interface Tenant {
@@ -83,6 +89,18 @@ interface Pagination {
   total: number;
   totalPages: number;
 }
+
+// Helper function to check if a file is a video
+const isVideoFile = (filename: string) => {
+  return /\.(mp4|mov|webm|avi|mkv)$/i.test(filename);
+};
+
+// Format duration in mm:ss
+const formatDuration = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 const CATEGORIES = [
   "tournament",
@@ -133,6 +151,7 @@ export default function SuperAdminMediaPage() {
 
   // Edit dialog state
   const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null);
+  const [viewingMedia, setViewingMedia] = useState<MediaItem | null>(null);
   const [editForm, setEditForm] = useState({
     title: "",
     description: "",
@@ -858,6 +877,52 @@ export default function SuperAdminMediaPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+
+      {/* Media Viewer Dialog */}
+      <Dialog open={viewingMedia !== null} onOpenChange={() => setViewingMedia(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>{viewingMedia?.title}</DialogTitle>
+            <DialogDescription>
+              {viewingMedia?.description}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4">
+            {viewingMedia && isVideoFile(viewingMedia.filename) ? (
+              <video
+                controls
+                autoPlay
+                className="w-full max-h-[60vh] rounded-lg"
+                src={viewingMedia.path}
+              >
+                Your browser does not support the video tag.
+              </video>
+            ) : viewingMedia ? (
+              <img
+                src={viewingMedia.path}
+                alt={viewingMedia.title}
+                className="w-full max-h-[60vh] object-contain rounded-lg"
+              />
+            ) : null}
+            {viewingMedia && !isVideoFile(viewingMedia.filename) && (
+              <Button
+                variant="outline"
+                onClick={() => window.open(viewingMedia.path, '_blank', 'noopener,noreferrer,width=1200,height=800')}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Apri in nuova finestra
+              </Button>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingMedia(null)}>
+              Chiudi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

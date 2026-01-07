@@ -379,24 +379,16 @@ async function main() {
     ]]
   });
 
-  // Banner images from Unsplash (free to use) - Fishing & Marine themed
+  // Banner images - Local fishing photos (800x400)
   const bannerImages = {
-    // Deep sea fishing boat at dawn
-    biggame: 'https://images.unsplash.com/photo-1516382799247-87df95d790b7?w=800&h=400&fit=crop',
-    // Person fishing with rod at sunset
-    fishing: 'https://images.unsplash.com/photo-1480926965639-9b5245fddb74?w=800&h=400&fit=crop',
-    // Blue ocean waves
-    ocean: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&h=400&fit=crop',
-    // Fishing boat on calm sea
-    boat: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=800&h=400&fit=crop',
-    // Sunset over ocean water
-    sunset: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&h=400&fit=crop',
-    // Tropical turquoise water aerial
-    tropical: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=800&h=400&fit=crop',
-    // Coastal pier fishing
-    coast: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&h=400&fit=crop',
-    // Tuna/big game fish catch
-    tuna: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=400&fit=crop',
+    biggame: "/images/banners/biggame-tuna-catch.jpg",
+    tuna: "/images/banners/double-tuna.jpg",
+    fishing: "/images/banners/spearfish-catch.jpg",
+    boat: "/images/banners/boston-whaler-sea.jpg",
+    ocean: "/images/banners/ocean-sunrise.jpg",
+    sunset: "/images/banners/harbor-sunset.jpg",
+    tropical: "/images/banners/port-boats-dusk.jpg",
+    coast: "/images/banners/port-boats-dusk.jpg",
   };
 
   // Torneo 1: COMPLETATO (Giugno 2024)

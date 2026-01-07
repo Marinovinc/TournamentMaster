@@ -16,6 +16,7 @@ import strikeRoutes from "./routes/strike.routes";
 import tenantRoutes from "./routes/tenant.routes";
 import reportsRoutes from "./routes/reports.routes";
 import cmsRoutes from "./routes/cms.routes";
+import mediaRoutes from "./routes/media.routes";
 
 // Create Express app
 const app: Application = express();
@@ -75,6 +76,7 @@ app.use("/api/strikes", strikeRoutes);
 app.use("/api/tenants", tenantRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/cms", cmsRoutes);
+app.use("/api/media", mediaRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

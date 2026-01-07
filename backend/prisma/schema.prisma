@@ -48,8 +48,9 @@ model Tenant {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  users       User[]
-  tournaments Tournament[]
+  users         User[]
+  tournaments   Tournament[]
+  bannerImages  BannerImage[]
 
   @@map("tenants")
 }
@@ -106,6 +107,7 @@ model User {
   captainedTeams      Team[] @relation("TeamCaptain")
   teamMemberships     TeamMember[]
   tournamentStaff     TournamentStaff[]
+  uploadedImages      BannerImage[] @relation("UploadedImages")
 
   @@index([email])
   @@index([tenantId])
@@ -762,4 +764,59 @@ model DisciplineInfo {
   @@index([category, locale, isActive])
   @@index([sortOrder])
   @@map("discipline_info")
+}
+
+// ================================
+// MEDIA LIBRARY - BANNERS & IMAGES
+// ================================
+
+model BannerImage {
+  id          String   @id @default(uuid())
+
+  // File info
+  filename    String   @db.VarChar(255)
+  path        String   @db.VarChar(500)        // Local path: /images/banners/xxx.jpg
+  url         String?  @db.VarChar(500)        // External URL (Unsplash, CDN, etc.)
+
+  // Metadata
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  alt         String?  @db.VarChar(255)        // Alt text for accessibility
+
+  // Categorization
+  category    String   @db.VarChar(50)         // tournament, boat, catch, port, sea, sunset, etc.
+  tags        String?  @db.VarChar(500)        // Comma-separated: "fishing,boat,ponza,biggame"
+
+  // Image dimensions
+  width       Int?
+  height      Int?
+  aspectRatio String?  @db.VarChar(10)         // "2:1", "16:9", etc.
+
+  // Source info
+  source      String   @db.VarChar(50) @default("local")  // local, unsplash, amazon, upload
+  sourceUrl   String?  @db.VarChar(500)        // Original source URL
+  author      String?  @db.VarChar(255)        // Photographer/owner
+  license     String?  @db.VarChar(100)        // CC0, personal, etc.
+
+  // Usage tracking
+  usageCount  Int      @default(0)             // How many times used
+
+  // Status
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)         // Show in featured/recommended
+
+  // Multi-tenant support
+  tenantId    String?                          // null = global (SuperAdmin only), otherwise tenant-specific
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  uploadedById String?                          // Who uploaded this image
+  uploadedBy   User?   @relation("UploadedImages", fields: [uploadedById], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category, isActive])
+  @@index([tags])
+  @@index([source])
+  @@index([tenantId])
+  @@map("banner_images")
 }

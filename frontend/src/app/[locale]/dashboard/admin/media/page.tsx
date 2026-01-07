@@ -168,7 +168,11 @@ export default function TenantAdminMediaPage() {
       const data = await res.json();
       if (data.success) {
         setGlobalMedia(data.data);
-        setGlobalPagination(data.pagination);
+        setGlobalPagination(prev => ({
+          ...prev,
+          total: data.pagination.total,
+          totalPages: data.pagination.totalPages,
+        }));
       }
     } catch (error) {
       console.error("Failed to fetch global media:", error);
@@ -196,7 +200,11 @@ export default function TenantAdminMediaPage() {
       const data = await res.json();
       if (data.success) {
         setTenantMedia(data.data);
-        setTenantPagination(data.pagination);
+        setTenantPagination(prev => ({
+          ...prev,
+          total: data.pagination.total,
+          totalPages: data.pagination.totalPages,
+        }));
       }
     } catch (error) {
       console.error("Failed to fetch tenant media:", error);

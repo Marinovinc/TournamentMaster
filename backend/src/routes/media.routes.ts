@@ -74,6 +74,9 @@ const CATEGORIES = [
   "general",
 ];
 
+// Video extensions for filtering
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm', '.avi'];
+
 /**
  * GET /api/media/categories
  * Lista categorie disponibili
@@ -83,6 +86,41 @@ router.get("/categories", (req: Request, res: Response) => {
     success: true,
     data: CATEGORIES,
   });
+/**
+ * GET /api/media/tenants
+ * Lista tenant disponibili (solo SuperAdmin)
+ */
+router.get("/tenants", authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const user = req.user!;
+
+    if (user.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: "Accesso non autorizzato",
+      });
+    }
+
+    const tenants = await prisma.tenant.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, slug: true },
+      orderBy: { name: "asc" },
+    });
+
+    res.json({
+      success: true,
+      data: tenants,
+    });
+  } catch (error) {
+    console.error("Error fetching tenants:", error);
+    res.status(500).json({
+      success: false,
+      message: "Errore nel recupero delle associazioni",
+    });
+  }
+});
+
+
 });
 
 /**
@@ -93,20 +131,19 @@ router.get("/categories", (req: Request, res: Response) => {
  */
 router.get("/", authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { category, search, page = "1", limit = "20", onlyGlobal, onlyTenant } = req.query;
+    const { category, search, page = "1", limit = "20", onlyGlobal, mediaType, tenantId } = req.query;
     const user = req.user!;
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
 
     // Build where clause based on role
     const where: any = { isActive: true };
+    const andConditions: any[] = [];
 
     // SuperAdmin sees all, TenantAdmin sees global + own tenant
     if (user.role !== 'SUPER_ADMIN') {
       if (onlyGlobal === "true") {
         where.tenantId = null;
-      } else if (onlyTenant === "true") {
-        where.tenantId = user.tenantId;
       } else {
         where.OR = [{ tenantId: null }, { tenantId: user.tenantId }];
       }
@@ -114,22 +151,38 @@ router.get("/", authenticate, async (req: AuthenticatedRequest, res: Response) =
       // SuperAdmin filters
       if (onlyGlobal === "true") {
         where.tenantId = null;
-      } else if (onlyTenant === "true" && req.query.tenantId) {
-        where.tenantId = req.query.tenantId;
+      } else if (tenantId && tenantId !== "all") {
+        where.tenantId = tenantId;
       }
     }
 
-    if (category) {
+    if (category && category !== "all") {
       where.category = category;
     }
 
+    // Media type filter (photo/video)
+    if (mediaType === "photo") {
+      VIDEO_EXTENSIONS.forEach(ext => {
+        andConditions.push({ filename: { not: { endsWith: ext } } });
+      });
+    } else if (mediaType === "video") {
+      andConditions.push({
+        OR: VIDEO_EXTENSIONS.map(ext => ({ filename: { endsWith: ext } })),
+      });
+    }
+
     if (search) {
-      where.OR = [
-        ...(where.OR || []),
-        { title: { contains: search as string } },
-        { tags: { contains: search as string } },
-        { description: { contains: search as string } },
-      ];
+      andConditions.push({
+        OR: [
+          { title: { contains: search as string } },
+          { tags: { contains: search as string } },
+          { description: { contains: search as string } },
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     const [media, total] = await Promise.all([

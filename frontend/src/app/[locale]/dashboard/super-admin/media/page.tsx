@@ -71,6 +71,12 @@ interface MediaItem {
   createdAt: string;
 }
 
+interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface Pagination {
   page: number;
   limit: number;
@@ -99,7 +105,10 @@ export default function SuperAdminMediaPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [scopeFilter, setScopeFilter] = useState("all"); // all, global, tenant
+  
+  const [mediaTypeFilter, setMediaTypeFilter] = useState("all"); // all, photo, video
+  const [tenantFilter, setTenantFilter] = useState("all");
+  const [tenants, setTenants] = useState<Tenant[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -143,6 +152,27 @@ export default function SuperAdminMediaPage() {
     }
   }, [user, router]);
 
+  // Fetch tenants list for SuperAdmin
+  const fetchTenants = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/media/tenants`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setTenants(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch tenants:", error);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchTenants();
+  }, [fetchTenants]);
+
   const fetchMedia = useCallback(async () => {
     if (!token) return;
 
@@ -153,8 +183,10 @@ export default function SuperAdminMediaPage() {
       params.append("limit", pagination.limit.toString());
       if (search) params.append("search", search);
       if (categoryFilter !== "all") params.append("category", categoryFilter);
-      if (scopeFilter === "global") params.append("onlyGlobal", "true");
-      if (scopeFilter === "tenant") params.append("onlyTenant", "true");
+      if (tenantFilter === "global") params.append("onlyGlobal", "true");
+      if (mediaTypeFilter !== "all") params.append("mediaType", mediaTypeFilter);
+      if (tenantFilter !== "all" && tenantFilter !== "global") params.append("tenantId", tenantFilter);
+
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/media?${params}`,
@@ -173,7 +205,7 @@ export default function SuperAdminMediaPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, search, categoryFilter, scopeFilter, pagination.page, pagination.limit]);
+  }, [token, search, categoryFilter, mediaTypeFilter, tenantFilter, pagination.page, pagination.limit]);
 
   useEffect(() => {
     fetchMedia();
@@ -503,14 +535,28 @@ export default function SuperAdminMediaPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={scopeFilter} onValueChange={setScopeFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Scope" />
+            <Select value={mediaTypeFilter} onValueChange={setMediaTypeFilter}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutti</SelectItem>
-                <SelectItem value="global">Globali</SelectItem>
-                <SelectItem value="tenant">Associazioni</SelectItem>
+                <SelectItem value="photo">Foto</SelectItem>
+                <SelectItem value="video">Video</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={tenantFilter} onValueChange={setTenantFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Associazione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutte</SelectItem>
+                <SelectItem value="global">Solo Globali</SelectItem>
+                {tenants.map((tenant) => (
+                  <SelectItem key={tenant.id} value={tenant.id}>
+                    {tenant.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <div className="flex gap-1">

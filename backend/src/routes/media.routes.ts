@@ -52,12 +52,19 @@ const upload = multer({
   storage,
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max (for videos)
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"];
-    if (allowedTypes.includes(file.mimetype)) {
+    // Check MIME type
+    if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) {
       cb(null, true);
-    } else {
-      cb(new Error("Tipo file non supportato"));
+      return;
     }
+    // Fallback: check by extension
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov", ".webm", ".avi", ".mkv"];
+    if (allowedExts.includes(ext)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Tipo file non supportato: " + file.mimetype + " (" + ext + ")"));
   },
 });
 

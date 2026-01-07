@@ -524,12 +524,12 @@ export default function TenantAdminMediaPage() {
                       Clicca o trascina un file qui
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      JPG, PNG, GIF, WEBP, MP4, WEBM (max 10MB)
+                      JPG, PNG, GIF, WEBP, MP4, WEBM, MOV, AVI (max 100MB)
                     </p>
                     <input
                       id="file-input"
                       type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                      accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,video/x-msvideo,.mov,.avi"
                       className="hidden"
                       onChange={handleFileChange}
                     />

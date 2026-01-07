@@ -379,16 +379,25 @@ async function main() {
     ]]
   });
 
-  // Banner images - Local fishing photos (800x400)
+  // Banner images - Local fishing photos (1200x800)
+  // 16 unique images - ogni torneo ha un banner unico
   const bannerImages = {
     biggame: "/images/banners/biggame-tuna-catch.jpg",
-    tuna: "/images/banners/double-tuna.jpg",
-    fishing: "/images/banners/spearfish-catch.jpg",
     boat: "/images/banners/boston-whaler-sea.jpg",
+    catch1: "/images/banners/catch1.jpg",
+    catch2: "/images/banners/catch2.jpg",
+    catch3: "/images/banners/catch3.jpg",
+    catch4: "/images/banners/catch4.jpg",
+    catch5: "/images/banners/catch5.jpg",
+    tuna: "/images/banners/double-tuna.jpg",
+    fishing1: "/images/banners/fishing1.jpg",
+    fishing2: "/images/banners/fishing2.jpg",
+    fishing3: "/images/banners/fishing3.jpg",
+    fishing4: "/images/banners/fishing4.jpg",
+    harbor: "/images/banners/harbor-sunset.jpg",
     ocean: "/images/banners/ocean-sunrise.jpg",
-    sunset: "/images/banners/harbor-sunset.jpg",
-    tropical: "/images/banners/port-boats-dusk.jpg",
-    coast: "/images/banners/port-boats-dusk.jpg",
+    port: "/images/banners/port-boats-dusk.jpg",
+    spearfish: "/images/banners/spearfish-catch.jpg",
   };
 
   // Torneo 1: COMPLETATO (Giugno 2024)
@@ -473,7 +482,7 @@ async function main() {
       maxCatchesPerDay: 5,
       pointsPerKg: 100,
       bonusPoints: 100,
-      bannerImage: bannerImages.sunset,
+      bannerImage: bannerImages.catch1,
       tenantId: tenant.id,
       organizerId: admin.id,
     },
@@ -501,7 +510,7 @@ async function main() {
       minWeight: 0.1,
       maxCatchesPerDay: 20,
       pointsPerKg: 200,
-      bannerImage: bannerImages.coast,
+      bannerImage: bannerImages.catch2,
       tenantId: tenant.id,
       organizerId: admin.id,
     },
@@ -557,7 +566,7 @@ async function main() {
       minWeight: 0.3,
       maxCatchesPerDay: 25,
       pointsPerKg: 180,
-      bannerImage: bannerImages.fishing,
+      bannerImage: bannerImages.catch4,
       tenantId: tenant.id,
       organizerId: admin.id,
     },
@@ -586,7 +595,7 @@ async function main() {
       maxCatchesPerDay: 8,
       pointsPerKg: 120,
       bonusPoints: 75,
-      bannerImage: bannerImages.tropical,
+      bannerImage: bannerImages.catch5,
       tenantId: tenant.id,
       organizerId: admin.id,
     },
@@ -646,7 +655,7 @@ async function main() {
       maxParticipants: 25,
       minWeight: 2.0,
       pointsPerKg: 100,
-      bannerImage: bannerImages.fishing,
+      bannerImage: bannerImages.fishing1,
       tenantId: tenant2.id,
       organizerId: adminMareBlu.id,
     },
@@ -672,7 +681,7 @@ async function main() {
       maxParticipants: 20,
       minWeight: 3.0,
       pointsPerKg: 110,
-      bannerImage: bannerImages.ocean,
+      bannerImage: bannerImages.fishing2,
       tenantId: tenant2.id,
       organizerId: adminMareBlu.id,
     },
@@ -698,7 +707,7 @@ async function main() {
       maxParticipants: 30,
       minWeight: 5.0,
       pointsPerKg: 100,
-      bannerImage: bannerImages.sunset,
+      bannerImage: bannerImages.fishing3,
       tenantId: tenant2.id,
       organizerId: adminMareBlu.id,
     },
@@ -729,7 +738,7 @@ async function main() {
       maxParticipants: 40,
       minWeight: 0.2,
       pointsPerKg: 150,
-      bannerImage: bannerImages.coast,
+      bannerImage: bannerImages.harbor,
       tenantId: tenant3.id,
       organizerId: adminPescaNapoli.id,
     },
@@ -755,7 +764,7 @@ async function main() {
       maxParticipants: 30,
       minWeight: 2.0,
       pointsPerKg: 100,
-      bannerImage: bannerImages.boat,
+      bannerImage: bannerImages.catch3,
       tenantId: tenant3.id,
       organizerId: adminPescaNapoli.id,
     },
@@ -781,7 +790,7 @@ async function main() {
       maxParticipants: 50,
       minWeight: 0.1,
       pointsPerKg: 200,
-      bannerImage: bannerImages.tropical,
+      bannerImage: bannerImages.port,
       tenantId: tenant3.id,
       organizerId: adminPescaNapoli.id,
     },
@@ -807,7 +816,7 @@ async function main() {
       maxParticipants: 35,
       minWeight: 0.3,
       pointsPerKg: 180,
-      bannerImage: bannerImages.fishing,
+      bannerImage: bannerImages.spearfish,
       tenantId: tenant3.id,
       organizerId: adminPescaNapoli.id,
     },
@@ -833,7 +842,7 @@ async function main() {
       maxParticipants: 25,
       minWeight: 5.0,
       pointsPerKg: 100,
-      bannerImage: bannerImages.biggame,
+      bannerImage: bannerImages.fishing4,
       tenantId: tenant3.id,
       organizerId: adminPescaNapoli.id,
     },
@@ -1541,6 +1550,53 @@ async function main() {
       },
     });
   }
+
+  
+
+  // ================================
+  // MEDIA LIBRARY - BannerImage entries
+  // ================================
+  console.log('🖼️  Creating Media Library entries...');
+
+  const bannerEntries = [
+    { filename: 'biggame-tuna-catch.jpg', title: 'Tonno Big Game', category: 'catch', tags: 'tonno,biggame,pesca altura' },
+    { filename: 'boston-whaler-sea.jpg', title: 'Boston Whaler in mare', category: 'boat', tags: 'barca,boston whaler,mare' },
+    { filename: 'catch1.jpg', title: 'Cattura 1', category: 'catch', tags: 'cattura,pesca,trofeo' },
+    { filename: 'catch2.jpg', title: 'Cattura 2', category: 'catch', tags: 'cattura,pesca,trofeo' },
+    { filename: 'catch3.jpg', title: 'Cattura 3', category: 'catch', tags: 'cattura,pesca,trofeo' },
+    { filename: 'catch4.jpg', title: 'Cattura 4', category: 'catch', tags: 'cattura,pesca,trofeo' },
+    { filename: 'catch5.jpg', title: 'Cattura 5', category: 'catch', tags: 'cattura,pesca,trofeo' },
+    { filename: 'double-tuna.jpg', title: 'Doppio Tonno', category: 'catch', tags: 'tonno,doppio,pesca altura' },
+    { filename: 'fishing1.jpg', title: 'Pesca in mare 1', category: 'action', tags: 'pesca,azione,mare' },
+    { filename: 'fishing2.jpg', title: 'Pesca in mare 2', category: 'action', tags: 'pesca,azione,mare' },
+    { filename: 'fishing3.jpg', title: 'Pesca in mare 3', category: 'action', tags: 'pesca,azione,mare' },
+    { filename: 'fishing4.jpg', title: 'Pesca in mare 4', category: 'action', tags: 'pesca,azione,mare' },
+    { filename: 'harbor-sunset.jpg', title: 'Porto al tramonto', category: 'sunset', tags: 'porto,tramonto,barche' },
+    { filename: 'ocean-sunrise.jpg', title: 'Alba in mare', category: 'sea', tags: 'alba,mare,oceano' },
+    { filename: 'port-boats-dusk.jpg', title: 'Barche al crepuscolo', category: 'port', tags: 'porto,barche,crepuscolo' },
+    { filename: 'spearfish-catch.jpg', title: 'Cattura Pesce Spada', category: 'catch', tags: 'pesce spada,cattura,traina' },
+  ];
+
+  for (const entry of bannerEntries) {
+    await prisma.bannerImage.upsert({
+      where: { id: `banner-${entry.filename.replace('.jpg', '')}` },
+      update: {},
+      create: {
+        id: `banner-${entry.filename.replace('.jpg', '')}`,
+        filename: entry.filename,
+        path: `/images/banners/${entry.filename}`,
+        title: entry.title,
+        alt: entry.title,
+        category: entry.category,
+        tags: entry.tags,
+        source: 'seed',
+        isActive: true,
+        isFeatured: false,
+        tenantId: null, // Global images
+      },
+    });
+  }
+  console.log('   ✓ ' + bannerEntries.length + ' banner images created');
 
   console.log('\n✅ Seed completed successfully!');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

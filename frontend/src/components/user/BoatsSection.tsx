@@ -12,7 +12,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,10 @@ import {
   Calendar,
   CheckCircle,
   XCircle,
+  Camera,
+  Video,
+  Image as ImageIcon,
+  Upload,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -77,8 +81,20 @@ interface Boat {
   createdAt: string;
 }
 
+
+interface BoatMedia {
+  id: string;
+  type: "PHOTO" | "VIDEO";
+  filename: string;
+  path: string;
+  thumbnailPath?: string;
+  title?: string;
+  createdAt: string;
+}
 interface BoatsSectionProps {
   primaryColor?: string;
+  viewUserId?: string; // Admin viewing another user's boats
+  readOnly?: boolean;  // Admin view is read-only
 }
 
 // Labels
@@ -121,7 +137,7 @@ const defaultBoatForm = {
   availabilityNotes: "",
 };
 
-export default function BoatsSection({ primaryColor = "#0066CC" }: BoatsSectionProps) {
+export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, readOnly = false }: BoatsSectionProps) {
   const { token } = useAuth();
 
   // State
@@ -138,6 +154,18 @@ export default function BoatsSection({ primaryColor = "#0066CC" }: BoatsSectionP
   // Delete confirmation
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Media gallery state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mediaDialogBoat, setMediaDialogBoat] = useState<Boat | null>(null);
+  const [boatMedia, setBoatMedia] = useState<BoatMedia[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [viewingMedia, setViewingMedia] = useState<BoatMedia | null>(null);
+  const [deletingMediaId, setDeletingMediaId] = useState<string | null>(null);
+
 
   // Fetch boats
   useEffect(() => {
@@ -146,7 +174,8 @@ export default function BoatsSection({ primaryColor = "#0066CC" }: BoatsSectionP
 
       setLoading(true);
       try {
-        const res = await fetch(`${API_URL}/api/boats`, {
+        const userIdParam = viewUserId ? `?userId=${viewUserId}` : "";
+        const res = await fetch(`${API_URL}/api/boats${userIdParam}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -163,7 +192,7 @@ export default function BoatsSection({ primaryColor = "#0066CC" }: BoatsSectionP
     }
 
     fetchBoats();
-  }, [token]);
+  }, [token, viewUserId]);
 
   // Open dialog for new boat
   const handleAddNew = () => {
@@ -256,6 +285,119 @@ export default function BoatsSection({ primaryColor = "#0066CC" }: BoatsSectionP
     } finally {
       setDeleting(false);
     }
+  };
+
+  // Open media gallery for a boat
+  const handleOpenMediaGallery = async (boat: Boat) => {
+    setMediaDialogBoat(boat);
+    setLoadingMedia(true);
+    try {
+      const res = await fetch(`${API_URL}/api/user-media?boatId=${boat.id}&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBoatMedia(data.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching boat media:", err);
+    } finally {
+      setLoadingMedia(false);
+    }
+  };
+
+  // Handle file selection for boat media
+  const handleMediaFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadFile(file);
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onloadend = () => setUploadPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setUploadPreview(null);
+    }
+  };
+
+  // Handle drag and drop for boat media
+  const handleMediaDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      const file = files[0];
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return;
+      setUploadFile(file);
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onloadend = () => setUploadPreview(reader.result as string);
+        reader.readAsDataURL(file);
+      } else {
+        setUploadPreview(null);
+      }
+    }
+  };
+
+  // Upload media for boat
+  const handleUploadBoatMedia = async () => {
+    if (!uploadFile || !token || !mediaDialogBoat) return;
+    setUploadingMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      formData.append("category", "BOAT");
+      formData.append("boatId", mediaDialogBoat.id);
+      formData.append("isPublic", "false");
+
+      const res = await fetch(`${API_URL}/api/user-media/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setBoatMedia([data.data, ...boatMedia]);
+        setUploadFile(null);
+        setUploadPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    } catch (err) {
+      console.error("Error uploading boat media:", err);
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  // Delete boat media
+  const handleDeleteBoatMedia = async (mediaId: string) => {
+    if (!token) return;
+    setDeletingMediaId(mediaId);
+    try {
+      const res = await fetch(`${API_URL}/api/user-media/${mediaId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setBoatMedia(boatMedia.filter(m => m.id !== mediaId));
+        if (viewingMedia?.id === mediaId) setViewingMedia(null);
+      }
+    } catch (err) {
+      console.error("Error deleting boat media:", err);
+    } finally {
+      setDeletingMediaId(null);
+    }
+  };
+
+  // Close media dialog
+  const handleCloseMediaDialog = () => {
+    setMediaDialogBoat(null);
+    setBoatMedia([]);
+    setUploadFile(null);
+    setUploadPreview(null);
+    setViewingMedia(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   if (loading) {
@@ -368,6 +510,13 @@ export default function BoatsSection({ primaryColor = "#0066CC" }: BoatsSectionP
                 </div>
 
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenMediaGallery(boat)}
+                  >
+                    <Camera className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -613,6 +762,163 @@ export default function BoatsSection({ primaryColor = "#0066CC" }: BoatsSectionP
               Elimina
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    
+
+      {/* Media Gallery Dialog */}
+      <Dialog open={!!mediaDialogBoat} onOpenChange={() => handleCloseMediaDialog()}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="h-5 w-5" />
+              Media di {mediaDialogBoat?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Upload Zone */}
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                onChange={handleMediaFileSelect}
+                className="hidden"
+              />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleMediaDrop}
+                className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'hover:border-primary'}`}
+              >
+                {uploadPreview ? (
+                  <div className="space-y-2">
+                    <img src={uploadPreview} alt="Preview" className="max-h-32 mx-auto rounded" />
+                    <p className="text-sm">{uploadFile?.name}</p>
+                  </div>
+                ) : uploadFile ? (
+                  <div className="space-y-2">
+                    <Video className="h-10 w-10 mx-auto text-muted-foreground" />
+                    <p className="text-sm font-medium">{uploadFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Clicca o trascina foto/video della barca
+                    </p>
+                  </div>
+                )}
+              </div>
+              {uploadFile && (
+                <Button
+                  onClick={handleUploadBoatMedia}
+                  disabled={uploadingMedia}
+                  className="w-full mt-2"
+                  size="sm"
+                >
+                  {uploadingMedia && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Carica
+                </Button>
+              )}
+            </div>
+
+            {/* Media Grid */}
+            {loadingMedia ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : boatMedia.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <Camera className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p>Nessun media per questa barca</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {boatMedia.map((item) => (
+                  <div
+                    key={item.id}
+                    className="relative group cursor-pointer aspect-square rounded-lg overflow-hidden bg-muted"
+                    onClick={() => setViewingMedia(item)}
+                  >
+                    {item.thumbnailPath || item.path ? (
+                      <img
+                        src={item.thumbnailPath || item.path}
+                        alt={item.title || item.filename}
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        {item.type === "VIDEO" ? (
+                          <Video className="h-6 w-6 text-muted-foreground" />
+                        ) : (
+                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                    )}
+                    {item.type === "VIDEO" && (
+                      <div className="absolute top-1 left-1">
+                        <Badge className="bg-black/60 text-white text-xs px-1 py-0">
+                          <Video className="h-3 w-3" />
+                        </Badge>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Single Media Dialog */}
+      <Dialog open={!!viewingMedia} onOpenChange={() => setViewingMedia(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{viewingMedia?.title || viewingMedia?.filename}</DialogTitle>
+          </DialogHeader>
+          {viewingMedia && (
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                {viewingMedia.type === "VIDEO" ? (
+                  <video
+                    src={viewingMedia.path}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="max-w-full max-h-[60vh] rounded-lg"
+                  />
+                ) : (
+                  <img
+                    src={viewingMedia.path}
+                    alt={viewingMedia.title || viewingMedia.filename}
+                    className="max-w-full max-h-[60vh] object-contain rounded-lg cursor-pointer hover:opacity-90"
+                    onClick={() => window.open(viewingMedia.path, '_blank')}
+                    title="Clicca per aprire in formato originale"
+                  />
+                )}
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => handleDeleteBoatMedia(viewingMedia.id)}
+                  disabled={deletingMediaId === viewingMedia.id}
+                >
+                  {deletingMediaId === viewingMedia.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Elimina
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

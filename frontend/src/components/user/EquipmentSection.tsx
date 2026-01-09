@@ -7,12 +7,13 @@
  * - Creazione/modifica via dialog
  * - Tracciamento condizione e valore
  * - Mobile-first design
+ * - Media inline nelle card
  * =============================================================================
  */
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,10 @@ import {
   Loader2,
   Sparkles,
   AlertCircle,
+  Camera,
+  Video,
+  Image as ImageIcon,
+  Upload,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -62,8 +67,20 @@ interface Equipment {
   createdAt: string;
 }
 
+interface EquipmentMedia {
+  id: string;
+  type: "PHOTO" | "VIDEO";
+  filename: string;
+  path: string;
+  thumbnailPath?: string;
+  title?: string;
+  createdAt: string;
+}
+
 interface EquipmentSectionProps {
   primaryColor?: string;
+  viewUserId?: string; // Admin viewing another user's equipment
+  readOnly?: boolean;  // Admin view is read-only
 }
 
 // Labels
@@ -101,7 +118,7 @@ const defaultEquipmentForm = {
   purchasePrice: "",
 };
 
-export default function EquipmentSection({ primaryColor = "#0066CC" }: EquipmentSectionProps) {
+export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId, readOnly = false }: EquipmentSectionProps) {
   const { token } = useAuth();
 
   // State
@@ -120,6 +137,21 @@ export default function EquipmentSection({ primaryColor = "#0066CC" }: Equipment
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Media gallery state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mediaDialogEquipment, setMediaDialogEquipment] = useState<Equipment | null>(null);
+  const [equipmentMedia, setEquipmentMedia] = useState<EquipmentMedia[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [viewingMedia, setViewingMedia] = useState<EquipmentMedia | null>(null);
+  const [deletingMediaId, setDeletingMediaId] = useState<string | null>(null);
+
+  // Media inline per ogni equipment
+  const [equipmentMediaMap, setEquipmentMediaMap] = useState<Record<string, EquipmentMedia[]>>({});
+
   // Fetch equipment
   useEffect(() => {
     async function fetchEquipment() {
@@ -127,7 +159,8 @@ export default function EquipmentSection({ primaryColor = "#0066CC" }: Equipment
 
       setLoading(true);
       try {
-        const res = await fetch(`${API_URL}/api/equipment`, {
+        const userIdParam = viewUserId ? `?userId=${viewUserId}` : "";
+        const res = await fetch(`${API_URL}/api/equipment${userIdParam}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -144,7 +177,38 @@ export default function EquipmentSection({ primaryColor = "#0066CC" }: Equipment
     }
 
     fetchEquipment();
-  }, [token]);
+  }, [token, viewUserId]);
+
+  // Fetch media for all equipment (inline display)
+  useEffect(() => {
+    async function fetchAllEquipmentMedia() {
+      if (!token || equipment.length === 0) return;
+
+      const mediaMap: Record<string, EquipmentMedia[]> = {};
+
+      await Promise.all(
+        equipment.map(async (item) => {
+          try {
+            const res = await fetch(`${API_URL}/api/user-media?equipmentId=${item.id}&limit=4`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.data && data.data.length > 0) {
+                mediaMap[item.id] = data.data;
+              }
+            }
+          } catch (err) {
+            console.error(`Error fetching media for equipment ${item.id}:`, err);
+          }
+        })
+      );
+
+      setEquipmentMediaMap(mediaMap);
+    }
+
+    fetchAllEquipmentMedia();
+  }, [token, equipment]);
 
   // Filter equipment
   const filteredEquipment =
@@ -186,13 +250,20 @@ export default function EquipmentSection({ primaryColor = "#0066CC" }: Equipment
         : `${API_URL}/api/equipment`;
       const method = editingItem ? "PUT" : "POST";
 
+      // Clean form data - remove empty strings for optional numeric fields
+      const cleanedForm = {
+        ...form,
+        quantity: form.quantity ? parseInt(form.quantity) : 1,
+        purchasePrice: form.purchasePrice ? form.purchasePrice : undefined,
+      };
+
       const res = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(cleanedForm),
       });
 
       if (!res.ok) throw new Error("Errore nel salvataggio");
@@ -212,6 +283,131 @@ export default function EquipmentSection({ primaryColor = "#0066CC" }: Equipment
     } finally {
       setSaving(false);
     }
+  };
+
+  // Open media gallery for equipment
+  const handleOpenMediaGallery = async (item: Equipment) => {
+    setMediaDialogEquipment(item);
+    setLoadingMedia(true);
+    try {
+      const res = await fetch(`${API_URL}/api/user-media?equipmentId=${item.id}&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEquipmentMedia(data.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching equipment media:", err);
+    } finally {
+      setLoadingMedia(false);
+    }
+  };
+
+  // Handle file selection for equipment media
+  const handleMediaFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadFile(file);
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onloadend = () => setUploadPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setUploadPreview(null);
+    }
+  };
+
+  // Handle drag and drop for equipment media
+  const handleMediaDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      const file = files[0];
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return;
+      setUploadFile(file);
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onloadend = () => setUploadPreview(reader.result as string);
+        reader.readAsDataURL(file);
+      } else {
+        setUploadPreview(null);
+      }
+    }
+  };
+
+  // Upload media for equipment
+  const handleUploadEquipmentMedia = async () => {
+    if (!uploadFile || !token || !mediaDialogEquipment) return;
+    setUploadingMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      formData.append("category", "EQUIPMENT");
+      formData.append("equipmentId", mediaDialogEquipment.id);
+      formData.append("isPublic", "false");
+
+      const res = await fetch(`${API_URL}/api/user-media/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setEquipmentMedia([data.data, ...equipmentMedia]);
+        // Update inline media map too
+        setEquipmentMediaMap(prev => ({
+          ...prev,
+          [mediaDialogEquipment.id]: [data.data, ...(prev[mediaDialogEquipment.id] || [])].slice(0, 4)
+        }));
+        setUploadFile(null);
+        setUploadPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    } catch (err) {
+      console.error("Error uploading equipment media:", err);
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  // Delete equipment media
+  const handleDeleteEquipmentMedia = async (mediaId: string) => {
+    if (!token) return;
+    setDeletingMediaId(mediaId);
+    try {
+      const res = await fetch(`${API_URL}/api/user-media/${mediaId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setEquipmentMedia(equipmentMedia.filter(m => m.id !== mediaId));
+        // Update inline media map too
+        if (mediaDialogEquipment) {
+          setEquipmentMediaMap(prev => ({
+            ...prev,
+            [mediaDialogEquipment.id]: (prev[mediaDialogEquipment.id] || []).filter(m => m.id !== mediaId)
+          }));
+        }
+        if (viewingMedia?.id === mediaId) setViewingMedia(null);
+      }
+    } catch (err) {
+      console.error("Error deleting equipment media:", err);
+    } finally {
+      setDeletingMediaId(null);
+    }
+  };
+
+  // Close media dialog
+  const handleCloseMediaDialog = () => {
+    setMediaDialogEquipment(null);
+    setEquipmentMedia([]);
+    setUploadFile(null);
+    setUploadPreview(null);
+    setViewingMedia(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   // Delete equipment
@@ -363,7 +559,56 @@ export default function EquipmentSection({ primaryColor = "#0066CC" }: Equipment
                   </p>
                 )}
 
+                {/* Inline Media Preview */}
+                {equipmentMediaMap[item.id] && equipmentMediaMap[item.id].length > 0 && (
+                  <div className="mb-3">
+                    <div className="grid grid-cols-4 gap-1">
+                      {equipmentMediaMap[item.id].slice(0, 4).map((media) => (
+                        <div
+                          key={media.id}
+                          className="relative aspect-square rounded overflow-hidden bg-muted cursor-pointer group"
+                          onClick={() => {
+                            setMediaDialogEquipment(item);
+                            setViewingMedia(media);
+                          }}
+                        >
+                          {media.thumbnailPath || media.path ? (
+                            <img
+                              src={media.thumbnailPath || media.path}
+                              alt={media.title || media.filename}
+                              className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              {media.type === "VIDEO" ? (
+                                <Video className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          )}
+                          {media.type === "VIDEO" && (
+                            <div className="absolute top-0.5 left-0.5">
+                              <Video className="h-3 w-3 text-white drop-shadow-md" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2 mt-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenMediaGallery(item)}
+                  >
+                    <Camera className="h-4 w-4" />
+                    {equipmentMediaMap[item.id]?.length ? (
+                      <span className="ml-1 text-xs">{equipmentMediaMap[item.id].length}</span>
+                    ) : null}
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -530,6 +775,162 @@ export default function EquipmentSection({ primaryColor = "#0066CC" }: Equipment
               Elimina
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Media Gallery Dialog */}
+      <Dialog open={!!mediaDialogEquipment} onOpenChange={() => handleCloseMediaDialog()}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="h-5 w-5" />
+              Media di {mediaDialogEquipment?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Upload Zone */}
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                onChange={handleMediaFileSelect}
+                className="hidden"
+              />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleMediaDrop}
+                className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'hover:border-primary'}`}
+              >
+                {uploadPreview ? (
+                  <div className="space-y-2">
+                    <img src={uploadPreview} alt="Preview" className="max-h-32 mx-auto rounded" />
+                    <p className="text-sm">{uploadFile?.name}</p>
+                  </div>
+                ) : uploadFile ? (
+                  <div className="space-y-2">
+                    <Video className="h-10 w-10 mx-auto text-muted-foreground" />
+                    <p className="text-sm font-medium">{uploadFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Clicca o trascina foto/video della attrezzatura
+                    </p>
+                  </div>
+                )}
+              </div>
+              {uploadFile && (
+                <Button
+                  onClick={handleUploadEquipmentMedia}
+                  disabled={uploadingMedia}
+                  className="w-full mt-2"
+                  size="sm"
+                >
+                  {uploadingMedia && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Carica
+                </Button>
+              )}
+            </div>
+
+            {/* Media Grid */}
+            {loadingMedia ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : equipmentMedia.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <Camera className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p>Nessun media per questa attrezzatura</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {equipmentMedia.map((media) => (
+                  <div
+                    key={media.id}
+                    className="relative group cursor-pointer aspect-square rounded-lg overflow-hidden bg-muted"
+                    onClick={() => setViewingMedia(media)}
+                  >
+                    {media.thumbnailPath || media.path ? (
+                      <img
+                        src={media.thumbnailPath || media.path}
+                        alt={media.title || media.filename}
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        {media.type === "VIDEO" ? (
+                          <Video className="h-6 w-6 text-muted-foreground" />
+                        ) : (
+                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                    )}
+                    {media.type === "VIDEO" && (
+                      <div className="absolute top-1 left-1">
+                        <Badge className="bg-black/60 text-white text-xs px-1 py-0">
+                          <Video className="h-3 w-3" />
+                        </Badge>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Single Media Dialog */}
+      <Dialog open={!!viewingMedia} onOpenChange={() => setViewingMedia(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{viewingMedia?.title || viewingMedia?.filename}</DialogTitle>
+          </DialogHeader>
+          {viewingMedia && (
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                {viewingMedia.type === "VIDEO" ? (
+                  <video
+                    src={viewingMedia.path}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="max-w-full max-h-[60vh] rounded-lg"
+                  />
+                ) : (
+                  <img
+                    src={viewingMedia.path}
+                    alt={viewingMedia.title || viewingMedia.filename}
+                    className="max-w-full max-h-[60vh] object-contain rounded-lg cursor-pointer hover:opacity-90"
+                    onClick={() => window.open(viewingMedia.path, '_blank')}
+                    title="Clicca per aprire in formato originale"
+                  />
+                )}
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => handleDeleteEquipmentMedia(viewingMedia.id)}
+                  disabled={deletingMediaId === viewingMedia.id}
+                >
+                  {deletingMediaId === viewingMedia.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Elimina
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

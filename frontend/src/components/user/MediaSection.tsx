@@ -77,6 +77,8 @@ interface UserMedia {
 
 interface MediaSectionProps {
   primaryColor?: string;
+  viewUserId?: string; // Admin viewing another user's media
+  readOnly?: boolean;  // Admin view is read-only
 }
 
 // Labels
@@ -99,7 +101,7 @@ function formatDate(dateStr: string) {
   });
 }
 
-export default function MediaSection({ primaryColor = "#0066CC" }: MediaSectionProps) {
+export default function MediaSection({ primaryColor = "#0066CC", viewUserId, readOnly = false }: MediaSectionProps) {
   const { token } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -153,7 +155,7 @@ export default function MediaSection({ primaryColor = "#0066CC" }: MediaSectionP
     }
 
     fetchMedia();
-  }, [token]);
+  }, [token, viewUserId]);
 
   // Filter media
   const filteredMedia = media.filter((m) => {
@@ -610,35 +612,30 @@ export default function MediaSection({ primaryColor = "#0066CC" }: MediaSectionP
 
       {/* View Dialog */}
       <Dialog open={!!viewingMedia} onOpenChange={() => setViewingMedia(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>{viewingMedia?.title || viewingMedia?.filename}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setViewingMedia(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogTitle>
+            <DialogTitle>{viewingMedia?.title || viewingMedia?.filename}</DialogTitle>
           </DialogHeader>
 
           {viewingMedia && (
             <div className="space-y-4">
               {/* Media Display */}
-              <div className="aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
+              <div className="flex flex-col items-center">
                 {viewingMedia.type === "VIDEO" ? (
                   <video
                     src={viewingMedia.path}
                     controls
-                    className="max-w-full max-h-full"
+                    autoPlay
+                    playsInline
+                    className="max-w-full max-h-[70vh] rounded-lg"
                   />
                 ) : (
                   <img
                     src={viewingMedia.path}
                     alt={viewingMedia.title || viewingMedia.filename}
-                    className="max-w-full max-h-full object-contain"
+                    className="max-w-full max-h-[70vh] object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => window.open(viewingMedia.path, '_blank', 'noopener,noreferrer')}
+                    title="Clicca per aprire in formato originale"
                   />
                 )}
               </div>

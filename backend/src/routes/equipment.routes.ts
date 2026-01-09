@@ -49,9 +49,25 @@ router.get(
   authenticate,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
+      // Admin can view other user's equipment via ?userId=xxx
+      let targetUserId = req.user!.userId;
+      const requestedUserId = req.query.userId as string;
+
+      if (requestedUserId && requestedUserId !== req.user!.userId) {
+        // Only admins can view other users' equipment
+        const adminRoles = ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"];
+        if (!adminRoles.includes(req.user!.role)) {
+          return res.status(403).json({
+            success: false,
+            message: "Non autorizzato a visualizzare le attrezzature di altri utenti",
+          });
+        }
+        targetUserId = requestedUserId;
+      }
+
       const equipment = await prisma.equipment.findMany({
         where: {
-          userId: req.user!.userId,
+          userId: targetUserId,
           isActive: true,
         },
         orderBy: { createdAt: "desc" },

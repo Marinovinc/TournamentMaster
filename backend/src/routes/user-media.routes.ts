@@ -2,10 +2,6 @@
  * =============================================================================
  * User Media Routes - Gestione Foto e Video Utente
  * =============================================================================
- * Endpoint per:
- * - Upload foto/video
- * - Lista media utente
- * - CRUD media
  */
 
 import { Router, Response } from "express";
@@ -13,37 +9,53 @@ import { body, param, query, validationResult } from "express-validator";
 import { authenticate } from "../middleware/auth.middleware";
 import { AuthenticatedRequest } from "../types";
 import prisma from "../lib/prisma";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import sharp from "sharp";
+import { ThumbnailService } from "../services/thumbnail.service";
 
 const router = Router();
 
-// =============================================================================
-// VALIDATION RULES
-// =============================================================================
+// Multer config
+const userMediaStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, "../../uploads/user-media");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname).toLowerCase());
+  },
+});
 
+const userMediaUpload = multer({
+  storage: userMediaStorage,
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) {
+      cb(null, true);
+      return;
+    }
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov", ".webm", ".avi", ".mkv"];
+    if (allowedExts.includes(ext)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Tipo file non supportato"));
+  },
+});
+
+// Validation rules
 const createMediaValidation = [
-  body("type").isIn(["PHOTO", "VIDEO"]).withMessage("Tipo deve essere PHOTO o VIDEO"),
-  body("category").isIn([
-    "FISHING_ACTIVITY", "RACE", "TOURNAMENT", "BOAT", "EQUIPMENT", "CATCH", "OTHER"
-  ]).withMessage("Categoria non valida"),
-  body("filename").trim().notEmpty().withMessage("Nome file obbligatorio"),
-  body("path").trim().notEmpty().withMessage("Path file obbligatorio"),
-  body("mimeType").optional().trim().isLength({ max: 100 }),
-  body("fileSize").optional().isInt({ min: 0 }),
-  body("title").optional().trim().isLength({ max: 255 }),
-  body("description").optional().trim().isLength({ max: 2000 }),
-  body("tags").optional().isArray(),
-  body("width").optional().isInt({ min: 0 }),
-  body("height").optional().isInt({ min: 0 }),
-  body("duration").optional().isInt({ min: 0 }),
-  body("thumbnailPath").optional().trim().isLength({ max: 500 }),
-  body("latitude").optional().isDecimal(),
-  body("longitude").optional().isDecimal(),
-  body("locationName").optional().trim().isLength({ max: 255 }),
-  body("takenAt").optional().isISO8601(),
-  body("isPublic").optional().isBoolean(),
-  body("boatId").optional().isUUID(),
-  body("equipmentId").optional().isUUID(),
-  body("tournamentId").optional().isUUID(),
+  body("type").isIn(["PHOTO", "VIDEO"]),
+  body("category").isIn(["FISHING_ACTIVITY", "RACE", "TOURNAMENT", "BOAT", "EQUIPMENT", "CATCH", "OTHER"]),
+  body("filename").trim().notEmpty(),
+  body("path").trim().notEmpty(),
 ];
 
 const updateMediaValidation = [
@@ -51,445 +63,179 @@ const updateMediaValidation = [
   body("description").optional().trim().isLength({ max: 2000 }),
   body("tags").optional().isArray(),
   body("isPublic").optional().isBoolean(),
-  body("locationName").optional().trim().isLength({ max: 255 }),
 ];
 
-// =============================================================================
-// GET /api/media - Lista media dell'utente corrente
-// =============================================================================
-router.get(
-  "/",
-  authenticate,
-  [
-    query("type").optional().isIn(["PHOTO", "VIDEO"]),
-    query("category").optional().isIn([
-      "FISHING_ACTIVITY", "RACE", "TOURNAMENT", "BOAT", "EQUIPMENT", "CATCH", "OTHER"
-    ]),
-    query("boatId").optional().isUUID(),
-    query("equipmentId").optional().isUUID(),
-    query("tournamentId").optional().isUUID(),
-    query("limit").optional().isInt({ min: 1, max: 100 }),
-    query("offset").optional().isInt({ min: 0 }),
-  ],
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { type, category, boatId, equipmentId, tournamentId, limit, offset } = req.query;
+// GET /api/user-media
+router.get("/", authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { type, category, limit, offset } = req.query;
+    // Admin can view other user's media via ?userId=xxx
+    let targetUserId = req.user!.userId;
+    const requestedUserId = req.query.userId as string;
 
-      const where: any = {
-        userId: req.user!.userId,
-        isActive: true,
-      };
-
-      if (type) where.type = type;
-      if (category) where.category = category;
-      if (boatId) where.boatId = boatId;
-      if (equipmentId) where.equipmentId = equipmentId;
-      if (tournamentId) where.tournamentId = tournamentId;
-
-      const [media, total] = await Promise.all([
-        prisma.userMedia.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          take: limit ? parseInt(limit as string) : 50,
-          skip: offset ? parseInt(offset as string) : 0,
-          include: {
-            boat: {
-              select: { id: true, name: true },
-            },
-            equipment: {
-              select: { id: true, name: true },
-            },
-            tournament: {
-              select: { id: true, name: true },
-            },
-          },
-        }),
-        prisma.userMedia.count({ where }),
-      ]);
-
-      // Parse tags JSON
-      const parsedMedia = media.map((m) => ({
-        ...m,
-        tags: m.tags ? JSON.parse(m.tags) : [],
-      }));
-
-      res.json({
-        success: true,
-        data: parsedMedia,
-        pagination: {
-          total,
-          limit: limit ? parseInt(limit as string) : 50,
-          offset: offset ? parseInt(offset as string) : 0,
-        },
-      });
-    } catch (error) {
-      console.error("Error fetching media:", error);
-      res.status(500).json({
-        success: false,
-        message: "Errore nel recupero dei media",
-      });
+    if (requestedUserId && requestedUserId !== req.user!.userId) {
+      const adminRoles = ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"];
+      if (!adminRoles.includes(req.user!.role)) {
+        return res.status(403).json({
+          success: false,
+          message: "Non autorizzato a visualizzare i media di altri utenti",
+        });
+      }
+      targetUserId = requestedUserId;
     }
-  }
-);
 
-// =============================================================================
-// GET /api/media/public - Media pubblici (per tenant)
-// =============================================================================
-router.get(
-  "/public",
-  authenticate,
-  [
-    query("tenantId").optional().isUUID(),
-    query("type").optional().isIn(["PHOTO", "VIDEO"]),
-    query("category").optional().isIn([
-      "FISHING_ACTIVITY", "RACE", "TOURNAMENT", "BOAT", "EQUIPMENT", "CATCH", "OTHER"
-    ]),
-    query("limit").optional().isInt({ min: 1, max: 100 }),
-  ],
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { tenantId, type, category, limit } = req.query;
-      const targetTenantId = tenantId as string || req.user?.tenantId;
+    const where: any = { userId: targetUserId, isActive: true };
+    if (type) where.type = type;
+    if (category) where.category = category;
 
-      const where: any = {
-        isActive: true,
-        isPublic: true,
-        user: {
-          tenantId: targetTenantId,
-          isActive: true,
-        },
-      };
-
-      if (type) where.type = type;
-      if (category) where.category = category;
-
-      const media = await prisma.userMedia.findMany({
+    const [media, total] = await Promise.all([
+      prisma.userMedia.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        take: limit ? parseInt(limit as string) : 20,
-        select: {
-          id: true,
-          type: true,
-          category: true,
-          path: true,
-          thumbnailPath: true,
-          title: true,
-          description: true,
-          tags: true,
-          width: true,
-          height: true,
-          duration: true,
-          takenAt: true,
-          createdAt: true,
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
-            },
-          },
-        },
-      });
-
-      // Parse tags JSON
-      const parsedMedia = media.map((m) => ({
-        ...m,
-        tags: m.tags ? JSON.parse(m.tags) : [],
-      }));
-
-      res.json({
-        success: true,
-        data: parsedMedia,
-      });
-    } catch (error) {
-      console.error("Error fetching public media:", error);
-      res.status(500).json({
-        success: false,
-        message: "Errore nel recupero dei media pubblici",
-      });
-    }
-  }
-);
-
-// =============================================================================
-// GET /api/media/:id - Dettaglio media
-// =============================================================================
-router.get(
-  "/:id",
-  authenticate,
-  [param("id").isUUID()],
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          errors: errors.array(),
-        });
-      }
-
-      const media = await prisma.userMedia.findFirst({
-        where: {
-          id: req.params.id,
-          userId: req.user!.userId,
-          isActive: true,
-        },
+        take: limit ? parseInt(limit as string) : 50,
+        skip: offset ? parseInt(offset as string) : 0,
         include: {
-          boat: {
-            select: { id: true, name: true },
-          },
-          equipment: {
-            select: { id: true, name: true },
-          },
-          tournament: {
-            select: { id: true, name: true },
-          },
+          boat: { select: { id: true, name: true } },
+          equipment: { select: { id: true, name: true } },
+          tournament: { select: { id: true, name: true } },
         },
-      });
+      }),
+      prisma.userMedia.count({ where }),
+    ]);
 
-      if (!media) {
-        return res.status(404).json({
-          success: false,
-          message: "Media non trovato",
-        });
-      }
-
-      res.json({
-        success: true,
-        data: {
-          ...media,
-          tags: media.tags ? JSON.parse(media.tags) : [],
-        },
-      });
-    } catch (error) {
-      console.error("Error fetching media:", error);
-      res.status(500).json({
-        success: false,
-        message: "Errore nel recupero del media",
-      });
-    }
+    res.json({
+      success: true,
+      data: media.map(m => ({ ...m, tags: m.tags ? JSON.parse(m.tags) : [] })),
+      pagination: { total, limit: limit ? parseInt(limit as string) : 50, offset: offset ? parseInt(offset as string) : 0 },
+    });
+  } catch (error) {
+    console.error("Error fetching media:", error);
+    res.status(500).json({ success: false, message: "Errore nel recupero dei media" });
   }
-);
+});
 
-// =============================================================================
-// POST /api/media - Crea nuovo media
-// =============================================================================
-router.post(
-  "/",
-  authenticate,
-  createMediaValidation,
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          errors: errors.array(),
-        });
-      }
+// POST /api/user-media/upload
+router.post("/upload", authenticate, userMediaUpload.single("file"), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const file = req.file;
+    if (!file) return res.status(400).json({ success: false, message: "Nessun file caricato" });
 
-      const {
-        type, category, filename, path, mimeType, fileSize,
-        title, description, tags, width, height, duration,
-        thumbnailPath, latitude, longitude, locationName,
-        takenAt, isPublic, boatId, equipmentId, tournamentId
-      } = req.body;
+    const { category, title, description, tags, isPublic, boatId, equipmentId, tournamentId } = req.body;
+    if (!category) {
+      fs.unlinkSync(file.path);
+      return res.status(400).json({ success: false, message: "Categoria obbligatoria" });
+    }
 
-      // Validate referenced entities belong to user
-      if (boatId) {
-        const boat = await prisma.boat.findFirst({
-          where: { id: boatId, userId: req.user!.userId, isActive: true },
-        });
-        if (!boat) {
-          return res.status(400).json({
-            success: false,
-            message: "Barca non trovata",
-          });
+    const isVideo = file.mimetype.startsWith("video/") || [".mp4", ".mov", ".webm", ".avi", ".mkv"].includes(path.extname(file.originalname).toLowerCase());
+    const type = isVideo ? "VIDEO" : "PHOTO";
+
+    const userMediaDir = path.join(__dirname, "../../../frontend/public/uploads/user-media");
+    if (!fs.existsSync(userMediaDir)) fs.mkdirSync(userMediaDir, { recursive: true });
+
+    let finalFilename: string;
+    let width: number | null = null;
+    let height: number | null = null;
+    let thumbnailPath: string | null = null;
+    let duration: number | null = null;
+
+    if (isVideo) {
+      finalFilename = file.filename;
+      const outputPath = path.join(userMediaDir, finalFilename);
+      fs.copyFileSync(file.path, outputPath);
+      fs.unlinkSync(file.path);
+      try {
+        const thumbResult = await ThumbnailService.generateThumbnail(outputPath, path.parse(finalFilename).name);
+        if (thumbResult.success) {
+          thumbnailPath = thumbResult.thumbnailPath || null;
+          duration = thumbResult.duration || null;
+          width = thumbResult.width || null;
+          height = thumbResult.height || null;
         }
-      }
-
-      if (equipmentId) {
-        const equipment = await prisma.equipment.findFirst({
-          where: { id: equipmentId, userId: req.user!.userId, isActive: true },
-        });
-        if (!equipment) {
-          return res.status(400).json({
-            success: false,
-            message: "Attrezzatura non trovata",
-          });
-        }
-      }
-
-      const media = await prisma.userMedia.create({
-        data: {
-          type,
-          category,
-          filename,
-          path,
-          mimeType,
-          fileSize: fileSize ? parseInt(fileSize) : 0,
-          title,
-          description,
-          tags: tags ? JSON.stringify(tags) : null,
-          width: width ? parseInt(width) : null,
-          height: height ? parseInt(height) : null,
-          duration: duration ? parseInt(duration) : null,
-          thumbnailPath,
-          latitude: latitude ? parseFloat(latitude) : null,
-          longitude: longitude ? parseFloat(longitude) : null,
-          locationName,
-          takenAt: takenAt ? new Date(takenAt) : null,
-          isPublic: isPublic ?? false,
-          boatId,
-          equipmentId,
-          tournamentId,
-          userId: req.user!.userId,
-        },
-      });
-
-      res.status(201).json({
-        success: true,
-        data: {
-          ...media,
-          tags: media.tags ? JSON.parse(media.tags) : [],
-        },
-        message: "Media caricato con successo",
-      });
-    } catch (error) {
-      console.error("Error creating media:", error);
-      res.status(500).json({
-        success: false,
-        message: "Errore nel caricamento del media",
-      });
+      } catch (err) { console.warn("Thumbnail failed:", err); }
+    } else {
+      const baseName = path.parse(file.filename).name;
+      finalFilename = baseName + ".jpg";
+      const outputPath = path.join(userMediaDir, finalFilename);
+      const metadata = await sharp(file.path).metadata();
+      width = metadata.width || null;
+      height = metadata.height || null;
+      await sharp(file.path).resize(1920, 1080, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toFile(outputPath);
+      fs.unlinkSync(file.path);
     }
+
+    const media = await prisma.userMedia.create({
+      data: {
+        type,
+        category,
+        filename: finalFilename,
+        path: "/uploads/user-media/" + finalFilename,
+        mimeType: file.mimetype,
+        fileSize: file.size,
+        title: title || null,
+        description: description || null,
+        tags: tags ? (typeof tags === "string" ? tags : JSON.stringify(tags)) : null,
+        width,
+        height,
+        duration,
+        thumbnailPath,
+        isPublic: isPublic === "true" || isPublic === true,
+        boatId: boatId || null,
+        equipmentId: equipmentId || null,
+        tournamentId: tournamentId || null,
+        userId: req.user!.userId,
+      },
+    });
+
+    res.status(201).json({ success: true, data: { ...media, tags: media.tags ? JSON.parse(media.tags) : [] }, message: "Media caricato con successo" });
+  } catch (error) {
+    console.error("Error uploading:", error);
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    res.status(500).json({ success: false, message: "Errore nel caricamento" });
   }
-);
+});
 
-// =============================================================================
-// PUT /api/media/:id - Aggiorna media
-// =============================================================================
-router.put(
-  "/:id",
-  authenticate,
-  [param("id").isUUID(), ...updateMediaValidation],
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          errors: errors.array(),
-        });
-      }
-
-      // Verify ownership
-      const existingMedia = await prisma.userMedia.findFirst({
-        where: {
-          id: req.params.id,
-          userId: req.user!.userId,
-          isActive: true,
-        },
-      });
-
-      if (!existingMedia) {
-        return res.status(404).json({
-          success: false,
-          message: "Media non trovato",
-        });
-      }
-
-      const updateData: any = {};
-      const fields = ["title", "description", "locationName"];
-
-      fields.forEach((field) => {
-        if (req.body[field] !== undefined) {
-          updateData[field] = req.body[field];
-        }
-      });
-
-      if (req.body.tags !== undefined) {
-        updateData.tags = JSON.stringify(req.body.tags);
-      }
-
-      if (req.body.isPublic !== undefined) {
-        updateData.isPublic = req.body.isPublic;
-      }
-
-      const media = await prisma.userMedia.update({
-        where: { id: req.params.id },
-        data: updateData,
-      });
-
-      res.json({
-        success: true,
-        data: {
-          ...media,
-          tags: media.tags ? JSON.parse(media.tags) : [],
-        },
-        message: "Media aggiornato con successo",
-      });
-    } catch (error) {
-      console.error("Error updating media:", error);
-      res.status(500).json({
-        success: false,
-        message: "Errore nell'aggiornamento del media",
-      });
-    }
+// GET /api/user-media/:id
+router.get("/:id", authenticate, [param("id").isUUID()], async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const media = await prisma.userMedia.findFirst({
+      where: { id: req.params.id, userId: req.user!.userId, isActive: true },
+      include: { boat: { select: { id: true, name: true } }, equipment: { select: { id: true, name: true } }, tournament: { select: { id: true, name: true } } },
+    });
+    if (!media) return res.status(404).json({ success: false, message: "Media non trovato" });
+    res.json({ success: true, data: { ...media, tags: media.tags ? JSON.parse(media.tags) : [] } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Errore nel recupero del media" });
   }
-);
+});
 
-// =============================================================================
-// DELETE /api/media/:id - Elimina media (soft delete)
-// =============================================================================
-router.delete(
-  "/:id",
-  authenticate,
-  [param("id").isUUID()],
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          errors: errors.array(),
-        });
-      }
+// PUT /api/user-media/:id
+router.put("/:id", authenticate, [param("id").isUUID(), ...updateMediaValidation], async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const existingMedia = await prisma.userMedia.findFirst({ where: { id: req.params.id, userId: req.user!.userId, isActive: true } });
+    if (!existingMedia) return res.status(404).json({ success: false, message: "Media non trovato" });
 
-      // Verify ownership
-      const existingMedia = await prisma.userMedia.findFirst({
-        where: {
-          id: req.params.id,
-          userId: req.user!.userId,
-          isActive: true,
-        },
-      });
+    const updateData: any = {};
+    ["title", "description", "locationName"].forEach(f => { if (req.body[f] !== undefined) updateData[f] = req.body[f]; });
+    if (req.body.tags !== undefined) updateData.tags = JSON.stringify(req.body.tags);
+    if (req.body.isPublic !== undefined) updateData.isPublic = req.body.isPublic;
 
-      if (!existingMedia) {
-        return res.status(404).json({
-          success: false,
-          message: "Media non trovato",
-        });
-      }
-
-      // Soft delete
-      await prisma.userMedia.update({
-        where: { id: req.params.id },
-        data: { isActive: false },
-      });
-
-      res.json({
-        success: true,
-        message: "Media eliminato con successo",
-      });
-    } catch (error) {
-      console.error("Error deleting media:", error);
-      res.status(500).json({
-        success: false,
-        message: "Errore nell'eliminazione del media",
-      });
-    }
+    const media = await prisma.userMedia.update({ where: { id: req.params.id }, data: updateData });
+    res.json({ success: true, data: { ...media, tags: media.tags ? JSON.parse(media.tags) : [] }, message: "Media aggiornato" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Errore aggiornamento" });
   }
-);
+});
+
+// DELETE /api/user-media/:id
+router.delete("/:id", authenticate, [param("id").isUUID()], async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const existingMedia = await prisma.userMedia.findFirst({ where: { id: req.params.id, userId: req.user!.userId, isActive: true } });
+    if (!existingMedia) return res.status(404).json({ success: false, message: "Media non trovato" });
+    await prisma.userMedia.update({ where: { id: req.params.id }, data: { isActive: false } });
+    res.json({ success: true, message: "Media eliminato" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Errore eliminazione" });
+  }
+});
 
 export default router;

@@ -41,6 +41,7 @@ import {
   FileText,
   History,
   Image,
+  Mail,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -50,6 +51,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getUnreadCount } from "@/lib/messages";
 
 interface NavItem {
   href: string;
@@ -164,6 +166,7 @@ export default function DashboardLayout({
   );
   const [impersonatingTenant, setImpersonatingTenant] = useState<{id: string; name: string} | null>(null);
   const [activeTournament, setActiveTournament] = useState<{id: string; name: string; status: string} | null>(null);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   // Check for impersonation mode
   useEffect(() => {
@@ -241,6 +244,26 @@ export default function DashboardLayout({
     window.dispatchEvent(new Event("tournamentChanged"));
     router.push(`/${locale}/dashboard/tournaments`);
   };
+
+  // Fetch unread messages count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (!isAuthenticated) return;
+      try {
+        const response = await getUnreadCount();
+        if (response.success && response.data) {
+          setUnreadMessages(response.data.total);
+        }
+      } catch (error) {
+        console.error("Failed to fetch unread count:", error);
+      }
+    };
+
+    fetchUnreadCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   const operationalSections: SidebarSection[] = useMemo(
     () => [
@@ -688,7 +711,7 @@ export default function DashboardLayout({
         <nav className="p-4 flex-1 overflow-y-auto" style={{ maxHeight: impersonatingTenant ? "calc(100vh - 300px)" : "calc(100vh - 180px)" }}>
           <Link
             href={`/${locale}/dashboard`}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors mb-4 ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
               pathname === `/${locale}/dashboard`
                 ? "bg-primary text-primary-foreground"
                 : "hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -697,6 +720,24 @@ export default function DashboardLayout({
           >
             <LayoutDashboard className="h-5 w-5" />
             <span>Dashboard</span>
+          </Link>
+
+          <Link
+            href={`/${locale}/dashboard/messages`}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors mb-4 ${
+              pathname === `/${locale}/dashboard/messages`
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={closeSidebar}
+          >
+            <Mail className="h-5 w-5" />
+            <span>Messaggi</span>
+            {unreadMessages > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {unreadMessages > 99 ? "99+" : unreadMessages}
+              </span>
+            )}
           </Link>
 
           {sectionsToShow.map((section) => (

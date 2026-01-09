@@ -117,6 +117,10 @@ model User {
   memberships         Membership[]
   media               UserMedia[]
 
+  // Messaging
+  sentMessages        Message[] @relation("SentMessages")
+  receivedMessages    Message[] @relation("ReceivedMessages")
+
   @@index([email])
   @@index([tenantId])
   @@map("users")
@@ -1055,6 +1059,91 @@ model Membership {
   @@index([tenantId])
   @@index([status])
   @@map("memberships")
+}
+
+// ================================
+// INTERNAL MESSAGING SYSTEM
+// ================================
+
+enum MessageType {
+  DIRECT       // Messaggio diretto a un utente
+  BROADCAST    // Messaggio a tutti gli iscritti dell'associazione
+  SYSTEM       // Notifica di sistema
+}
+
+enum MessagePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Message {
+  id            String          @id @default(uuid())
+
+  // Tipo e priorità
+  type          MessageType     @default(DIRECT)
+  priority      MessagePriority @default(NORMAL)
+
+  // Contenuto
+  subject       String          @db.VarChar(255)
+  body          String          @db.Text
+
+  // Mittente (admin/presidente)
+  senderId      String
+  sender        User            @relation("SentMessages", fields: [senderId], references: [id])
+
+  // Destinatario (null = broadcast a tutti)
+  recipientId   String?
+  recipient     User?           @relation("ReceivedMessages", fields: [recipientId], references: [id])
+
+  // Multi-tenant
+  tenantId      String
+
+  // Stato lettura (per messaggi diretti)
+  isRead        Boolean         @default(false)
+  readAt        DateTime?
+
+  // Risposta a messaggio precedente (thread)
+  parentId      String?
+  parent        Message?        @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies       Message[]       @relation("MessageReplies")
+
+  // Archiviazione
+  isArchivedBySender    Boolean @default(false)
+  isArchivedByRecipient Boolean @default(false)
+  isDeleted             Boolean @default(false)
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Per broadcast: traccia chi ha letto
+  readReceipts  MessageReadReceipt[]
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// Traccia lettura per messaggi broadcast
+model MessageReadReceipt {
+  id          String   @id @default(uuid())
+
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  userId      String
+
+  readAt      DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+  @@map("message_read_receipts")
 }
 
 // ================================

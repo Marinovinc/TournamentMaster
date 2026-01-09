@@ -35,6 +35,7 @@ import { EquipmentSection } from "@/components/user";
 import { SkipperSection } from "@/components/user";
 import { SettingsSection } from "@/components/user";
 import { MediaSection } from "@/components/user";
+import { MessagesSection } from "@/components/user";
 import {
   User,
   Trophy,
@@ -58,6 +59,7 @@ import {
   Camera,
   LayoutDashboard,
   LogOut,
+  Mail,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -180,6 +182,9 @@ export default function UserDashboardSection({
   });
   const [saving, setSaving] = useState(false);
 
+  // Unread messages state
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
   // Fetch user data
   useEffect(() => {
     async function fetchUserData() {
@@ -232,6 +237,33 @@ export default function UserDashboardSection({
       });
     }
   }, [user]);
+
+  // Fetch unread messages count
+  useEffect(() => {
+    async function fetchUnreadCount() {
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_URL}/api/messages/unread-count`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.data) {
+            setUnreadMessages(data.data.total);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching unread count:", err);
+      }
+    }
+
+    if (isAuthenticated && token) {
+      fetchUnreadCount();
+      // Refresh every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, token]);
 
   // Handle profile update
   async function handleSaveProfile() {
@@ -356,14 +388,34 @@ export default function UserDashboardSection({
 
       {/* Tabs Navigation */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 mb-6">
+        <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6">
           <TabsTrigger value="overview" className="flex items-center gap-1.5">
             <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">Panoramica</span>
           </TabsTrigger>
+          <TabsTrigger
+            value="messages"
+            className={`flex items-center gap-1.5 relative ${
+              unreadMessages > 0
+                ? "text-red-600 data-[state=active]:text-red-600 data-[state=active]:bg-red-50"
+                : ""
+            }`}
+            onClick={() => {
+              // Reset count when tab is clicked (will be updated by MessagesSection)
+              setTimeout(() => setUnreadMessages(0), 1000);
+            }}
+          >
+            <Mail className={`h-4 w-4 ${unreadMessages > 0 ? "text-red-500" : ""}`} />
+            <span className="hidden sm:inline">Messaggi</span>
+            {unreadMessages > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                {unreadMessages > 9 ? "9+" : unreadMessages}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="boats" className="flex items-center gap-1.5">
             <Anchor className="h-4 w-4" />
-            <span className="hidden sm:inline">Barche</span>
+            <span className="hidden sm:inline">Barca</span>
           </TabsTrigger>
           <TabsTrigger value="equipment" className="flex items-center gap-1.5">
             <Package className="h-4 w-4" />
@@ -653,6 +705,11 @@ export default function UserDashboardSection({
           </div>
         </div>
       )}
+        </TabsContent>
+
+        {/* Messages Tab */}
+        <TabsContent value="messages">
+          <MessagesSection primaryColor={primaryColor} />
         </TabsContent>
 
         {/* Boats Tab */}

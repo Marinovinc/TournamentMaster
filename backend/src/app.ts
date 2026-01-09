@@ -23,6 +23,7 @@ import equipmentRoutes from "./routes/equipment.routes";
 import skipperRoutes from "./routes/skipper.routes";
 import membershipRoutes from "./routes/membership.routes";
 import userMediaRoutes from "./routes/user-media.routes";
+import messageRoutes from "./routes/message.routes";
 
 // Create Express app
 const app: Application = express();
@@ -91,6 +92,7 @@ app.use("/api/equipment", equipmentRoutes);
 app.use("/api/skippers", skipperRoutes);
 app.use("/api/memberships", membershipRoutes);
 app.use("/api/user-media", userMediaRoutes);
+app.use("/api/messages", messageRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

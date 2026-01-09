@@ -166,6 +166,8 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
   const [viewingMedia, setViewingMedia] = useState<BoatMedia | null>(null);
   const [deletingMediaId, setDeletingMediaId] = useState<string | null>(null);
 
+  // Media inline per ogni barca
+  const [boatMediaMap, setBoatMediaMap] = useState<Record<string, BoatMedia[]>>({});
 
   // Fetch boats
   useEffect(() => {
@@ -193,6 +195,37 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
 
     fetchBoats();
   }, [token, viewUserId]);
+
+  // Fetch media for all boats (inline display)
+  useEffect(() => {
+    async function fetchAllBoatMedia() {
+      if (!token || boats.length === 0) return;
+
+      const mediaMap: Record<string, BoatMedia[]> = {};
+
+      await Promise.all(
+        boats.map(async (boat) => {
+          try {
+            const res = await fetch(`${API_URL}/api/user-media?boatId=${boat.id}&limit=4`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.data && data.data.length > 0) {
+                mediaMap[boat.id] = data.data;
+              }
+            }
+          } catch (err) {
+            console.error(`Error fetching media for boat ${boat.id}:`, err);
+          }
+        })
+      );
+
+      setBoatMediaMap(mediaMap);
+    }
+
+    fetchAllBoatMedia();
+  }, [token, boats]);
 
   // Open dialog for new boat
   const handleAddNew = () => {
@@ -447,96 +480,145 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           {boats.map((boat) => (
-            <Card key={boat.id} className="overflow-hidden">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h4 className="font-semibold text-lg">{boat.name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {boatTypeLabels[boat.type] || boat.type}
-                      {boat.make && boat.model && ` - ${boat.make} ${boat.model}`}
-                    </p>
+            <div key={boat.id} className="flex gap-4 items-start">
+              {/* Card Info */}
+              <Card className="flex-1 overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h4 className="font-semibold text-lg">{boat.name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {boatTypeLabels[boat.type] || boat.type}
+                        {boat.make && boat.model && ` - ${boat.make} ${boat.model}`}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={boat.isAvailableForRaces ? "default" : "secondary"}
+                      className="flex items-center gap-1"
+                    >
+                      {boat.isAvailableForRaces ? (
+                        <>
+                          <CheckCircle className="h-3 w-3" />
+                          Disponibile
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-3 w-3" />
+                          Non disponibile
+                        </>
+                      )}
+                    </Badge>
                   </div>
-                  <Badge
-                    variant={boat.isAvailableForRaces ? "default" : "secondary"}
-                    className="flex items-center gap-1"
-                  >
-                    {boat.isAvailableForRaces ? (
-                      <>
-                        <CheckCircle className="h-3 w-3" />
-                        Disponibile
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="h-3 w-3" />
-                        Non disponibile
-                      </>
+
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-4">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Ship className="h-4 w-4" />
+                      <span>{boat.lengthMeters}m</span>
+                      {boat.beamMeters && <span>x {boat.beamMeters}m</span>}
+                    </div>
+                    {boat.homePort && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span className="truncate">{boat.homePort}</span>
+                      </div>
                     )}
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-sm mb-4">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Ship className="h-4 w-4" />
-                    <span>{boat.lengthMeters}m</span>
-                    {boat.beamMeters && <span>x {boat.beamMeters}m</span>}
+                    {boat.seats && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        <span>{boat.seats} posti</span>
+                      </div>
+                    )}
+                    {boat.enginePower && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Gauge className="h-4 w-4" />
+                        <span>{boat.enginePower} HP</span>
+                      </div>
+                    )}
+                    {boat.year && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        <span>{boat.year}</span>
+                      </div>
+                    )}
                   </div>
-                  {boat.homePort && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span className="truncate">{boat.homePort}</span>
-                    </div>
-                  )}
-                  {boat.seats && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      <span>{boat.seats} posti</span>
-                    </div>
-                  )}
-                  {boat.enginePower && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Gauge className="h-4 w-4" />
-                      <span>{boat.enginePower} HP</span>
-                    </div>
-                  )}
-                  {boat.year && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      <span>{boat.year}</span>
-                    </div>
-                  )}
-                </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleOpenMediaGallery(boat)}
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(boat)}
-                    className="flex-1"
-                  >
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    Modifica
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDeleteId(boat.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenMediaGallery(boat)}
+                    >
+                      <Camera className="h-4 w-4" />
+                      {boatMediaMap[boat.id]?.length ? (
+                        <span className="ml-1 text-xs">{boatMediaMap[boat.id].length}</span>
+                      ) : null}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(boat)}
+                      className="flex-1"
+                    >
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Modifica
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteId(boat.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Media Panel - affiancato alla card */}
+              <div className="w-48 flex-shrink-0">
+                {boatMediaMap[boat.id] && boatMediaMap[boat.id].length > 0 ? (
+                  <div className="grid grid-cols-2 gap-1">
+                    {boatMediaMap[boat.id].slice(0, 4).map((media) => (
+                      <div
+                        key={media.id}
+                        className="relative aspect-square rounded overflow-hidden bg-muted cursor-pointer group"
+                        onClick={() => {
+                          setMediaDialogBoat(boat);
+                          setViewingMedia(media);
+                        }}
+                      >
+                        {media.thumbnailPath || media.path ? (
+                          <img
+                            src={media.thumbnailPath || media.path}
+                            alt={media.title || media.filename}
+                            className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            {media.type === "VIDEO" ? (
+                              <Video className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        )}
+                        {media.type === "VIDEO" && (
+                          <div className="absolute top-0.5 left-0.5">
+                            <Video className="h-3 w-3 text-white drop-shadow-md" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-24 rounded border-2 border-dashed border-muted flex items-center justify-center">
+                    <p className="text-xs text-muted-foreground text-center px-2">Nessun media</p>
+                  </div>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       )}

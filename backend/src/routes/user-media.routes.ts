@@ -68,7 +68,7 @@ const updateMediaValidation = [
 // GET /api/user-media
 router.get("/", authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { type, category, limit, offset } = req.query;
+    const { type, category, limit, offset, equipmentId, boatId } = req.query;
     // Admin can view other user's media via ?userId=xxx
     let targetUserId = req.user!.userId;
     const requestedUserId = req.query.userId as string;
@@ -87,6 +87,8 @@ router.get("/", authenticate, async (req: AuthenticatedRequest, res: Response) =
     const where: any = { userId: targetUserId, isActive: true };
     if (type) where.type = type;
     if (category) where.category = category;
+    if (equipmentId) where.equipmentId = equipmentId as string;
+    if (boatId) where.boatId = boatId as string;
 
     const [media, total] = await Promise.all([
       prisma.userMedia.findMany({

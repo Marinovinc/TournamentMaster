@@ -520,115 +520,122 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-4">
           {filteredEquipment.map((item) => (
-            <Card key={item.id} className="overflow-hidden">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-semibold truncate">{item.name}</h4>
-                      {item.quantity > 1 && (
-                        <Badge variant="outline" className="text-xs">
-                          x{item.quantity}
-                        </Badge>
-                      )}
+            <div key={item.id} className="flex gap-4 items-start">
+              {/* Card Info */}
+              <Card className="flex-1 overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold truncate">{item.name}</h4>
+                        {item.quantity > 1 && (
+                          <Badge variant="outline" className="text-xs">
+                            x{item.quantity}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {equipmentTypeLabels[item.type] || item.type}
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {equipmentTypeLabels[item.type] || item.type}
+                    <Badge
+                      className={`${conditionLabels[item.condition]?.color || "bg-gray-500"} text-white text-xs`}
+                    >
+                      {item.condition === "NEW" && <Sparkles className="h-3 w-3 mr-1" />}
+                      {item.condition === "NEEDS_REPAIR" && <AlertCircle className="h-3 w-3 mr-1" />}
+                      {conditionLabels[item.condition]?.label || item.condition}
+                    </Badge>
+                  </div>
+
+                  {(item.brand || item.model) && (
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {item.brand} {item.model}
                     </p>
+                  )}
+
+                  {item.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                      {item.description}
+                    </p>
+                  )}
+
+                  <div className="flex gap-2 mt-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenMediaGallery(item)}
+                    >
+                      <Camera className="h-4 w-4" />
+                      {equipmentMediaMap[item.id]?.length ? (
+                        <span className="ml-1 text-xs">{equipmentMediaMap[item.id].length}</span>
+                      ) : null}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(item)}
+                      className="flex-1"
+                    >
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Modifica
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteId(item.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Badge
-                    className={`${conditionLabels[item.condition]?.color || "bg-gray-500"} text-white text-xs`}
-                  >
-                    {item.condition === "NEW" && <Sparkles className="h-3 w-3 mr-1" />}
-                    {item.condition === "NEEDS_REPAIR" && <AlertCircle className="h-3 w-3 mr-1" />}
-                    {conditionLabels[item.condition]?.label || item.condition}
-                  </Badge>
-                </div>
+                </CardContent>
+              </Card>
 
-                {(item.brand || item.model) && (
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {item.brand} {item.model}
-                  </p>
-                )}
-
-                {item.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                    {item.description}
-                  </p>
-                )}
-
-                {/* Inline Media Preview */}
-                {equipmentMediaMap[item.id] && equipmentMediaMap[item.id].length > 0 && (
-                  <div className="mb-3">
-                    <div className="grid grid-cols-4 gap-1">
-                      {equipmentMediaMap[item.id].slice(0, 4).map((media) => (
-                        <div
-                          key={media.id}
-                          className="relative aspect-square rounded overflow-hidden bg-muted cursor-pointer group"
-                          onClick={() => {
-                            setMediaDialogEquipment(item);
-                            setViewingMedia(media);
-                          }}
-                        >
-                          {media.thumbnailPath || media.path ? (
-                            <img
-                              src={media.thumbnailPath || media.path}
-                              alt={media.title || media.filename}
-                              className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              {media.type === "VIDEO" ? (
-                                <Video className="h-4 w-4 text-muted-foreground" />
-                              ) : (
-                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </div>
-                          )}
-                          {media.type === "VIDEO" && (
-                            <div className="absolute top-0.5 left-0.5">
-                              <Video className="h-3 w-3 text-white drop-shadow-md" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+              {/* Media Panel - affiancato alla card */}
+              <div className="w-48 flex-shrink-0">
+                {equipmentMediaMap[item.id] && equipmentMediaMap[item.id].length > 0 ? (
+                  <div className="grid grid-cols-2 gap-1">
+                    {equipmentMediaMap[item.id].slice(0, 4).map((media) => (
+                      <div
+                        key={media.id}
+                        className="relative aspect-square rounded overflow-hidden bg-muted cursor-pointer group"
+                        onClick={() => {
+                          setMediaDialogEquipment(item);
+                          setViewingMedia(media);
+                        }}
+                      >
+                        {media.thumbnailPath || media.path ? (
+                          <img
+                            src={media.thumbnailPath || media.path}
+                            alt={media.title || media.filename}
+                            className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            {media.type === "VIDEO" ? (
+                              <Video className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        )}
+                        {media.type === "VIDEO" && (
+                          <div className="absolute top-0.5 left-0.5">
+                            <Video className="h-3 w-3 text-white drop-shadow-md" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-24 rounded border-2 border-dashed border-muted flex items-center justify-center">
+                    <p className="text-xs text-muted-foreground text-center px-2">Nessun media</p>
                   </div>
                 )}
-
-                <div className="flex gap-2 mt-auto">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleOpenMediaGallery(item)}
-                  >
-                    <Camera className="h-4 w-4" />
-                    {equipmentMediaMap[item.id]?.length ? (
-                      <span className="ml-1 text-xs">{equipmentMediaMap[item.id].length}</span>
-                    ) : null}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(item)}
-                    className="flex-1"
-                  >
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    Modifica
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDeleteId(item.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       )}

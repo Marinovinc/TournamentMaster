@@ -446,25 +446,6 @@ export default async function AssociationPage({
               </Card>
             )}
 
-            {/* CTA */}
-            <Card
-              className="text-white"
-              style={{
-                background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-              }}
-            >
-              <CardContent className="pt-6">
-                <h3 className="font-bold text-lg mb-2">Vuoi partecipare?</h3>
-                <p className="text-white/90 text-sm mb-4">
-                  Registrati su TournamentMaster per iscriverti ai tornei di questa associazione.
-                </p>
-                <Button variant="secondary" className="w-full" asChild>
-                  <Link href={`/${locale}/register`}>
-                    Registrati Gratis
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
 

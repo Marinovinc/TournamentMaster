@@ -26,6 +26,8 @@ import {
   XCircle,
   AlertCircle,
   Plus,
+  Shield,
+  Building,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -192,6 +194,50 @@ export default function DashboardPage() {
               <Link href={`/${locale}/dashboard/judge`}>
                 <Button className="w-full">
                   Vai alla Validazione
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* For Super Admins */}
+        {user?.role === "SUPER_ADMIN" && (
+          <Card className="border-purple-500/50 bg-purple-50/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-purple-600" />
+                Super Admin
+              </CardTitle>
+              <CardDescription>
+                Gestione globale della piattaforma
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href={`/${locale}/dashboard/super-admin`}>
+                <Button variant="outline" className="w-full border-purple-500 text-purple-700 hover:bg-purple-100">
+                  Pannello Super Admin
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Link to Association for users with tenantId */}
+        {user?.tenantSlug && (
+          <Card className="border-blue-500/50 bg-blue-50/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5 text-blue-600" />
+                {user.tenantName || "La Mia Associazione"}
+              </CardTitle>
+              <CardDescription>
+                Gestisci la tua associazione
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href={`/${locale}/associazioni/${user.tenantSlug}`}>
+                <Button variant="outline" className="w-full border-blue-500 text-blue-700 hover:bg-blue-100">
+                  Vai all&apos;Associazione
                 </Button>
               </Link>
             </CardContent>

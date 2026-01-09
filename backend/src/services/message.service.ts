@@ -505,6 +505,52 @@ export class MessageService {
   }
 
   /**
+   * Ottieni l'admin del tenant (per permettere agli utenti di inviare messaggi)
+   */
+  static async getTenantAdmin(tenantId: string) {
+    const admin = await prisma.user.findFirst({
+      where: {
+        tenantId,
+        role: { in: ["TENANT_ADMIN", "PRESIDENT"] },
+        isActive: true,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+      },
+      orderBy: {
+        role: "asc", // TENANT_ADMIN viene prima di PRESIDENT alfabeticamente
+      },
+    });
+
+    return admin;
+  }
+
+  /**
+   * Ottieni lista ID utenti che hanno inviato messaggi non letti all'admin
+   */
+  static async getUsersWithUnreadMessages(adminUserId: string, tenantId: string): Promise<string[]> {
+    const unreadMessages = await prisma.message.findMany({
+      where: {
+        recipientId: adminUserId,
+        tenantId,
+        type: MessageType.DIRECT,
+        isRead: false,
+        isDeleted: false,
+      },
+      select: {
+        senderId: true,
+      },
+      distinct: ["senderId"],
+    });
+
+    return unreadMessages.map((m) => m.senderId);
+  }
+
+  /**
    * Ottieni lista iscritti per invio messaggi (solo admin)
    */
   static async getRecipientsList(tenantId: string, senderId: string) {

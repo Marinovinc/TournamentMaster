@@ -156,6 +156,32 @@ router.get("/unread-count", async (req: AuthenticatedRequest, res: Response) => 
 });
 
 /**
+ * GET /api/messages/tenant-admin
+ * Ottieni l'admin del tenant per inviare messaggi (per utenti normali)
+ */
+router.get("/tenant-admin", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const tenantId = getTenantId(req);
+    if (!tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: "No tenant associated",
+      });
+    }
+
+    const admin = await MessageService.getTenantAdmin(tenantId);
+
+    res.json({
+      success: true,
+      data: admin,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to get tenant admin";
+    res.status(500).json({ success: false, message });
+  }
+});
+
+/**
  * GET /api/messages/recipients
  * Ottieni lista destinatari disponibili (solo admin)
  */
@@ -183,6 +209,39 @@ router.get(
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to get recipients";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+/**
+ * GET /api/messages/users-with-unread
+ * Ottieni lista ID utenti che hanno inviato messaggi non letti all'admin (solo admin)
+ */
+router.get(
+  "/users-with-unread",
+  isAdminOrPresident(),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = getTenantId(req);
+      if (!tenantId) {
+        return res.status(403).json({
+          success: false,
+          message: "No tenant associated",
+        });
+      }
+
+      const userIds = await MessageService.getUsersWithUnreadMessages(
+        req.user!.userId,
+        tenantId
+      );
+
+      res.json({
+        success: true,
+        data: userIds,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to get users with unread messages";
       res.status(500).json({ success: false, message });
     }
   }

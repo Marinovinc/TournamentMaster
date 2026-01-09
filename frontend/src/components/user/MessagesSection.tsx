@@ -18,11 +18,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -38,6 +41,7 @@ import {
   Megaphone,
   User,
   RefreshCw,
+  PenSquare,
 } from "lucide-react";
 
 // Types
@@ -64,6 +68,14 @@ interface Message {
   replies?: Message[];
   createdAt: string;
   _count?: { replies: number };
+}
+
+interface AdminUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
 }
 
 interface MessagesSectionProps {
@@ -129,6 +141,13 @@ export default function MessagesSection({ primaryColor = "#0066CC" }: MessagesSe
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
 
+  // New message state
+  const [newMessageDialogOpen, setNewMessageDialogOpen] = useState(false);
+  const [newMessageSubject, setNewMessageSubject] = useState("");
+  const [newMessageBody, setNewMessageBody] = useState("");
+  const [sendingNewMessage, setSendingNewMessage] = useState(false);
+  const [tenantAdmin, setTenantAdmin] = useState<AdminUser | null>(null);
+
   // Fetch messages
   const fetchMessages = useCallback(async () => {
     if (!token) return;
@@ -161,6 +180,68 @@ export default function MessagesSection({ primaryColor = "#0066CC" }: MessagesSe
   useEffect(() => {
     fetchMessages();
   }, [fetchMessages]);
+
+  // Fetch tenant admin
+  useEffect(() => {
+    async function fetchAdmin() {
+      if (!token) return;
+
+      try {
+        const response = await fetch(`${API_URL}/api/messages/tenant-admin`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setTenantAdmin(data.data);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching tenant admin:", err);
+      }
+    }
+
+    fetchAdmin();
+  }, [token]);
+
+  // Send new message
+  async function handleSendNewMessage() {
+    if (!token || !tenantAdmin || !newMessageSubject.trim() || !newMessageBody.trim()) return;
+
+    setSendingNewMessage(true);
+    try {
+      const response = await fetch(`${API_URL}/api/messages/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          recipientId: tenantAdmin.id,
+          subject: newMessageSubject,
+          body: newMessageBody,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to send message");
+
+      const data = await response.json();
+      if (data.success) {
+        setNewMessageSubject("");
+        setNewMessageBody("");
+        setNewMessageDialogOpen(false);
+        // Refresh messages to show sent message in future if we add sent tab
+        fetchMessages();
+        alert("Messaggio inviato con successo!");
+      }
+    } catch (err) {
+      console.error("Error sending message:", err);
+      alert("Errore durante l'invio del messaggio");
+    } finally {
+      setSendingNewMessage(false);
+    }
+  }
 
   // Mark as read
   async function markAsRead(messageId: string) {
@@ -424,9 +505,21 @@ export default function MessagesSection({ primaryColor = "#0066CC" }: MessagesSe
               </Badge>
             )}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={fetchMessages}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {tenantAdmin && (
+              <Button
+                size="sm"
+                onClick={() => setNewMessageDialogOpen(true)}
+                style={{ backgroundColor: primaryColor }}
+              >
+                <PenSquare className="h-4 w-4 mr-1" />
+                Nuovo Messaggio
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={fetchMessages}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -503,6 +596,53 @@ export default function MessagesSection({ primaryColor = "#0066CC" }: MessagesSe
             </div>
           </div>
         )}
+
+        {/* New Message Dialog */}
+        <Dialog open={newMessageDialogOpen} onOpenChange={setNewMessageDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Nuovo Messaggio</DialogTitle>
+              <DialogDescription>
+                Invia un messaggio a {tenantAdmin?.firstName} {tenantAdmin?.lastName} (Amministratore)
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="subject">Oggetto</Label>
+                <Input
+                  id="subject"
+                  placeholder="Inserisci l'oggetto del messaggio"
+                  value={newMessageSubject}
+                  onChange={(e) => setNewMessageSubject(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="body">Messaggio</Label>
+                <Textarea
+                  id="body"
+                  placeholder="Scrivi il tuo messaggio..."
+                  value={newMessageBody}
+                  onChange={(e) => setNewMessageBody(e.target.value)}
+                  rows={6}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNewMessageDialogOpen(false)}>
+                Annulla
+              </Button>
+              <Button
+                onClick={handleSendNewMessage}
+                disabled={sendingNewMessage || !newMessageSubject.trim() || !newMessageBody.trim()}
+                style={{ backgroundColor: primaryColor }}
+              >
+                {sendingNewMessage && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                <Send className="h-4 w-4 mr-2" />
+                Invia
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

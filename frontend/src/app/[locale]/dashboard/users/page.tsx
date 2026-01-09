@@ -55,6 +55,7 @@ import {
   Trash2,
   Shield,
   Mail,
+  MailWarning,
   Phone,
   RefreshCw,
   UserCheck,
@@ -66,6 +67,7 @@ import {
   ArrowUp,
   ArrowDown,
   Building2,
+  Eye,
 } from "lucide-react";
 import { HelpGuide } from "@/components/HelpGuide";
 
@@ -146,6 +148,7 @@ export default function UsersPage() {
   const [tenantFilter, setTenantFilter] = useState<string>("ALL");
   const [sortField, setSortField] = useState<SortField>("role");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [usersWithUnread, setUsersWithUnread] = useState<string[]>([]);
 
   // Dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -191,6 +194,33 @@ export default function UsersPage() {
 
     fetchData();
   }, [token, API_URL]);
+
+  // Fetch users with unread messages (for admin view)
+  useEffect(() => {
+    const fetchUsersWithUnread = async () => {
+      if (!token || !isAdmin) return;
+
+      try {
+        const response = await fetch(`${API_URL}/api/messages/users-with-unread`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setUsersWithUnread(data.data || []);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch users with unread:", error);
+      }
+    };
+
+    fetchUsersWithUnread();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUsersWithUnread, 30000);
+    return () => clearInterval(interval);
+  }, [token, isAdmin, API_URL]);
   // Extract unique tenants from users
   const tenants = useMemo(() => {
     const tenantMap = new Map<string, { id: string; name: string }>();
@@ -582,14 +612,28 @@ export default function UsersPage() {
                     <TableRow key={userItem.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                            {userItem.firstName?.[0]}
-                            {userItem.lastName?.[0]}
+                          <div className="relative">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                              {userItem.firstName?.[0]}
+                              {userItem.lastName?.[0]}
+                            </div>
+                            {usersWithUnread.includes(userItem.id) && (
+                              <div className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5">
+                                <Mail className="h-3 w-3 text-white" />
+                              </div>
+                            )}
                           </div>
                           <div>
-                            <span className="font-medium">
-                              {userItem.firstName} {userItem.lastName}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                {userItem.firstName} {userItem.lastName}
+                              </span>
+                              {usersWithUnread.includes(userItem.id) && (
+                                <Badge variant="destructive" className="text-xs px-1.5 py-0">
+                                  Msg non letto
+                                </Badge>
+                              )}
+                            </div>
                             {userItem.tenant && (
                               <p className="text-xs text-muted-foreground">
                                 {userItem.tenant.name}
@@ -650,6 +694,10 @@ export default function UsersPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/${locale}/dashboard/users/${userItem.id}`)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Vedi Scheda
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEditDialog(userItem)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Modifica

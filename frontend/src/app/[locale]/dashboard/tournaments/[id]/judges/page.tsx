@@ -72,6 +72,35 @@ export default function JudgesManagementPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+  // Download file with auth token
+  const downloadWithAuth = async (url: string, filename: string) => {
+    if (!token) {
+      alert("Devi essere autenticato per scaricare questo file");
+      return;
+    }
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || "Errore nel download");
+        return;
+      }
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      alert("Errore di rete durante il download");
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!token || !tournamentId) return;
@@ -192,15 +221,15 @@ export default function JudgesManagementPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <a
-              href={`${API_URL}/api/reports/export/pdf/judge-assignments/${tournamentId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Scarica PDF
-            </a>
+          <Button
+            variant="outline"
+            onClick={() => downloadWithAuth(
+              `${API_URL}/api/reports/export/pdf/judge-assignments/${tournamentId}`,
+              `ispettori-${tournamentId}.pdf`
+            )}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Scarica PDF
           </Button>
         </div>
       </div>

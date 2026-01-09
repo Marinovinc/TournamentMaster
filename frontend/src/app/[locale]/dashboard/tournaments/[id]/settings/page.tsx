@@ -69,6 +69,35 @@ export default function TournamentSettingsPage() {
   const locale = (params.locale as string) || "it";
   const tournamentId = params.id as string;
 
+  // Download file with auth token
+  const downloadWithAuth = async (url: string, filename: string) => {
+    if (!token) {
+      alert("Devi essere autenticato per scaricare questo file");
+      return;
+    }
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || "Errore nel download");
+        return;
+      }
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      alert("Errore di rete durante il download");
+    }
+  };
+
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -245,7 +274,7 @@ export default function TournamentSettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Button variant="outline" asChild>
               <a
-                href={`${API_URL}/api/reports/export/pdf/leaderboard/${tournamentId}`}
+                href={`${API_URL}/api/reports/public/pdf/leaderboard/${tournamentId}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -253,25 +282,25 @@ export default function TournamentSettingsPage() {
                 Classifica PDF
               </a>
             </Button>
-            <Button variant="outline" asChild>
-              <a
-                href={`${API_URL}/api/reports/export/csv/tournament/${tournamentId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Table className="h-4 w-4 mr-2" />
-                Classifica CSV
-              </a>
+            <Button
+              variant="outline"
+              onClick={() => downloadWithAuth(
+                `${API_URL}/api/reports/export/csv/tournament/${tournamentId}`,
+                `classifica-${tournamentId}.csv`
+              )}
+            >
+              <Table className="h-4 w-4 mr-2" />
+              Classifica CSV
             </Button>
-            <Button variant="outline" asChild>
-              <a
-                href={`${API_URL}/api/reports/export/pdf/judge-assignments/${tournamentId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Assegnazioni Ispettori PDF
-              </a>
+            <Button
+              variant="outline"
+              onClick={() => downloadWithAuth(
+                `${API_URL}/api/reports/export/pdf/judge-assignments/${tournamentId}`,
+                `ispettori-${tournamentId}.pdf`
+              )}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Assegnazioni Ispettori PDF
             </Button>
           </div>
         </CardContent>

@@ -1,6 +1,6 @@
 # TournamentMaster - Documentazione Completa (Backend + Frontend)
 
-**Versione:** 2.0.0
+**Versione:** 2.1.0
 **Data:** 2026-01-09
 **Backend Stack:** Node.js + Express + TypeScript + Prisma + MySQL/MariaDB
 **Frontend Stack:** Next.js 14 + TypeScript + Tailwind CSS + Capacitor
@@ -626,6 +626,363 @@ Gli admin possono visualizzare i profili degli iscritti in modalita read-only:
 <EquipmentSection viewUserId={userId} readOnly={true} />
 <MediaSection viewUserId={userId} readOnly={true} />
 ```
+
+---
+
+## Sistema Messaggistica - Dettaglio Funzionale
+
+### Architettura
+
+Il sistema di messaggistica interna permette comunicazione bidirezionale tra:
+- **Admin → Iscritti**: Messaggi diretti o broadcast a tutti
+- **Iscritti → Admin**: Messaggi diretti all'amministratore
+
+### Tipi di Messaggio
+
+| Tipo | Descrizione | Mittente | Destinatario |
+|------|-------------|----------|--------------|
+| `DIRECT` | Messaggio diretto | Chiunque | Utente specifico |
+| `BROADCAST` | Annuncio a tutti | Solo Admin | Tutti gli iscritti |
+| `SYSTEM` | Notifica di sistema | Sistema | Utente specifico |
+
+### Priorita
+
+```typescript
+enum MessagePriority {
+  LOW = "LOW",       // Bassa - grigio
+  NORMAL = "NORMAL", // Normale - blu
+  HIGH = "HIGH",     // Alta - arancione
+  URGENT = "URGENT"  // Urgente - rosso
+}
+```
+
+### Flusso Utente Normale
+
+1. L'utente accede al tab **Messaggi** nella dashboard
+2. Vede i messaggi ricevuti (inbox) con badge per non letti
+3. Puo cliccare **Nuovo Messaggio** → invia all'admin del tenant
+4. Puo rispondere ai messaggi ricevuti (thread)
+5. I messaggi broadcast dell'associazione appaiono automaticamente
+
+### Flusso Admin
+
+1. Admin accede a **Messaggi** o vede badge rosso nella sidebar
+2. Puo inviare messaggi diretti a qualsiasi iscritto
+3. Puo inviare **Broadcast** a tutti gli iscritti
+4. Vede indicatore di chi ha messaggi non letti nella lista utenti
+
+### Badge Non Letti
+
+```typescript
+// Nella sidebar/tab viene mostrato un badge rosso
+{unreadMessages > 0 && (
+  <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5">
+    {unreadMessages > 9 ? "9+" : unreadMessages}
+  </span>
+)}
+```
+
+### Componente MessagesSection
+
+**File:** `frontend/src/components/user/MessagesSection.tsx`
+
+**Funzionalita:**
+- Lista messaggi ricevuti con stato letto/non letto
+- Icone per tipo messaggio (DIRECT = User, BROADCAST = Megaphone)
+- Dettaglio messaggio con thread risposte
+- Dialog per risposta
+- Dialog per nuovo messaggio (verso admin)
+- Auto-refresh conteggio non letti ogni 30 secondi
+
+---
+
+## Dashboard Utente - Architettura Tab
+
+### Layout UserDashboardSection
+
+**File:** `frontend/src/components/association/UserDashboardSection.tsx`
+
+La dashboard utente e organizzata in 7 tab:
+
+| Tab | Componente | Descrizione |
+|-----|------------|-------------|
+| Panoramica | Inline | Stats, tornei prossimi/passati, podi |
+| Messaggi | `MessagesSection` | Inbox con badge non letti |
+| Barca | `BoatsSection` | Gestione barche personali |
+| Attrezzatura | `EquipmentSection` | Gestione attrezzature |
+| Skipper | `SkipperSection` | Profilo skipper e patenti |
+| Media | `MediaSection` | Galleria foto/video personali |
+| Impostazioni | `SettingsSection` | Preferenze account |
+
+### Hero Section
+
+La dashboard inizia con un hero gradient che mostra:
+- Avatar utente (iniziali)
+- Nome e cognome
+- Badge ruolo (ISCRITTO se ha partecipato a tornei)
+- Quick stats: Tornei, Catture, Kg Totali, Podi
+
+---
+
+## Gestione Barche - Dettaglio
+
+### Modello Boat
+
+```prisma
+model Boat {
+  id                  String   @id @default(uuid())
+  userId              String
+  name                String
+  type                BoatType @default(OTHER)
+  lengthMeters        Float
+  beamMeters          Float?
+  photo               String?
+  homePort            String?
+  seats               Int?     @default(4)
+  year                Int?
+  make                String?  // Marca cantiere
+  model               String?  // Modello barca
+  engineType          EngineType @default(OUTBOARD)
+  enginePower         Int?     // HP
+  engineMake          String?  // Marca motore
+  registrationNumber  String?
+  flagState           String?  // Bandiera
+  insuranceExpiry     DateTime?
+  revisionExpiry      DateTime?
+  isAvailableForRaces Boolean  @default(true)
+  availabilityNotes   String?
+}
+```
+
+### Tipi Barca
+
+| Valore | Label |
+|--------|-------|
+| FISHING_BOAT | Peschereccio |
+| SAILING_YACHT | Yacht a vela |
+| MOTOR_YACHT | Yacht a motore |
+| RIB | Gommone |
+| CENTER_CONSOLE | Open |
+| CABIN_CRUISER | Cabinato |
+| SPORT_FISHING | Sportivo da pesca |
+| OTHER | Altro |
+
+### Tipi Motore
+
+| Valore | Label |
+|--------|-------|
+| OUTBOARD | Fuoribordo |
+| INBOARD | Entrobordo |
+| STERN_DRIVE | Entrofuoribordo |
+| SAIL | Vela |
+| HYBRID | Ibrido |
+| NONE | Nessuno |
+
+### Funzionalita BoatsSection
+
+- **Lista barche** con card responsive
+- **Creazione/modifica** via dialog modale
+- **Upload foto** principale barca
+- **Galleria media** per ogni barca (foto/video aggiuntivi)
+- **Disponibilita gare** con toggle e note
+- **Admin view mode** (readOnly + viewUserId)
+
+---
+
+## Gestione Attrezzature - Dettaglio
+
+### Modello Equipment
+
+```prisma
+model Equipment {
+  id            String        @id @default(uuid())
+  userId        String
+  name          String
+  type          EquipmentType
+  brand         String?
+  model         String?
+  serialNumber  String?
+  purchaseDate  DateTime?
+  purchasePrice Decimal?
+  condition     String?       @default("GOOD")
+  notes         String?
+  photo         String?
+  isInsured     Boolean       @default(false)
+}
+```
+
+### Tipi Attrezzatura
+
+| Valore | Label |
+|--------|-------|
+| ROD | Canna |
+| REEL | Mulinello |
+| LINE | Lenza |
+| LURE | Artificiale |
+| HOOK | Amo |
+| NET | Rete |
+| TACKLE_BOX | Cassetta |
+| ELECTRONICS | Elettronica |
+| SAFETY | Sicurezza |
+| OTHER | Altro |
+
+### Funzionalita EquipmentSection
+
+- **Lista attrezzature** con filtro per tipo
+- **Creazione/modifica** via dialog
+- **Upload foto** attrezzatura
+- **Galleria media** per ogni attrezzatura
+- **Campi assicurazione** e condizione
+- **Admin view mode** (readOnly + viewUserId)
+
+---
+
+## Profilo Skipper - Dettaglio
+
+### Modello SkipperProfile
+
+```prisma
+model SkipperProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  isAvailable       Boolean  @default(false)
+  licenseType       String   @default("NONE")
+  licenseNumber     String?
+  licenseExpiry     DateTime?
+  yearsOfExperience Int      @default(0)
+  canOperateTypes   String[] // Tipi barca abilitati
+  maxBoatLength     Float?
+  specializations   String[] // Tecniche di pesca
+  hourlyRate        Float?
+  availabilityNotes String?
+  serviceArea       String?
+  isVerified        Boolean  @default(false)
+}
+```
+
+### Tipi Patente
+
+| Valore | Label |
+|--------|-------|
+| NONE | Nessuna patente |
+| ENTRO_12_MIGLIA | Entro 12 miglia |
+| SENZA_LIMITI | Senza limiti |
+| SHIP_MASTER | Comandante |
+
+### Specializzazioni Disponibili
+
+- BIG_GAME - Big Game
+- DRIFTING - Drifting
+- TRAINA_COSTIERA - Traina Costiera
+- BOLENTINO - Bolentino
+- VERTICAL_JIGGING - Vertical Jigging
+- EGING - Eging
+- SHORE - Shore
+
+### Funzionalita SkipperSection
+
+- **Toggle disponibilita** - rende visibile agli organizzatori
+- **Dati patente** - tipo, numero, scadenza
+- **Esperienza** - anni, lunghezza max barca
+- **Tipi barca** - selezione multipla con badge
+- **Specializzazioni** - selezione multipla con badge
+- **Tariffa oraria** e area di servizio
+- **Badge verificato** per skipper approvati
+
+---
+
+## Admin View Mode - Dettaglio
+
+### Pagina Dettaglio Utente
+
+**Route:** `/dashboard/users/[userId]`
+**File:** `frontend/src/app/[locale]/dashboard/users/[userId]/page.tsx`
+
+Permette agli admin di visualizzare la scheda completa di un iscritto:
+
+### Controllo Accesso
+
+```typescript
+// Solo admin possono accedere
+if (!isAdmin) {
+  return <AccessDenied />;
+}
+```
+
+### Props Read-Only
+
+I componenti user ricevono props speciali:
+
+```typescript
+<BoatsSection
+  viewUserId={userId}    // ID utente da visualizzare
+  readOnly={true}        // Disabilita modifica/eliminazione
+/>
+```
+
+### Sezioni Visibili
+
+| Tab | Contenuto |
+|-----|-----------|
+| Panoramica | Team, statistiche dettagliate, podi |
+| Barche | Lista barche (senza pulsanti modifica) |
+| Attrezzatura | Lista attrezzature (senza pulsanti modifica) |
+| Media | Galleria foto/video (senza upload) |
+
+### Info Card Utente
+
+Mostra in alto:
+- Avatar con iniziali
+- Nome completo
+- Badge ruolo (con icona Crown/Shield/User)
+- Badge stato (Attivo/Disattivato)
+- Email, telefono, data registrazione
+- Tenant di appartenenza
+- Numero tessera FIPSAS (se presente)
+- Quick stats (Tornei, Catture, Kg, Podi)
+
+---
+
+## UserMedia System - Dettaglio
+
+### Modello UserMedia
+
+```prisma
+model UserMedia {
+  id            String          @id @default(uuid())
+  userId        String
+  type          String          // "PHOTO" | "VIDEO"
+  category      UserMediaCategory
+  boatId        String?         // Collegamento opzionale a barca
+  equipmentId   String?         // Collegamento opzionale ad attrezzatura
+  tournamentId  String?         // Collegamento opzionale a torneo
+  filename      String
+  path          String
+  thumbnailPath String?         // Per video
+  title         String?
+  description   String?
+  takenAt       DateTime?
+}
+```
+
+### Categorie Media
+
+| Valore | Descrizione |
+|--------|-------------|
+| BOAT | Foto/video della barca |
+| EQUIPMENT | Foto/video attrezzatura |
+| TOURNAMENT | Foto/video da tornei |
+| CATCH | Foto catture |
+| GENERAL | Altro contenuto |
+
+### Flusso Upload
+
+1. Utente accede a tab Media o galleria barca/attrezzatura
+2. Clicca "Aggiungi Media"
+3. Seleziona file (foto o video)
+4. Il backend genera thumbnail per i video
+5. Il file viene salvato con UUID univoco
+6. Viene creato record UserMedia con metadati
 
 ---
 

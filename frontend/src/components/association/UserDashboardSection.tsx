@@ -57,6 +57,7 @@ import {
   Settings,
   Camera,
   LayoutDashboard,
+  LogOut,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -162,7 +163,7 @@ export default function UserDashboardSection({
   primaryColor = "#0066CC",
   secondaryColor = "#004499"
 }: UserDashboardSectionProps) {
-  const { user, token, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, token, isAuthenticated, isLoading: authLoading, logout } = useAuth();
 
   // State
   const [registrations, setRegistrations] = useState<{ upcoming: Registration[]; past: Registration[] } | null>(null);
@@ -300,7 +301,7 @@ export default function UserDashboardSection({
                   }`}
                 >
                   {registrations && (registrations.upcoming.length > 0 || registrations.past.length > 0)
-                    ? "PARTICIPANT"
+                    ? "ISCRITTO"
                     : "Iscritto"}
                 </Badge>
                 <Button
@@ -311,6 +312,15 @@ export default function UserDashboardSection({
                 >
                   <Edit2 className="h-3 w-3 mr-1" />
                   Modifica
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white/80 hover:text-white hover:bg-red-500/20 h-7 px-2"
+                  onClick={() => logout()}
+                >
+                  <LogOut className="h-3 w-3 mr-1" />
+                  Esci
                 </Button>
               </div>
             </div>

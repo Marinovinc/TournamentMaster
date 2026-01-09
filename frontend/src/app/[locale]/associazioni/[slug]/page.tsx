@@ -127,6 +127,16 @@ export default async function AssociationPage({
 
   return (
     <main className="min-h-screen">
+      {/* Top Navigation */}
+      <div className="container mx-auto px-4 py-3">
+        <Link
+          href={`/`+ locale}
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm"
+        >
+          <Home className="h-4 w-4" />
+          Torna alla Home
+        </Link>
+      </div>
       {/* Hero Banner */}
       <div
         className="relative h-64 md:h-80 bg-gradient-to-r from-blue-600 to-cyan-600"
@@ -168,14 +178,6 @@ export default async function AssociationPage({
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Back link */}
-        <Link
-          href={`/${locale}`}
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 mt-8"
-        >
-          <Home className="h-4 w-4" />
-          Torna alla Home
-        </Link>
 
         {/* User Dashboard Section - FIRST for authenticated users */}
         <UserDashboardSection

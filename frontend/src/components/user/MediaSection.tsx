@@ -12,7 +12,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ import {
   Calendar,
   MapPin,
   X,
+  Upload,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -100,6 +101,7 @@ function formatDate(dateStr: string) {
 
 export default function MediaSection({ primaryColor = "#0066CC" }: MediaSectionProps) {
   const { token } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // State
   const [media, setMedia] = useState<UserMedia[]>([]);
@@ -114,6 +116,18 @@ export default function MediaSection({ primaryColor = "#0066CC" }: MediaSectionP
   // Delete confirmation
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Upload dialog
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [uploadCategory, setUploadCategory] = useState("OTHER");
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadDescription, setUploadDescription] = useState("");
+  const [uploadIsPublic, setUploadIsPublic] = useState(false);
 
   // Fetch media
   useEffect(() => {
@@ -151,6 +165,119 @@ export default function MediaSection({ primaryColor = "#0066CC" }: MediaSectionP
   // Get counts
   const photosCount = media.filter((m) => m.type === "PHOTO").length;
   const videosCount = media.filter((m) => m.type === "VIDEO").length;
+
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadFile(file);
+
+    // Create preview for images
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setUploadPreview(null);
+    }
+  };
+
+  // Handle drag and drop
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      const file = files[0];
+
+      // Validate file type
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+        setUploadError("Tipo file non supportato. Usa JPG, PNG, GIF, MP4, MOV o WebM.");
+        return;
+      }
+
+      setUploadFile(file);
+      setUploadError(null);
+
+      // Create preview for images only (videos are too large)
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setUploadPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setUploadPreview(null);
+      }
+    }
+  };
+
+  // Reset upload form
+  const resetUploadForm = () => {
+    setUploadFile(null);
+    setUploadPreview(null);
+    setUploadCategory("OTHER");
+    setUploadTitle("");
+    setUploadDescription("");
+    setUploadIsPublic(false);
+    setUploadError(null);
+    setIsDragging(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // Upload media
+  const handleUpload = async () => {
+    setUploadError(null);
+
+    if (!uploadFile) {
+      setUploadError("Seleziona un file da caricare");
+      return;
+    }
+
+    if (!token) {
+      setUploadError("Sessione scaduta - effettua nuovamente il login");
+      return;
+    }
+
+    console.log("Upload debug:", { hasFile: !!uploadFile, category: uploadCategory });
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      formData.append("category", uploadCategory);
+      if (uploadTitle) formData.append("title", uploadTitle);
+      if (uploadDescription) formData.append("description", uploadDescription);
+      formData.append("isPublic", String(uploadIsPublic));
+
+      const res = await fetch(`${API_URL}/api/user-media/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Errore nel caricamento");
+      }
+
+      const data = await res.json();
+      setMedia([data.data, ...media]);
+      setUploadOpen(false);
+      resetUploadForm();
+    } catch (err) {
+      console.error("Error uploading:", err);
+      setUploadError(err instanceof Error ? err.message : "Errore durante il caricamento");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // Delete media
   const handleDelete = async () => {
@@ -207,6 +334,14 @@ export default function MediaSection({ primaryColor = "#0066CC" }: MediaSectionP
             {photosCount} foto, {videosCount} video
           </Badge>
         </h3>
+        <Button
+          size="sm"
+          onClick={() => setUploadOpen(true)}
+          style={{ backgroundColor: primaryColor }}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Carica Media
+        </Button>
       </div>
 
       {/* Filters */}
@@ -264,9 +399,13 @@ export default function MediaSection({ primaryColor = "#0066CC" }: MediaSectionP
             <p className="text-muted-foreground mb-4">
               Non hai ancora caricato nessun media
             </p>
-            <p className="text-sm text-muted-foreground">
-              Il caricamento media sara disponibile prossimamente
-            </p>
+            <Button
+              onClick={() => setUploadOpen(true)}
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Carica il tuo primo media
+            </Button>
           </CardContent>
         </Card>
       ) : filteredMedia.length === 0 ? (
@@ -332,6 +471,142 @@ export default function MediaSection({ primaryColor = "#0066CC" }: MediaSectionP
           ))}
         </div>
       )}
+
+      {/* Upload Dialog */}
+      <Dialog open={uploadOpen} onOpenChange={(open) => {
+        setUploadOpen(open);
+        if (!open) resetUploadForm();
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Carica Media
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* File Input */}
+            <div>
+              <Label>File</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={`mt-1 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'hover:border-primary'}`}
+              >
+                {uploadPreview ? (
+                  <img
+                    src={uploadPreview}
+                    alt="Preview"
+                    className="max-h-40 mx-auto rounded"
+                  />
+                ) : uploadFile ? (
+                  <div className="space-y-2">
+                    <Video className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <p className="text-sm font-medium">{uploadFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Clicca o trascina foto/video qui
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Max 100MB - JPG, PNG, GIF, MP4, MOV, WebM
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Category */}
+            <div>
+              <Label>Categoria</Label>
+              <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(categoryLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Title */}
+            <div>
+              <Label>Titolo (opzionale)</Label>
+              <Input
+                value={uploadTitle}
+                onChange={(e) => setUploadTitle(e.target.value)}
+                placeholder="Es: Cattura record 2024"
+                className="mt-1"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <Label>Descrizione (opzionale)</Label>
+              <Textarea
+                value={uploadDescription}
+                onChange={(e) => setUploadDescription(e.target.value)}
+                placeholder="Descrivi il tuo media..."
+                rows={3}
+                className="mt-1"
+              />
+            </div>
+
+            {/* Public toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Visibilita pubblica</Label>
+                <p className="text-xs text-muted-foreground">
+                  Rendi visibile a tutti i membri
+                </p>
+              </div>
+              <Switch
+                checked={uploadIsPublic}
+                onCheckedChange={setUploadIsPublic}
+              />
+            </div>
+          </div>
+
+          {uploadError && (
+            <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+              {uploadError}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadOpen(false)}>
+              Annulla
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={!uploadFile || uploading}
+              style={{ backgroundColor: primaryColor }}
+            >
+              {uploading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Carica
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* View Dialog */}
       <Dialog open={!!viewingMedia} onOpenChange={() => setViewingMedia(null)}>

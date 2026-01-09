@@ -55,6 +55,8 @@ import {
   Trophy,
   RefreshCw,
   Eye,
+  Server,
+  ExternalLink,
 } from "lucide-react";
 
 interface Tenant {
@@ -272,7 +274,15 @@ export default function SuperAdminPage() {
             Amministra tutte le associazioni iscritte alla piattaforma
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <a href="http://localhost:8088/server_manager.html" target="_blank" rel="noopener noreferrer">
+              <Server className="mr-2 h-4 w-4" />
+              Server Manager
+              <ExternalLink className="ml-2 h-3 w-3" />
+            </a>
+          </Button>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -411,6 +421,7 @@ export default function SuperAdminPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Filters */}

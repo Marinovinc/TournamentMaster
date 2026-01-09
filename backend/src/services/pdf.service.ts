@@ -727,19 +727,31 @@ export class PDFService {
     const headerHeight = 26;
     let currentY = doc.y;
 
-    // Header
-    doc.fillColor(primaryColor).rect(startX, currentY, pageWidth, headerHeight).fill();
-    doc.fillColor("#FFFFFF").fontSize(8).font("Helvetica-Bold");
-    let xPos = startX + 3;
-    columns.forEach((col) => {
-      doc.text(col.header, xPos, currentY + 8, { width: col.width - 6, align: "center" });
-      xPos += col.width;
-    });
-    currentY += headerHeight;
+    // Funzione per disegnare header tabella
+    const drawTableHeader = () => {
+      doc.fillColor(primaryColor).rect(startX, currentY, pageWidth, headerHeight).fill();
+      doc.fillColor("#FFFFFF").fontSize(8).font("Helvetica-Bold");
+      let xPos = startX + 3;
+      columns.forEach((col) => {
+        doc.text(col.header, xPos, currentY + 8, { width: col.width - 6, align: "center" });
+        xPos += col.width;
+      });
+      currentY += headerHeight;
+      doc.font("Helvetica").fontSize(8);
+    };
 
-    // Righe
-    doc.font("Helvetica").fontSize(8);
+    // Header iniziale
+    drawTableHeader();
+
+    // Righe con paginazione
     leaderboard.forEach((row, index) => {
+      // Controlla se serve nuova pagina
+      if (currentY + rowHeight > doc.page.height - doc.page.margins.bottom - 60) {
+        doc.addPage();
+        currentY = doc.page.margins.top;
+        drawTableHeader();
+      }
+
       // Sfondo podio
       if (index === 0) doc.fillColor("#FFD700").rect(startX, currentY, pageWidth, rowHeight).fill();
       else if (index === 1) doc.fillColor("#C0C0C0").rect(startX, currentY, pageWidth, rowHeight).fill();
@@ -748,11 +760,11 @@ export class PDFService {
 
       doc.strokeColor("#DEE2E6").lineWidth(0.5).rect(startX, currentY, pageWidth, rowHeight).stroke();
       doc.fillColor(index < 3 ? "#000000" : "#333333");
-      xPos = startX + 3;
+      let xPos = startX + 3;
 
       const rowData = [
-        row.rank.toString(), row.teamName, row.boatName, row.boatNumber?.toString() || "-",
-        row.captainName, row.clubName || "-", row.catchCount.toString(), row.releasedCount.toString(),
+        row.rank.toString(), row.teamName || "-", row.boatName || "-", row.boatNumber?.toString() || "-",
+        row.captainName || "-", row.clubName || "-", row.catchCount.toString(), row.releasedCount.toString(),
         row.lostCount.toString(), `${row.totalWeight.toFixed(2)} kg`,
         row.biggestCatch ? `${row.biggestCatch.toFixed(2)} kg` : "-", row.totalPoints.toFixed(0),
       ];
@@ -769,7 +781,7 @@ export class PDFService {
     const totalCatches = leaderboard.reduce((sum: number, r: any) => sum + r.catchCount, 0);
     const totalWeight = leaderboard.reduce((sum: number, r: any) => sum + r.totalWeight, 0);
     doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000")
-      .text(`Totale Squadre: ${leaderboard.length}  |  Catture: ${totalCatches}  |  Peso: ${totalWeight.toFixed(2)} kg`, { align: "center" });
+      .text(`Totale Partecipanti: ${leaderboard.length}  |  Catture: ${totalCatches}  |  Peso: ${totalWeight.toFixed(2)} kg`, { align: "center" });
   }
 
   private static drawCatchesTable(doc: PDFKit.PDFDocument, catches: any[], primaryColor: string): void {
@@ -837,6 +849,7 @@ export class PDFService {
   /**
    * Genera PDF Classifica Pubblico per tornei COMPLETED
    * Non richiede autenticazione ma solo per tornei completati
+   * Usa LeaderboardEntry per tornei con classifica pre-calcolata
    */
   static async generatePublicLeaderboardPDF(tournamentId: string): Promise<Buffer> {
     // Recupera torneo senza filtro tenant
@@ -860,7 +873,68 @@ export class PDFService {
       throw new Error("PDF disponibile solo per tornei completati");
     }
 
-    // Usa il metodo esistente con il tenantId del torneo
+    // Recupera classifica da LeaderboardEntry (per tornei completati)
+    const leaderboardEntries = await prisma.leaderboardEntry.findMany({
+      where: { tournamentId },
+      orderBy: { rank: "asc" },
+    });
+
+    // Se ci sono LeaderboardEntry, usa quelli (TUTTI i partecipanti)
+    if (leaderboardEntries.length > 0) {
+      const leaderboard = leaderboardEntries.map((entry) => ({
+        rank: entry.rank,
+        teamName: entry.teamName || entry.participantName || "N/A",
+        boatName: "-",
+        boatNumber: null,
+        captainName: entry.participantName || "N/A",
+        clubName: entry.teamName !== entry.participantName ? entry.teamName : null,
+        catchCount: entry.catchCount,
+        releasedCount: 0,
+        lostCount: 0,
+        totalWeight: Number(entry.totalWeight),
+        biggestCatch: entry.biggestCatch ? Number(entry.biggestCatch) : null,
+        totalPoints: Number(entry.totalPoints),
+      }));
+
+      // Recupera catture per dettaglio
+      const catches = await prisma.catch.findMany({
+        where: { tournamentId, status: "APPROVED" },
+        include: {
+          species: { select: { commonNameIt: true, pointsMultiplier: true } },
+          user: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: { weight: "desc" },
+      });
+
+      const catchDetails = catches.map((c, index) => ({
+        rank: index + 1,
+        teamName: `${c.user.firstName} ${c.user.lastName}`,
+        speciesName: c.species?.commonNameIt || "Sconosciuta",
+        weight: Number(c.weight),
+        length: c.length ? Number(c.length) : null,
+        caughtAt: c.caughtAt,
+        points: Number(c.weight) * (c.species?.pointsMultiplier ? Number(c.species.pointsMultiplier) : 1) * 100,
+      }));
+
+      return this.buildLeaderboardPDF(
+        {
+          id: tournament.id,
+          name: tournament.name,
+          discipline: tournament.discipline,
+          location: tournament.location,
+          startDate: tournament.startDate,
+          endDate: tournament.endDate,
+          tenantName: tournament.tenant.name,
+          tenantLogo: tournament.tenant.logo,
+        },
+        leaderboard,
+        catchDetails,
+        `${tournament.organizer.firstName} ${tournament.organizer.lastName}`,
+        tournament.tenant.primaryColor || "#0066CC"
+      );
+    }
+
+    // Fallback: usa il metodo esistente con Teams
     return this.generateLeaderboardPDF(tournamentId, tournament.tenantId);
   }
 }

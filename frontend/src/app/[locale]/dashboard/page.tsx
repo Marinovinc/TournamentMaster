@@ -86,6 +86,7 @@ export default function DashboardPage() {
       ORGANIZER: "Organizzatore",
       JUDGE: "Giudice",
       PARTICIPANT: "Partecipante",
+      MEMBER: "Associato",
     };
     return labels[role] || role;
   };

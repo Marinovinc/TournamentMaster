@@ -87,6 +87,7 @@ const ROLE_LABELS: Record<string, string> = {
   JUDGE: "Giudice",
   CAPTAIN: "Capitano",
   PARTICIPANT: "Partecipante",
+  MEMBER: "Associato",
 };
 
 const ROLE_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -97,6 +98,7 @@ const ROLE_COLORS: Record<string, "default" | "secondary" | "destructive" | "out
   JUDGE: "secondary",
   CAPTAIN: "outline",
   PARTICIPANT: "outline",
+  MEMBER: "outline",
 };
 
 function formatDate(dateStr: string) {

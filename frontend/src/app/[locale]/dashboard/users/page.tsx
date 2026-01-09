@@ -97,6 +97,7 @@ const ROLE_LABELS: Record<string, string> = {
   JUDGE: "Giudice",
   CAPTAIN: "Capitano",
   PARTICIPANT: "Partecipante",
+  MEMBER: "Associato",
 };
 
 const ROLE_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -107,6 +108,7 @@ const ROLE_COLORS: Record<string, "default" | "secondary" | "destructive" | "out
   JUDGE: "secondary",
   CAPTAIN: "outline",
   PARTICIPANT: "outline",
+  MEMBER: "outline",
 };
 
 // Role priority (lower = higher priority, PARTICIPANT last)
@@ -117,12 +119,14 @@ const ROLE_PRIORITY: Record<string, number> = {
   ORGANIZER: 4,
   JUDGE: 5,
   CAPTAIN: 6,
-  PARTICIPANT: 99,
+  PARTICIPANT: 98,
+  MEMBER: 99,
 };
 
 // Roles sorted alphabetically for filter dropdown
 const ROLES_ALPHABETICAL = [
   { value: "TENANT_ADMIN", label: "Admin Societa" },
+  { value: "MEMBER", label: "Associato" },
   { value: "CAPTAIN", label: "Capitano" },
   { value: "JUDGE", label: "Giudice" },
   { value: "ORGANIZER", label: "Organizzatore" },
@@ -793,6 +797,7 @@ export default function UsersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="MEMBER">Associato</SelectItem>
                   <SelectItem value="PARTICIPANT">Partecipante</SelectItem>
                   <SelectItem value="CAPTAIN">Capitano</SelectItem>
                   <SelectItem value="JUDGE">Giudice</SelectItem>

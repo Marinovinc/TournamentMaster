@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Calendar, MapPin, Users, Trophy, Fish, Euro, Clock,
-  ArrowLeft, Award, Anchor, User, Scale, Target
+  ArrowLeft, Award, Anchor, User, Scale, Target, Download, BarChart3
 } from "lucide-react";
 import { HelpGuide } from "@/components/HelpGuide";
 
@@ -184,6 +184,21 @@ export default async function TournamentDetailPage({
               </Link>
             </Button>
           )}
+
+          {isCompleted && (
+            <div className="flex gap-2">
+              <Button variant="outline" className="shrink-0" asChild>
+                <a
+                  href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/reports/public/pdf/leaderboard/${tournament.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Scarica Classifica PDF
+                </a>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -299,8 +314,8 @@ export default async function TournamentDetailPage({
                             <p className="font-bold text-primary">
                               {parseFloat(catchItem.points).toFixed(0)} pt
                             </p>
-                            <Badge variant={catchItem.status === "VALIDATED" ? "default" : "secondary"} className="text-xs">
-                              {catchItem.status === "VALIDATED" ? "Validata" : "In verifica"}
+                            <Badge variant={catchItem.status === "APPROVED" ? "default" : "secondary"} className="text-xs">
+                              {catchItem.status === "APPROVED" ? "Validata" : "In verifica"}
                             </Badge>
                           </div>
                         </div>

@@ -14,7 +14,7 @@ const router = Router();
 router.get(
   "/:tournamentId",
   optionalAuth,
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   [
     query("page").optional().isInt({ min: 1 }).toInt(),
     query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
@@ -58,7 +58,7 @@ router.get(
 router.get(
   "/:tournamentId/top/:n",
   optionalAuth,
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   param("n").isInt({ min: 1, max: 100 }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -96,7 +96,7 @@ router.get(
 router.get(
   "/:tournamentId/my",
   authenticate,
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
@@ -146,7 +146,7 @@ router.get(
 router.get(
   "/:tournamentId/stats",
   optionalAuth,
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
@@ -182,7 +182,7 @@ router.post(
   "/:tournamentId/initialize",
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
@@ -218,7 +218,7 @@ router.post(
   "/:tournamentId/recalculate",
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);

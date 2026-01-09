@@ -115,7 +115,7 @@ router.get(
   "/association/tournaments/:tournamentId",
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER, UserRole.JUDGE),
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const tenantId = getTenantId(req);
@@ -274,7 +274,7 @@ router.get(
   "/export/csv/tournament/:tournamentId",
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER, UserRole.JUDGE),
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const tenantId = getTenantId(req);
@@ -339,7 +339,7 @@ router.get(
   "/export/pdf/judge-assignments/:tournamentId",
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER),
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const tenantId = getTenantId(req);
@@ -377,7 +377,7 @@ router.get(
   "/export/pdf/judge-assignments/:tournamentId/preview",
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER),
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const tenantId = getTenantId(req);
@@ -412,7 +412,7 @@ router.get(
   "/export/pdf/leaderboard/:tournamentId",
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER, UserRole.JUDGE),
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const tenantId = getTenantId(req);
@@ -444,13 +444,13 @@ router.get(
 
 /**
  * GET /api/reports/export/pdf/leaderboard/:tournamentId/preview
- * Anteprima PDF Classifica Torneo (apre in browser)
+ * Anteprima PDF Classifica Torneo (apre in browser) - Autenticato
  */
 router.get(
   "/export/pdf/leaderboard/:tournamentId/preview",
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER, UserRole.JUDGE),
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const tenantId = getTenantId(req);
@@ -473,6 +473,31 @@ router.get(
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to generate PDF";
       res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+/**
+ * GET /api/reports/public/pdf/leaderboard/:tournamentId
+ * PDF Classifica Pubblico per tornei COMPLETED (senza autenticazione)
+ */
+router.get(
+  "/public/pdf/leaderboard/:tournamentId",
+  param("tournamentId").notEmpty(),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const pdfBuffer = await PDFService.generatePublicLeaderboardPDF(
+        req.params.tournamentId
+      );
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "inline");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.send(pdfBuffer);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate PDF";
+      const statusCode = message.includes("non trovato") || message.includes("non completato") ? 404 : 500;
+      res.status(statusCode).json({ success: false, message });
     }
   }
 );

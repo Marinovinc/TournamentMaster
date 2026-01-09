@@ -833,6 +833,36 @@ export class PDFService {
     doc.text(`Direttore di Gara: ${organizerName}   Firma: _______________`, doc.page.margins.left + 200, footerY + 8);
     doc.text(`${tournament.tenantName} - Classifica Ufficiale FIPSAS`, doc.page.width - doc.page.margins.right - 250, footerY + 8, { align: "right", width: 250 });
   }
+
+  /**
+   * Genera PDF Classifica Pubblico per tornei COMPLETED
+   * Non richiede autenticazione ma solo per tornei completati
+   */
+  static async generatePublicLeaderboardPDF(tournamentId: string): Promise<Buffer> {
+    // Recupera torneo senza filtro tenant
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        tenant: {
+          select: { id: true, name: true, logo: true, primaryColor: true },
+        },
+        organizer: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+    });
+
+    if (!tournament) {
+      throw new Error("Torneo non trovato");
+    }
+
+    if (tournament.status !== "COMPLETED") {
+      throw new Error("PDF disponibile solo per tornei completati");
+    }
+
+    // Usa il metodo esistente con il tenantId del torneo
+    return this.generateLeaderboardPDF(tournamentId, tournament.tenantId);
+  }
 }
 
 export default PDFService;

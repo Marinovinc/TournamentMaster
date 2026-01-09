@@ -8,7 +8,7 @@ const router = Router();
 
 // Validation rules
 const submitCatchValidation = [
-  body("tournamentId").isUUID().withMessage("Valid tournament ID required"),
+  body("tournamentId").notEmpty().withMessage("Tournament ID required"),
   body("weight")
     .isFloat({ min: 0.001 })
     .withMessage("Weight must be positive"),
@@ -45,7 +45,7 @@ router.get(
   [
     query("page").optional().isInt({ min: 1 }).toInt(),
     query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
-    query("tournamentId").optional().isUUID(),
+    query("tournamentId").optional().isString(),
     query("status").optional().isIn(Object.values(CatchStatus)),
   ],
   async (req: AuthenticatedRequest, res: Response) => {
@@ -333,7 +333,7 @@ router.get(
     UserRole.ORGANIZER,
     UserRole.JUDGE
   ),
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   [
     query("page").optional().isInt({ min: 1 }).toInt(),
     query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
@@ -368,7 +368,7 @@ router.get(
 router.get(
   "/tournament/:tournamentId/my",
   authenticate,
-  param("tournamentId").isUUID(),
+  param("tournamentId").notEmpty(),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       if (!req.user) {

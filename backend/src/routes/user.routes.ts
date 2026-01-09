@@ -211,6 +211,187 @@ router.put(
 );
 
 // =============================================================================
+// GET /api/users/me/registrations - Tornei a cui l'utente ha partecipato
+// =============================================================================
+router.get(
+  "/me/registrations",
+  authenticate,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: "Not authenticated" });
+      }
+
+      const registrations = await prisma.tournamentRegistration.findMany({
+        where: { userId: req.user.userId },
+        include: {
+          tournament: {
+            select: {
+              id: true,
+              name: true,
+              discipline: true,
+              status: true,
+              startDate: true,
+              endDate: true,
+              location: true,
+              bannerImage: true,
+              tenant: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { registeredAt: "desc" },
+      });
+
+      // Separate into upcoming and past tournaments
+      const now = new Date();
+      const upcoming = registrations.filter(
+        (r) => new Date(r.tournament.endDate) >= now
+      );
+      const past = registrations.filter(
+        (r) => new Date(r.tournament.endDate) < now
+      );
+
+      res.json({
+        success: true,
+        data: {
+          upcoming,
+          past,
+          total: registrations.length,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to get registrations";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+// =============================================================================
+// GET /api/users/me/stats - Statistiche di pesca dell'utente
+// =============================================================================
+router.get(
+  "/me/stats",
+  authenticate,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: "Not authenticated" });
+      }
+
+      // Get all approved catches
+      const catches = await prisma.catch.findMany({
+        where: {
+          userId: req.user.userId,
+          status: "APPROVED",
+        },
+        select: {
+          weight: true,
+          points: true,
+          caughtAt: true,
+          species: {
+            select: {
+              id: true,
+              commonNameIt: true,
+            },
+          },
+        },
+      });
+
+      // Get tournament count
+      const tournamentCount = await prisma.tournamentRegistration.count({
+        where: {
+          userId: req.user.userId,
+          status: "CONFIRMED",
+        },
+      });
+
+      // Get leaderboard entries (for podium finishes)
+      const leaderboardEntries = await prisma.leaderboardEntry.findMany({
+        where: {
+          userId: req.user.userId,
+          rank: { lte: 3 }, // Top 3 positions
+        },
+        select: {
+          rank: true,
+          tournamentId: true,
+        },
+      });
+
+      // Calculate stats
+      const totalCatches = catches.length;
+      const totalWeight = catches.reduce(
+        (sum, c) => sum + Number(c.weight),
+        0
+      );
+      const totalPoints = catches.reduce(
+        (sum, c) => sum + (c.points ? Number(c.points) : 0),
+        0
+      );
+      const biggestCatch = catches.length > 0
+        ? Math.max(...catches.map((c) => Number(c.weight)))
+        : 0;
+
+      // Species breakdown
+      const speciesMap = new Map<string, { name: string; count: number; totalWeight: number }>();
+      catches.forEach((c) => {
+        if (c.species) {
+          const existing = speciesMap.get(c.species.id);
+          if (existing) {
+            existing.count++;
+            existing.totalWeight += Number(c.weight);
+          } else {
+            speciesMap.set(c.species.id, {
+              name: c.species.commonNameIt,
+              count: 1,
+              totalWeight: Number(c.weight),
+            });
+          }
+        }
+      });
+
+      const speciesBreakdown = Array.from(speciesMap.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5); // Top 5 species
+
+      // Podium counts
+      const goldCount = leaderboardEntries.filter((e) => e.rank === 1).length;
+      const silverCount = leaderboardEntries.filter((e) => e.rank === 2).length;
+      const bronzeCount = leaderboardEntries.filter((e) => e.rank === 3).length;
+
+      res.json({
+        success: true,
+        data: {
+          tournamentsParticipated: tournamentCount,
+          totalCatches,
+          totalWeight: Math.round(totalWeight * 1000) / 1000, // Round to 3 decimals
+          totalPoints: Math.round(totalPoints * 100) / 100,
+          biggestCatch: Math.round(biggestCatch * 1000) / 1000,
+          averageWeight: totalCatches > 0
+            ? Math.round((totalWeight / totalCatches) * 1000) / 1000
+            : 0,
+          podiums: {
+            gold: goldCount,
+            silver: silverCount,
+            bronze: bronzeCount,
+            total: goldCount + silverCount + bronzeCount,
+          },
+          speciesBreakdown,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to get stats";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+// =============================================================================
 // GET /api/users/:id - Dettaglio utente (admin only)
 // =============================================================================
 router.get(

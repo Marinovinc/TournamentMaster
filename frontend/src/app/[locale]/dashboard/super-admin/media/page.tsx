@@ -70,6 +70,8 @@ interface MediaItem {
   isFeatured: boolean;
   tenantId: string | null;
   tenant: { id: string; name: string; slug: string } | null;
+  tournamentId: string | null;
+  tournament: { id: string; name: string } | null;
   uploadedBy: { id: string; firstName: string; lastName: string } | null;
   createdAt: string;
   mimeType: string | null;
@@ -83,6 +85,13 @@ interface Tenant {
   slug: string;
 }
 
+interface Tournament {
+  id: string;
+  name: string;
+  tenantId: string;
+  tenant?: { name: string };
+}
+
 interface Pagination {
   page: number;
   limit: number;
@@ -92,7 +101,7 @@ interface Pagination {
 
 // Helper function to check if a file is a video
 const isVideoFile = (filename: string) => {
-  return /\.(mp4|mov|webm|avi|mkv)$/i.test(filename);
+  return /\.(mp4|mov|webm|avi|mkv|mpg|mpeg)$/i.test(filename);
 };
 
 // Format duration in mm:ss
@@ -126,8 +135,11 @@ export default function SuperAdminMediaPage() {
   
   const [mediaTypeFilter, setMediaTypeFilter] = useState("all"); // all, photo, video
   const [tenantFilter, setTenantFilter] = useState("all");
+  const [tournamentFilter, setTournamentFilter] = useState("all");
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isDragging, setIsDragging] = useState(false);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: 20,
@@ -188,9 +200,50 @@ export default function SuperAdminMediaPage() {
     }
   }, [token]);
 
+  // Fetch tournaments list for SuperAdmin (filtered by tenant if selected)
+  const fetchTournaments = useCallback(async () => {
+    if (!token) return;
+    try {
+      const params = new URLSearchParams();
+      if (tenantFilter !== "all" && tenantFilter !== "global") {
+        params.append("tenantId", tenantFilter);
+      }
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/media/tournaments?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setTournaments(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch tournaments:", error);
+    }
+  }, [token, tenantFilter]);
+
   useEffect(() => {
     fetchTenants();
   }, [fetchTenants]);
+
+  useEffect(() => {
+    fetchTournaments();
+    // Reset tournament filter when tenant changes
+    setTournamentFilter("all");
+  }, [fetchTournaments]);
+
+  // Prevent browser from opening/downloading files when dropped outside drop zone
+  useEffect(() => {
+    const preventDefaultDrag = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener('dragover', preventDefaultDrag);
+    window.addEventListener('drop', preventDefaultDrag);
+    return () => {
+      window.removeEventListener('dragover', preventDefaultDrag);
+      window.removeEventListener('drop', preventDefaultDrag);
+    };
+  }, []);
 
   const fetchMedia = useCallback(async () => {
     if (!token) return;
@@ -205,6 +258,7 @@ export default function SuperAdminMediaPage() {
       if (tenantFilter === "global") params.append("onlyGlobal", "true");
       if (mediaTypeFilter !== "all") params.append("mediaType", mediaTypeFilter);
       if (tenantFilter !== "all" && tenantFilter !== "global") params.append("tenantId", tenantFilter);
+      if (tournamentFilter !== "all") params.append("tournamentId", tournamentFilter);
 
 
       const res = await fetch(
@@ -224,7 +278,7 @@ export default function SuperAdminMediaPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, search, categoryFilter, mediaTypeFilter, tenantFilter, pagination.page, pagination.limit]);
+  }, [token, search, categoryFilter, mediaTypeFilter, tenantFilter, tournamentFilter, pagination.page, pagination.limit]);
 
   useEffect(() => {
     fetchMedia();
@@ -250,6 +304,12 @@ export default function SuperAdminMediaPage() {
   const handleUpload = async () => {
     if (!uploadFile || !uploadForm.title || !uploadForm.category) {
       setUploadError("File, titolo e categoria sono obbligatori");
+      return;
+    }
+
+    console.log("Upload debug:", { hasFile: !!uploadFile, hasToken: !!token });
+    if (!token) {
+      setUploadError("Token mancante - rieffettua il login");
       return;
     }
 
@@ -432,8 +492,29 @@ export default function SuperAdminMediaPage() {
                   </div>
                 ) : (
                   <div
-                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
+                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'hover:border-primary'}`}
                     onClick={() => document.getElementById("file-input")?.click()}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const files = Array.from(e.dataTransfer.files);
+                      if (files.length > 0) {
+                        const file = files[0];
+                        setUploadFile(file);
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setUploadPreview(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                        // Auto-fill title from filename
+                        if (!uploadForm.title) {
+                          const name = file.name.replace(/.[^/.]+$/, '').replace(/[-_]/g, ' ');
+                          setUploadForm(prev => ({ ...prev, title: name }));
+                        }
+                      }
+                    }}
                   >
                     <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">
@@ -529,8 +610,9 @@ export default function SuperAdminMediaPage() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
+              <Label className="text-xs text-muted-foreground mb-1 block">Ricerca</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -541,43 +623,68 @@ export default function SuperAdminMediaPage() {
                 />
               </div>
             </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutte</SelectItem>
-                {CATEGORIES.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={mediaTypeFilter} onValueChange={setMediaTypeFilter}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutti</SelectItem>
-                <SelectItem value="photo">Foto</SelectItem>
-                <SelectItem value="video">Video</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={tenantFilter} onValueChange={setTenantFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Associazione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutte</SelectItem>
-                <SelectItem value="global">Solo Globali</SelectItem>
-                {tenants.map((tenant) => (
-                  <SelectItem key={tenant.id} value={tenant.id}>
-                    {tenant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Categoria</Label>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Tutte" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte</SelectItem>
+                  {CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Tipo Media</Label>
+              <Select value={mediaTypeFilter} onValueChange={setMediaTypeFilter}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Tutti" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti</SelectItem>
+                  <SelectItem value="photo">Foto</SelectItem>
+                  <SelectItem value="video">Video</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Associazione</Label>
+              <Select value={tenantFilter} onValueChange={setTenantFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Tutte" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte</SelectItem>
+                  <SelectItem value="global">Solo Globali</SelectItem>
+                  {tenants.map((tenant) => (
+                    <SelectItem key={tenant.id} value={tenant.id}>
+                      {tenant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Torneo</Label>
+              <Select value={tournamentFilter} onValueChange={setTournamentFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Tutti" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti i tornei</SelectItem>
+                  {tournaments.map((tournament) => (
+                    <SelectItem key={tournament.id} value={tournament.id}>
+                      {tournament.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex gap-1">
               <Button
                 variant={viewMode === "grid" ? "default" : "outline"}
@@ -657,17 +764,38 @@ export default function SuperAdminMediaPage() {
                   key={item.id}
                   className="group relative rounded-lg overflow-hidden border bg-muted/50 hover:shadow-lg transition-shadow"
                 >
-                  <img
-                    src={item.path}
-                    alt={item.title}
-                    className="w-full h-32 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <Button size="icon" variant="secondary" onClick={() => openEditDialog(item)}>
-                      <Edit className="h-4 w-4" />
+                  {isVideoFile(item.filename) ? (
+                    <div className="relative w-full h-32 bg-black cursor-pointer" onClick={() => setViewingMedia(item)}>
+                      <video
+                        src={item.path}
+                        className="w-full h-32 object-cover"
+                        muted
+                        preload="metadata"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-black/50 rounded-full p-3">
+                          <Play className="h-6 w-6 text-white fill-white" />
+                        </div>
+                      </div>
+                      <Badge className="absolute top-2 left-2 bg-black/70 text-white text-xs">
+                        <Video className="h-3 w-3 mr-1" />
+                        Video
+                      </Badge>
+                    </div>
+                  ) : (
+                    <img
+                      src={item.path}
+                      alt={item.title}
+                      className="w-full h-32 object-cover cursor-pointer"
+                      onClick={() => setViewingMedia(item)}
+                    />
+                  )}
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <Button size="icon" variant="secondary" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEditDialog(item); }}>
+                      <Edit className="h-3 w-3" />
                     </Button>
-                    <Button size="icon" variant="destructive" onClick={() => setDeletingMedia(item)}>
-                      <Trash2 className="h-4 w-4" />
+                    <Button size="icon" variant="destructive" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDeletingMedia(item); }}>
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                   <div className="p-2">
@@ -699,11 +827,26 @@ export default function SuperAdminMediaPage() {
                   key={item.id}
                   className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                 >
-                  <img
-                    src={item.path}
-                    alt={item.title}
-                    className="w-16 h-16 object-cover rounded"
-                  />
+                  {isVideoFile(item.filename) ? (
+                    <div className="relative w-16 h-16 bg-black rounded cursor-pointer" onClick={() => setViewingMedia(item)}>
+                      <video
+                        src={item.path}
+                        className="w-16 h-16 object-cover rounded"
+                        muted
+                        preload="metadata"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Play className="h-4 w-4 text-white fill-white" />
+                      </div>
+                    </div>
+                  ) : (
+                    <img
+                      src={item.path}
+                      alt={item.title}
+                      className="w-16 h-16 object-cover rounded cursor-pointer"
+                      onClick={() => setViewingMedia(item)}
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium">{item.title}</p>
                     <p className="text-sm text-muted-foreground truncate">
@@ -879,49 +1022,44 @@ export default function SuperAdminMediaPage() {
       </AlertDialog>
 
 
-      {/* Media Viewer Dialog */}
-      <Dialog open={viewingMedia !== null} onOpenChange={() => setViewingMedia(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+      {/* View Media Dialog */}
+      <Dialog open={!!viewingMedia} onOpenChange={(open) => !open && setViewingMedia(null)}>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>{viewingMedia?.title}</DialogTitle>
-            <DialogDescription>
-              {viewingMedia?.description}
-            </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col items-center gap-4">
-            {viewingMedia && isVideoFile(viewingMedia.filename) ? (
-              <video
-                controls
-                autoPlay
-                className="w-full max-h-[60vh] rounded-lg"
-                src={viewingMedia.path}
-              >
-                Your browser does not support the video tag.
-              </video>
-            ) : viewingMedia ? (
-              <img
-                src={viewingMedia.path}
-                alt={viewingMedia.title}
-                className="w-full max-h-[60vh] object-contain rounded-lg"
-              />
-            ) : null}
-            {viewingMedia && !isVideoFile(viewingMedia.filename) && (
-              <Button
-                variant="outline"
-                onClick={() => window.open(viewingMedia.path, '_blank', 'noopener,noreferrer,width=1200,height=800')}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Apri in nuova finestra
-              </Button>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingMedia(null)}>
-              Chiudi
-            </Button>
-          </DialogFooter>
+          {viewingMedia && (
+            <div className="flex flex-col items-center">
+              {(viewingMedia.mimeType?.startsWith('video/') || isVideoFile(viewingMedia.filename)) ? (
+                <video
+                  src={viewingMedia.path}
+                  controls
+                  autoPlay
+                  playsInline
+                  width="100%"
+                  height="auto"
+                  className="rounded-lg bg-black"
+                  style={{ minWidth: '600px', minHeight: '400px', maxHeight: '70vh', display: 'block' }}
+                >
+                  Il tuo browser non supporta il tag video.
+                </video>
+              ) : (
+                <img
+                  src={viewingMedia.path}
+                  alt={viewingMedia.title}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg cursor-pointer"
+                  onClick={() => window.open(viewingMedia.path, '_blank', 'noopener,noreferrer')}
+                  title="Clicca per aprire in una nuova finestra"
+                />
+              )}
+              {viewingMedia.description && (
+                <p className="mt-4 text-muted-foreground text-center">{viewingMedia.description}</p>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
+
 
     </div>
   );

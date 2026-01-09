@@ -77,7 +77,7 @@ interface MediaItem {
 // Helper to check if file is video
 const isVideoFile = (filename: string): boolean => {
   const ext = filename.toLowerCase();
-  return ext.endsWith('.mp4') || ext.endsWith('.mov') || ext.endsWith('.webm') || ext.endsWith('.avi') || ext.endsWith('.mkv');
+  return ext.endsWith('.mp4') || ext.endsWith('.mov') || ext.endsWith('.webm') || ext.endsWith('.avi') || ext.endsWith('.mkv') || ext.endsWith('.mpg') || ext.endsWith('.mpeg');
 };
 
 interface Pagination {
@@ -149,6 +149,9 @@ export default function TenantAdminMediaPage() {
 
   // Delete dialog state
   const [deletingMedia, setDeletingMedia] = useState<MediaItem | null>(null);
+
+  // Preview/Viewer state
+  const [viewingMedia, setViewingMedia] = useState<MediaItem | null>(null);
 
   // Check if user is admin
   useEffect(() => {
@@ -282,7 +285,7 @@ export default function TenantAdminMediaPage() {
         fetchTenantMedia();
         setActiveTab("tenant"); // Switch to tenant tab to see new upload
       } else {
-        setUploadError(data.message || "Errore durante l'upload");
+        setUploadError(data.error ? `${data.message}: ${data.error}` : data.message || "Errore durante l'upload");
       }
     } catch (error) {
       setUploadError("Errore di connessione");
@@ -369,14 +372,16 @@ export default function TenantAdminMediaPage() {
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
       {items.map((item) => {
         const isVideo = isVideoFile(item.filename);
+        // Thumbnails are served from frontend public folder, not backend API
         const previewSrc = isVideo && item.thumbnailPath
-          ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}${item.thumbnailPath}`
+          ? item.thumbnailPath
           : item.path;
 
         return (
         <div
           key={item.id}
-          className="group relative rounded-lg overflow-hidden border bg-muted/50 hover:shadow-lg transition-shadow"
+          className="group relative rounded-lg overflow-hidden border bg-muted/50 hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => setViewingMedia(item)}
         >
           <div className="relative">
             <img
@@ -384,9 +389,11 @@ export default function TenantAdminMediaPage() {
               alt={item.title}
               className="w-full h-32 object-cover"
               onError={(e) => {
-                // Fallback if thumbnail fails
-                if (isVideo) {
-                  (e.target as HTMLImageElement).src = "/images/video-placeholder.png";
+                // Fallback if thumbnail fails - only once to prevent loop
+                const img = e.target as HTMLImageElement;
+                if (isVideo && !img.dataset.fallback) {
+                  img.dataset.fallback = "true";
+                  img.src = "/images/video-placeholder.svg";
                 }
               }}
             />
@@ -400,10 +407,10 @@ export default function TenantAdminMediaPage() {
           </div>
           {isEditable && (
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-              <Button size="icon" variant="secondary" onClick={() => openEditDialog(item)}>
+              <Button size="icon" variant="secondary" onClick={(e) => { e.stopPropagation(); openEditDialog(item); }}>
                 <Edit className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="destructive" onClick={() => setDeletingMedia(item)}>
+              <Button size="icon" variant="destructive" onClick={(e) => { e.stopPropagation(); setDeletingMedia(item); }}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -430,14 +437,16 @@ export default function TenantAdminMediaPage() {
     <div className="space-y-2">
       {items.map((item) => {
         const isVideo = isVideoFile(item.filename);
+        // Thumbnails are served from frontend public folder, not backend API
         const previewSrc = isVideo && item.thumbnailPath
-          ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}${item.thumbnailPath}`
+          ? item.thumbnailPath
           : item.path;
 
         return (
         <div
           key={item.id}
-          className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+          className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+          onClick={() => setViewingMedia(item)}
         >
           <div className="relative">
             <img
@@ -460,10 +469,10 @@ export default function TenantAdminMediaPage() {
           </div>
           {isEditable ? (
             <div className="flex gap-2">
-              <Button size="icon" variant="outline" onClick={() => openEditDialog(item)}>
+              <Button size="icon" variant="outline" onClick={(e) => { e.stopPropagation(); openEditDialog(item); }}>
                 <Edit className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="outline" onClick={() => setDeletingMedia(item)}>
+              <Button size="icon" variant="outline" onClick={(e) => { e.stopPropagation(); setDeletingMedia(item); }}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -926,6 +935,47 @@ export default function TenantAdminMediaPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Media Viewer Modal */}
+      <Dialog open={!!viewingMedia} onOpenChange={(open) => !open && setViewingMedia(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{viewingMedia?.title}</DialogTitle>
+            {viewingMedia?.description && (
+              <DialogDescription>{viewingMedia.description}</DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="flex items-center justify-center bg-black rounded-lg overflow-hidden">
+            {viewingMedia && isVideoFile(viewingMedia.filename) ? (
+              <video
+                src={viewingMedia.path}
+                controls
+                autoPlay
+                className="max-w-full max-h-[70vh]"
+              >
+                Il tuo browser non supporta il tag video.
+              </video>
+            ) : viewingMedia ? (
+              <img
+                src={viewingMedia.path}
+                alt={viewingMedia.title}
+                className="max-w-full max-h-[70vh] object-contain"
+              />
+            ) : null}
+          </div>
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{viewingMedia?.category}</Badge>
+              {viewingMedia?.tags && (
+                <span className="text-xs">{viewingMedia.tags}</span>
+              )}
+            </div>
+            {viewingMedia?.width && viewingMedia?.height && (
+              <span>{viewingMedia.width} x {viewingMedia.height}</span>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

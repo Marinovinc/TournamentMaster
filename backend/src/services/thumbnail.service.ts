@@ -12,10 +12,10 @@ import path from "path";
 import fs from "fs";
 
 // Estensioni video supportate
-const VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm", ".avi", ".mkv"];
+const VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm", ".avi", ".mkv", ".mpg", ".mpeg"];
 
-// Directory thumbnails
-const THUMBNAILS_DIR = path.join(process.cwd(), "public", "thumbnails");
+// Directory thumbnails - salva nella cartella public del frontend
+const THUMBNAILS_DIR = path.join(__dirname, "../../../frontend/public/thumbnails");
 
 // Assicurati che la directory thumbnails esista
 if (!fs.existsSync(THUMBNAILS_DIR)) {
@@ -209,10 +209,65 @@ export class ThumbnailService {
   /**
    * Elimina un thumbnail
    */
-  static deleteThumbnail(thumbnailPath: string): boolean {
+    /**
+   * Formati video supportati nativamente dai browser
+   */
+  static readonly BROWSER_COMPATIBLE_EXTENSIONS = [".mp4", ".webm"];
+
+  /**
+   * Verifica se un video è compatibile con i browser
+   */
+  static isBrowserCompatible(filename: string): boolean {
+    const ext = path.extname(filename).toLowerCase();
+    return this.BROWSER_COMPATIBLE_EXTENSIONS.includes(ext);
+  }
+
+  /**
+   * Converte un video in MP4 (H.264) per compatibilità browser
+   */
+  static async convertToMp4(
+    inputPath: string,
+    outputDir: string,
+    outputFilename: string
+  ): Promise<{ success: boolean; outputPath?: string; error?: string }> {
+    try {
+      const outputPath = path.join(outputDir, `${outputFilename}.mp4`);
+
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg(inputPath)
+          .outputOptions([
+            "-c:v libx264",
+            "-preset fast",
+            "-crf 23",
+            "-c:a aac",
+            "-b:a 128k",
+            "-movflags +faststart",
+          ])
+          .output(outputPath)
+          .on("start", () => console.log("Converting video to MP4..."))
+          .on("end", () => {
+            console.log("Video converted: " + outputPath);
+            resolve();
+          })
+          .on("error", (err) => reject(err))
+          .run();
+      });
+
+      if (!fs.existsSync(outputPath)) {
+        return { success: false, error: "Conversion failed" };
+      }
+
+      return { success: true, outputPath };
+    } catch (error) {
+      console.error("Error converting video:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Conversion failed" };
+    }
+  }
+
+static deleteThumbnail(thumbnailPath: string): boolean {
     try {
       const fullPath = thumbnailPath.startsWith("/")
-        ? path.join(process.cwd(), "public", thumbnailPath)
+        ? path.join(__dirname, "../../../frontend/public", thumbnailPath)
         : thumbnailPath;
 
       if (fs.existsSync(fullPath)) {

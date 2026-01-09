@@ -1,7 +1,7 @@
 // Root layout - required HTML structure for Next.js App Router
 // i18n specific providers are in [locale]/layout.tsx
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,11 +15,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#0ea5e9",
+};
+
 export const metadata: Metadata = {
   title: "TournamentMaster",
   description: "White-label SaaS platform for fishing tournament management",
   manifest: "/manifest.json",
-  themeColor: "#0ea5e9",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

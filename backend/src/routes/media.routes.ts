@@ -94,6 +94,8 @@ router.get("/categories", (req: Request, res: Response) => {
     success: true,
     data: CATEGORIES,
   });
+});
+
 /**
  * GET /api/media/tenants
  * Lista tenant disponibili (solo SuperAdmin)
@@ -109,15 +111,29 @@ router.get("/tenants", authenticate, async (req: AuthenticatedRequest, res: Resp
       });
     }
 
+    // Get only tenants that have media
     const tenants = await prisma.tenant.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, slug: true },
+      where: {
+        isActive: true,
+        bannerImages: { some: { isActive: true } },
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        _count: { select: { bannerImages: true } },
+      },
       orderBy: { name: "asc" },
     });
 
     res.json({
       success: true,
-      data: tenants,
+      data: tenants.map(t => ({
+        id: t.id,
+        name: t.name,
+        slug: t.slug,
+        mediaCount: t._count.bannerImages,
+      })),
     });
   } catch (error) {
     console.error("Error fetching tenants:", error);
@@ -128,7 +144,59 @@ router.get("/tenants", authenticate, async (req: AuthenticatedRequest, res: Resp
   }
 });
 
+/**
+ * GET /api/media/tournaments
+ * Lista tornei disponibili per filtro (solo SuperAdmin)
+ * Ritorna solo tornei che hanno almeno un media associato
+ */
+router.get("/tournaments", authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const user = req.user!;
+    const { tenantId } = req.query;
 
+    if (user.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: "Accesso non autorizzato",
+      });
+    }
+
+    const where: any = {
+      mediaLibrary: { some: { isActive: true } },
+    };
+    if (tenantId && tenantId !== "all") {
+      where.tenantId = tenantId;
+    }
+
+    const tournaments = await prisma.tournament.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        tenantId: true,
+        tenant: { select: { name: true } },
+        _count: { select: { mediaLibrary: true } },
+      },
+      orderBy: { startDate: "desc" },
+    });
+
+    res.json({
+      success: true,
+      data: tournaments.map(t => ({
+        id: t.id,
+        name: t.name,
+        tenantId: t.tenantId,
+        tenant: t.tenant,
+        mediaCount: t._count.mediaLibrary,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching tournaments:", error);
+    res.status(500).json({
+      success: false,
+      message: "Errore nel recupero dei tornei",
+    });
+  }
 });
 
 /**
@@ -139,7 +207,7 @@ router.get("/tenants", authenticate, async (req: AuthenticatedRequest, res: Resp
  */
 router.get("/", authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { category, search, page = "1", limit = "20", onlyGlobal, mediaType, tenantId } = req.query;
+    const { category, search, page = "1", limit = "20", onlyGlobal, mediaType, tenantId, tournamentId } = req.query;
     const user = req.user!;
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
@@ -161,6 +229,10 @@ router.get("/", authenticate, async (req: AuthenticatedRequest, res: Response) =
         where.tenantId = null;
       } else if (tenantId && tenantId !== "all") {
         where.tenantId = tenantId;
+      }
+      // Tournament filter
+      if (tournamentId && tournamentId !== "all") {
+        where.tournamentId = tournamentId;
       }
     }
 
@@ -202,6 +274,9 @@ router.get("/", authenticate, async (req: AuthenticatedRequest, res: Response) =
         include: {
           tenant: {
             select: { id: true, name: true, slug: true },
+          },
+          tournament: {
+            select: { id: true, name: true },
           },
           uploadedBy: {
             select: { id: true, firstName: true, lastName: true },
@@ -342,12 +417,48 @@ router.post(
       if (isVideo) {
         // Handle video upload
         const ext = path.extname(file.originalname).toLowerCase();
-        filename = `${Date.now()}-${path.parse(file.originalname).name}${ext}`;
-        outputPath = path.join(bannersDir, filename);
+        const baseName = `${Date.now()}-${path.parse(file.originalname).name}`;
+        const tempPath = path.join(bannersDir, `${baseName}${ext}`);
 
         // Move video file to destination
-        fs.copyFileSync(file.path, outputPath);
+        fs.copyFileSync(file.path, tempPath);
         fs.unlinkSync(file.path);
+
+        // Check if video needs conversion for browser compatibility
+        const needsConversion = !ThumbnailService.isBrowserCompatible(file.originalname);
+
+        if (needsConversion) {
+          console.log(`Video format ${ext} not browser-compatible, converting to MP4...`);
+          try {
+            const conversionResult = await ThumbnailService.convertToMp4(
+              tempPath,
+              bannersDir,
+              baseName
+            );
+
+            if (conversionResult.success && conversionResult.outputPath) {
+              // Use converted file
+              filename = `${baseName}.mp4`;
+              outputPath = conversionResult.outputPath;
+              // Remove original file
+              fs.unlinkSync(tempPath);
+              console.log(`Video converted successfully: ${filename}`);
+            } else {
+              // Conversion failed, keep original
+              console.warn("Video conversion failed, keeping original format:", conversionResult.error);
+              filename = `${baseName}${ext}`;
+              outputPath = tempPath;
+            }
+          } catch (convErr) {
+            console.warn("Video conversion error, keeping original format:", convErr);
+            filename = `${baseName}${ext}`;
+            outputPath = tempPath;
+          }
+        } else {
+          // Already browser-compatible
+          filename = `${baseName}${ext}`;
+          outputPath = tempPath;
+        }
 
         // Generate thumbnail (will fail gracefully if FFmpeg not installed)
         try {
@@ -431,6 +542,7 @@ router.post(
       res.status(500).json({
         success: false,
         message: "Errore nel caricamento del media",
+        error: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
       });
     }
   }

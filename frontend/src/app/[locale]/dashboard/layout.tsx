@@ -684,30 +684,7 @@ export default function DashboardLayout({
           </div>
         )}
 
-        {/* Tournament Mode Banner */}
-        {activeTournament && (
-          <div className="mx-3 mt-3 p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg">
-            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 mb-2">
-              <Trophy className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                {activeTournament.status === "COMPLETED" ? "Statistiche Torneo" : "Torneo Attivo"}
-              </span>
-            </div>
-            <p className="text-xs text-amber-600 dark:text-amber-400 mb-2 font-semibold">
-              {activeTournament.name}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-xs h-7 border-amber-300 text-amber-700 hover:bg-amber-100"
-              onClick={exitTournamentMode}
-            >
-              <LogOut className="h-3 w-3 mr-1" />
-              Chiudi torneo
-            </Button>
-          </div>
-        )}
-
+        
         <nav className="p-4 flex-1 overflow-y-auto" style={{ maxHeight: impersonatingTenant ? "calc(100vh - 300px)" : "calc(100vh - 180px)" }}>
           <Link
             href={`/${locale}/dashboard`}

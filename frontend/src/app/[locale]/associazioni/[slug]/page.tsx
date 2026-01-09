@@ -27,6 +27,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import UserDashboardSection from "@/components/association/UserDashboardSection";
 
 // API URL - for server-side rendering, prefer localhost or internal URL
 // NEXT_PUBLIC_API_URL may point to external IP not reachable from server
@@ -175,6 +176,13 @@ export default async function AssociationPage({
           <Home className="h-4 w-4" />
           Torna alla Home
         </Link>
+
+        {/* User Dashboard Section - FIRST for authenticated users */}
+        <UserDashboardSection
+          locale={locale}
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Column */}
@@ -457,6 +465,7 @@ export default async function AssociationPage({
             </Card>
           </div>
         </div>
+
       </div>
     </main>
   );

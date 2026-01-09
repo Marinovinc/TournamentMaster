@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="270" viewBox="0 0 480 270">
+  <rect fill="#1a1a2e" width="480" height="270"/>
+  <polygon fill="#ffffff" points="200,100 200,170 260,135" opacity="0.5"/>
+  <text x="240" y="200" text-anchor="middle" fill="#ffffff" font-family="Arial" font-size="14" opacity="0.5">Video</text>
+</svg>

@@ -18,6 +18,11 @@ import tenantRoutes from "./routes/tenant.routes";
 import reportsRoutes from "./routes/reports.routes";
 import cmsRoutes from "./routes/cms.routes";
 import mediaRoutes from "./routes/media.routes";
+import boatRoutes from "./routes/boat.routes";
+import equipmentRoutes from "./routes/equipment.routes";
+import skipperRoutes from "./routes/skipper.routes";
+import membershipRoutes from "./routes/membership.routes";
+import userMediaRoutes from "./routes/user-media.routes";
 
 // Create Express app
 const app: Application = express();
@@ -81,6 +86,11 @@ app.use("/api/tenants", tenantRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/cms", cmsRoutes);
 app.use("/api/media", mediaRoutes);
+app.use("/api/boats", boatRoutes);
+app.use("/api/equipment", equipmentRoutes);
+app.use("/api/skippers", skipperRoutes);
+app.use("/api/memberships", membershipRoutes);
+app.use("/api/user-media", userMediaRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

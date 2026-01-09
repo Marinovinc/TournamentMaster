@@ -33,6 +33,7 @@ export interface User {
   lastName: string;
   role: UserRole;
   tenantId?: string;
+  tenantSlug?: string;
   tenantName?: string;
 }
 

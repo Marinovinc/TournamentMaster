@@ -1,15 +1,6 @@
 @echo off
-echo ========================================
-echo   Stopping TournamentMaster Backend
-echo ========================================
-echo.
-
-:: Kill node processes on port 3001
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":3001" ^| findstr "LISTENING"') do (
-    echo Killing process PID: %%a
-    taskkill /F /PID %%a 2>nul
-)
-
-echo.
+echo Stopping TournamentMaster Backend...
+taskkill /F /FI "WINDOWTITLE eq TournamentMaster-Backend" >nul 2>&1
+taskkill /F /IM node.exe >nul 2>&1
 echo Backend stopped.
 timeout /t 2

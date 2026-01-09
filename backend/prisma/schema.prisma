@@ -51,6 +51,7 @@ model Tenant {
   users         User[]
   tournaments   Tournament[]
   bannerImages  BannerImage[]
+  memberships   Membership[]
 
   @@map("tenants")
 }
@@ -109,6 +110,13 @@ model User {
   tournamentStaff     TournamentStaff[]
   uploadedImages      BannerImage[] @relation("UploadedImages")
 
+  // NEW: Personal boats, equipment, skipper profile, memberships, media
+  boats               Boat[]
+  equipment           Equipment[]
+  skipperProfile      SkipperProfile?
+  memberships         Membership[]
+  media               UserMedia[]
+
   @@index([email])
   @@index([tenantId])
   @@map("users")
@@ -137,6 +145,72 @@ enum DocumentType {
   MEDICAL_CERTIFICATE
   NAUTICAL_LICENSE
   IDENTITY_DOCUMENT
+  TESSERA_ASSOCIATIVA   // Tessera associazione
+  TESSERA_FIPSAS        // Tessera FIPSAS
+  MIPAF                 // Licenza pesca MIPAF
+  ASSICURAZIONE         // Polizza assicurativa
+  OTHER
+}
+
+// ================================
+// BOATS & EQUIPMENT ENUMS
+// ================================
+
+enum BoatType {
+  FISHING_BOAT      // Peschereccio
+  SAILING_YACHT     // Yacht a vela
+  MOTOR_YACHT       // Yacht a motore
+  RIB               // Gommone
+  CENTER_CONSOLE    // Open
+  CABIN_CRUISER     // Cabinato
+  SPORT_FISHING     // Sportivo da pesca
+  OTHER
+}
+
+enum EngineType {
+  OUTBOARD          // Fuoribordo
+  INBOARD           // Entrobordo
+  STERN_DRIVE       // Entrofuoribordo
+  SAIL              // Vela
+  HYBRID
+  NONE
+}
+
+enum EquipmentType {
+  ROD               // Canna
+  REEL              // Mulinello
+  TACKLE_BOX        // Cassetta
+  FISHING_LINE      // Lenza
+  LURE              // Esca artificiale
+  HOOK              // Amo
+  NET               // Rete
+  GAFF              // Raffio
+  ELECTRONICS       // GPS, ecoscandaglio
+  SAFETY_GEAR       // Sicurezza
+  CLOTHING          // Abbigliamento
+  OTHER
+}
+
+enum EquipmentCondition {
+  NEW
+  EXCELLENT
+  GOOD
+  FAIR
+  NEEDS_REPAIR
+}
+
+enum BoatLicenseType {
+  NONE
+  ENTRO_12_MIGLIA   // Patente entro 12 miglia
+  SENZA_LIMITI      // Patente senza limiti
+  SHIP_MASTER       // Comandante
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  PENDING
+  SUSPENDED
 }
 
 enum DocumentStatus {
@@ -254,6 +328,8 @@ model Tournament {
   teams               Team[]
   strikes             Strike[]
   staff               TournamentStaff[]
+  mediaLibrary        BannerImage[]
+  userMedia           UserMedia[]
 
   @@index([tenantId])
   @@index([status])
@@ -816,6 +892,10 @@ model BannerImage {
   uploadedById String?                          // Who uploaded this image
   uploadedBy   User?   @relation("UploadedImages", fields: [uploadedById], references: [id])
 
+  // Tournament association (optional)
+  tournamentId String?                          // null = not tournament-specific
+  tournament   Tournament? @relation(fields: [tournamentId], references: [id])
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -823,5 +903,232 @@ model BannerImage {
   @@index([tags])
   @@index([source])
   @@index([tenantId])
+  @@index([tournamentId])
   @@map("banner_images")
+}
+
+// ================================
+// BOAT (Personal Boats)
+// ================================
+
+model Boat {
+  id              String     @id @default(uuid())
+  name            String     @db.VarChar(255)
+  type            BoatType   @default(OTHER)
+  lengthMeters    Decimal    @db.Decimal(5, 2)
+  beamMeters      Decimal?   @db.Decimal(4, 2)
+  photo           String?    @db.VarChar(500)
+
+  // Dettagli
+  homePort        String?    @db.VarChar(255)
+  seats           Int?       @default(4)
+  year            Int?
+  make            String?    @db.VarChar(100)
+  model           String?    @db.VarChar(100)
+
+  // Motore
+  engineType      EngineType @default(OUTBOARD)
+  enginePower     Int?
+  engineMake      String?    @db.VarChar(100)
+
+  // Documenti barca
+  registrationNumber String? @db.VarChar(100)
+  flagState       String?    @db.VarChar(50)
+  insuranceExpiry DateTime?
+  revisionExpiry  DateTime?
+
+  // Disponibilita
+  isAvailableForRaces Boolean @default(true)
+  availabilityNotes   String? @db.VarChar(500)
+
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userMedia       UserMedia[]
+
+  @@index([userId])
+  @@index([type])
+  @@index([isAvailableForRaces])
+  @@map("boats")
+}
+
+// ================================
+// EQUIPMENT (Attrezzature)
+// ================================
+
+model Equipment {
+  id              String             @id @default(uuid())
+  name            String             @db.VarChar(255)
+  type            EquipmentType      @default(OTHER)
+  brand           String?            @db.VarChar(100)
+  model           String?            @db.VarChar(100)
+  quantity        Int                @default(1)
+  condition       EquipmentCondition @default(GOOD)
+  description     String?            @db.Text
+  purchaseDate    DateTime?
+  purchasePrice   Decimal?           @db.Decimal(10, 2)
+  photo           String?            @db.VarChar(500)
+
+  isActive        Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userMedia       UserMedia[]
+
+  @@index([userId])
+  @@index([type])
+  @@map("equipment")
+}
+
+// ================================
+// SKIPPER PROFILE
+// ================================
+
+model SkipperProfile {
+  id                  String          @id @default(uuid())
+  isAvailable         Boolean         @default(false)
+
+  // Patente
+  licenseType         BoatLicenseType @default(NONE)
+  licenseNumber       String?         @db.VarChar(50)
+  licenseExpiry       DateTime?
+  yearsOfExperience   Int             @default(0)
+
+  // Capacita
+  canOperateTypes     String?         @db.VarChar(500)  // JSON array
+  maxBoatLength       Decimal?        @db.Decimal(5, 2)
+  specializations     String?         @db.VarChar(500)  // JSON array
+
+  // Servizio
+  hourlyRate          Decimal?        @db.Decimal(10, 2)
+  availabilityNotes   String?         @db.Text
+  serviceArea         String?         @db.VarChar(255)
+
+  isVerified          Boolean         @default(false)
+  verifiedAt          DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  userId              String          @unique
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("skipper_profiles")
+}
+
+// ================================
+// MEMBERSHIP (Tessera Associativa)
+// ================================
+
+model Membership {
+  id              String           @id @default(uuid())
+
+  // Tessera
+  cardNumber      String?          @db.VarChar(50)
+  memberSince     DateTime         @default(now())
+  validFrom       DateTime
+  validUntil      DateTime
+  status          MembershipStatus @default(ACTIVE)
+
+  // Quota
+  feePaid         Decimal?         @db.Decimal(10, 2)
+  feeYear         Int?
+  paymentDate     DateTime?
+  paymentMethod   String?          @db.VarChar(50)
+
+  notes           String?          @db.Text
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("memberships")
+}
+
+// ================================
+// USER MEDIA (Foto e Video Utente)
+// ================================
+
+enum UserMediaType {
+  PHOTO
+  VIDEO
+}
+
+enum UserMediaCategory {
+  FISHING_ACTIVITY   // Attivita di pesca
+  TOURNAMENT         // Tornei
+  RACE               // Gare
+  BOAT               // Barca
+  EQUIPMENT          // Attrezzature
+  CATCH              // Catture
+  LANDSCAPE          // Paesaggi/Mare
+  TEAM               // Squadra/Equipaggio
+  OTHER
+}
+
+model UserMedia {
+  id              String            @id @default(uuid())
+
+  // File info
+  type            UserMediaType
+  category        UserMediaCategory @default(OTHER)
+  filename        String            @db.VarChar(255)
+  path            String            @db.VarChar(500)
+  mimeType        String            @db.VarChar(100)
+  fileSize        Int               // bytes
+
+  // Metadata
+  title           String?           @db.VarChar(255)
+  description     String?           @db.Text
+  tags            String?           @db.VarChar(500)  // Comma-separated
+
+  // Image/Video dimensions
+  width           Int?
+  height          Int?
+  duration        Int?              // Video duration in seconds
+  thumbnailPath   String?           @db.VarChar(500)
+
+  // Location (optional)
+  latitude        Decimal?          @db.Decimal(10, 8)
+  longitude       Decimal?          @db.Decimal(11, 8)
+  locationName    String?           @db.VarChar(255)
+
+  // Date of the activity (not upload date)
+  takenAt         DateTime?
+
+  // Privacy
+  isPublic        Boolean           @default(false)
+
+  // References (optional)
+  boatId          String?
+  boat            Boat?             @relation(fields: [boatId], references: [id], onDelete: SetNull)
+  equipmentId     String?
+  equipment       Equipment?        @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  tournamentId    String?
+  tournament      Tournament?       @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
+
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([isPublic])
+  @@index([takenAt])
+  @@map("user_media")
 }

@@ -182,9 +182,14 @@ export class AuthService {
    * Login user
    */
   static async login(email: string, password: string) {
-    // Find user
+    // Find user with tenant info
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        tenant: {
+          select: { id: true, name: true, slug: true },
+        },
+      },
     });
 
     if (!user) {
@@ -227,6 +232,8 @@ export class AuthService {
         role: user.role,
         avatar: user.avatar,
         tenantId: user.tenantId,
+        tenantSlug: user.tenant?.slug || null,
+        tenantName: user.tenant?.name || null,
       },
       accessToken,
       refreshToken,

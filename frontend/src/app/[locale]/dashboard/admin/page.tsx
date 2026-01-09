@@ -72,6 +72,12 @@ import {
 } from "lucide-react";
 
 // Types
+interface Tenant {
+  id: string;
+  name: string;
+  slug?: string;
+}
+
 interface Tournament {
   id: string;
   name: string;
@@ -87,6 +93,8 @@ interface Tournament {
   registrationFee?: number;
   participantCount?: number;
   bannerImage?: string;
+  tenantId?: string;
+  tenant?: Tenant;
 }
 
 interface AdminStats {
@@ -180,9 +188,11 @@ export default function AdminDashboardPage() {
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [tenantFilter, setTenantFilter] = useState<string>("ALL");
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -219,10 +229,15 @@ export default function AdminDashboardPage() {
       }
 
       try {
-        // Fetch tournaments
-        const tournamentsRes = await fetch(`${API_URL}/api/tournaments`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // Fetch tournaments and tenants in parallel
+        const [tournamentsRes, tenantsRes] = await Promise.all([
+          fetch(`${API_URL}/api/tournaments`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_URL}/api/tenants`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
         if (tournamentsRes.ok) {
           const tournamentsData = await tournamentsRes.json();
@@ -230,6 +245,11 @@ export default function AdminDashboardPage() {
         } else {
           // Use demo data on API failure
           setTournaments(DEMO_TOURNAMENTS);
+        }
+
+        if (tenantsRes.ok) {
+          const tenantsData = await tenantsRes.json();
+          setTenants(tenantsData.data || []);
         }
 
         // For stats, use demo data for now
@@ -291,7 +311,8 @@ export default function AdminDashboardPage() {
     const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           t.location.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "ALL" || t.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesTenant = tenantFilter === "ALL" || t.tenantId === tenantFilter || t.tenant?.id === tenantFilter;
+    return matchesSearch && matchesStatus && matchesTenant;
   });
 
   // Handle create tournament
@@ -659,6 +680,21 @@ export default function AdminDashboardPage() {
                   <SelectItem value="CANCELLED">Annullato</SelectItem>
                 </SelectContent>
               </Select>
+              {tenants.length > 0 && (
+                <Select value={tenantFilter} onValueChange={setTenantFilter}>
+                  <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Filtra per associazione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Tutte le associazioni</SelectItem>
+                    {tenants.map((tenant) => (
+                      <SelectItem key={tenant.id} value={tenant.id}>
+                        {tenant.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -668,6 +704,7 @@ export default function AdminDashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Torneo</TableHead>
+                  <TableHead>Associazione</TableHead>
                   <TableHead>Disciplina</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Partecipanti</TableHead>
@@ -678,7 +715,7 @@ export default function AdminDashboardPage() {
               <TableBody>
                 {filteredTournaments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <Trophy className="h-8 w-8" />
                         <p>Nessun torneo trovato</p>
@@ -704,6 +741,11 @@ export default function AdminDashboardPage() {
                             {tournament.location}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">
+                          {tournament.tenant?.name || "-"}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{tournament.discipline}</Badge>

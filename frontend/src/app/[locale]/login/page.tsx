@@ -26,7 +26,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Fish, Mail, Lock, LogIn, AlertCircle, Home } from "lucide-react";
+import { Fish, Mail, Lock, LogIn, AlertCircle, Home, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { HelpGuide } from "@/components/HelpGuide";
 
@@ -38,17 +38,18 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
-      redirectToDashboard(user.role);
+      redirectToDashboard(user.role, user.tenantSlug);
     }
   }, [authLoading, isAuthenticated, user]);
 
-  const redirectToDashboard = (role: string) => {
+  const redirectToDashboard = (role: string, tenantSlug?: string | null) => {
     switch (role) {
       case "SUPER_ADMIN":
       case "TENANT_ADMIN":
@@ -59,7 +60,12 @@ export default function LoginPage() {
         router.push(`/${locale}/dashboard/judge`);
         break;
       default:
-        router.push(`/${locale}/dashboard`);
+        // PARTICIPANT: redirect to tenant page if they belong to one
+        if (tenantSlug) {
+          router.push(`/${locale}/associazioni/${tenantSlug}`);
+        } else {
+          router.push(`/${locale}/dashboard`);
+        }
     }
   };
 
@@ -75,7 +81,7 @@ export default function LoginPage() {
       const userStr = localStorage.getItem("user");
       if (userStr) {
         const user = JSON.parse(userStr);
-        redirectToDashboard(user.role);
+        redirectToDashboard(user.role, user.tenantSlug);
       }
     } else {
       setError(result.error || "Errore durante il login");
@@ -151,13 +157,21 @@ export default function LoginPage() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className="pl-10"
+                  className="pl-10 pr-10"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 

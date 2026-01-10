@@ -137,6 +137,97 @@ export class PDFService {
   }
 
   /**
+   * Genera PDF Assegnazioni Giudici PUBBLICO (senza autenticazione)
+   * Recupera il tenant direttamente dal torneo
+   */
+  static async generatePublicJudgeAssignmentsPDF(
+    tournamentId: string
+  ): Promise<Buffer> {
+    // Recupera torneo senza filtro tenant
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        tenant: {
+          select: { id: true, name: true, logo: true, primaryColor: true },
+        },
+        organizer: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+    });
+
+    if (!tournament) {
+      throw new Error("Torneo non trovato");
+    }
+
+    // Recupera team con ispettori assegnati
+    const teams = await prisma.team.findMany({
+      where: { tournamentId },
+      include: {
+        captain: {
+          select: { firstName: true, lastName: true, phone: true },
+        },
+      },
+      orderBy: { boatNumber: "asc" },
+    });
+
+    // Recupera staff giudici del torneo
+    const judges = await prisma.tournamentStaff.findMany({
+      where: {
+        tournamentId,
+        role: { in: [TournamentStaffRole.JUDGE, TournamentStaffRole.INSPECTOR] },
+      },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            phone: true,
+            tenant: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    // Costruisci lista assegnazioni
+    const assignments: JudgeAssignment[] = teams.map((team) => {
+      const assignedJudge = team.inspectorId
+        ? judges.find((j) => j.userId === team.inspectorId)
+        : null;
+
+      return {
+        judgeName: team.inspectorName ||
+          (assignedJudge ? `${assignedJudge.user.firstName} ${assignedJudge.user.lastName}` : "Da assegnare"),
+        judgePhone: assignedJudge?.user.phone || null,
+        judgeClub: team.inspectorClub || assignedJudge?.user.tenant?.name || null,
+        teamName: team.name,
+        boatName: team.boatName,
+        boatNumber: team.boatNumber,
+        captainName: `${team.captain.firstName} ${team.captain.lastName}`,
+        captainPhone: team.captain.phone,
+        teamClub: team.clubName,
+      };
+    });
+
+    // Genera PDF
+    return this.buildJudgeAssignmentsPDF(
+      {
+        id: tournament.id,
+        name: tournament.name,
+        discipline: tournament.discipline,
+        location: tournament.location,
+        startDate: tournament.startDate,
+        endDate: tournament.endDate,
+        tenantName: tournament.tenant.name,
+        tenantLogo: tournament.tenant.logo,
+      },
+      assignments,
+      `${tournament.organizer.firstName} ${tournament.organizer.lastName}`,
+      tournament.tenant.primaryColor || "#0066CC"
+    );
+  }
+
+  /**
    * Costruisce il documento PDF
    */
   private static buildJudgeAssignmentsPDF(

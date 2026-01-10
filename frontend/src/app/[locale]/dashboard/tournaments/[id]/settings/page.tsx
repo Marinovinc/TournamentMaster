@@ -292,15 +292,15 @@ export default function TournamentSettingsPage() {
               <Table className="h-4 w-4 mr-2" />
               Classifica CSV
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => downloadWithAuth(
-                `${API_URL}/api/reports/export/pdf/judge-assignments/${tournamentId}`,
-                `ispettori-${tournamentId}.pdf`
-              )}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Assegnazioni Ispettori PDF
+            <Button variant="outline" asChild>
+              <a
+                href={`${API_URL}/api/reports/public/pdf/judge-assignments/${tournamentId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Assegnazioni Ispettori PDF
+              </a>
             </Button>
           </div>
         </CardContent>

@@ -221,15 +221,15 @@ export default function JudgesManagementPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => downloadWithAuth(
-              `${API_URL}/api/reports/export/pdf/judge-assignments/${tournamentId}`,
-              `ispettori-${tournamentId}.pdf`
-            )}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Scarica PDF
+          <Button variant="outline" asChild>
+            <a
+              href={`${API_URL}/api/reports/public/pdf/judge-assignments/${tournamentId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Visualizza PDF
+            </a>
           </Button>
         </div>
       </div>

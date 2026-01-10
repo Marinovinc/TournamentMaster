@@ -502,4 +502,30 @@ router.get(
   }
 );
 
+
+/**
+ * GET /api/reports/public/pdf/judge-assignments/:tournamentId
+ * PDF Assegnazioni Giudici Pubblico (senza autenticazione)
+ */
+router.get(
+  "/public/pdf/judge-assignments/:tournamentId",
+  param("tournamentId").notEmpty(),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const pdfBuffer = await PDFService.generatePublicJudgeAssignmentsPDF(
+        req.params.tournamentId
+      );
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "inline");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.send(pdfBuffer);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate PDF";
+      const statusCode = message.includes("non trovato") ? 404 : 500;
+      res.status(statusCode).json({ success: false, message });
+    }
+  }
+);
+
 export default router;

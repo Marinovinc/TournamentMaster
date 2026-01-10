@@ -798,20 +798,32 @@ export class PDFService {
     const headerHeight = 24;
     let currentY = doc.y;
 
-    // Header
-    doc.fillColor(primaryColor).rect(startX, currentY, pageWidth, headerHeight).fill();
-    doc.fillColor("#FFFFFF").fontSize(9).font("Helvetica-Bold");
-    let xPos = startX + 5;
-    columns.forEach((col) => {
-      doc.text(col.header, xPos, currentY + 7, { width: col.width - 10, align: "center" });
-      xPos += col.width;
-    });
-    currentY += headerHeight;
+    // Funzione per disegnare header tabella catture
+    const drawTableHeader = () => {
+      doc.fillColor(primaryColor).rect(startX, currentY, pageWidth, headerHeight).fill();
+      doc.fillColor("#FFFFFF").fontSize(9).font("Helvetica-Bold");
+      let xPos = startX + 5;
+      columns.forEach((col) => {
+        doc.text(col.header, xPos, currentY + 7, { width: col.width - 10, align: "center", lineBreak: false });
+        xPos += col.width;
+      });
+      currentY += headerHeight;
+      doc.font("Helvetica").fontSize(9);
+    };
 
-    doc.font("Helvetica").fontSize(9);
-    const displayCatches = catches.slice(0, 30);
+    // Header iniziale
+    drawTableHeader();
 
-    displayCatches.forEach((c, index) => {
+    // Mostra TUTTE le catture con paginazione corretta
+    catches.forEach((c, index) => {
+      // Controlla se serve nuova pagina PRIMA di disegnare
+      if (currentY + rowHeight > doc.page.height - doc.page.margins.bottom - 60) {
+        doc.addPage();
+        currentY = doc.page.margins.top;
+        drawTableHeader();
+      }
+
+      // Sfondo podio/alternato
       if (index === 0) doc.fillColor("#FFD700").rect(startX, currentY, pageWidth, rowHeight).fill();
       else if (index === 1) doc.fillColor("#C0C0C0").rect(startX, currentY, pageWidth, rowHeight).fill();
       else if (index === 2) doc.fillColor("#CD7F32").rect(startX, currentY, pageWidth, rowHeight).fill();
@@ -819,10 +831,18 @@ export class PDFService {
 
       doc.strokeColor("#DEE2E6").lineWidth(0.5).rect(startX, currentY, pageWidth, rowHeight).stroke();
       doc.fillColor("#000000");
-      xPos = startX + 5;
+      let xPos = startX + 5;
 
       const catchTime = c.caughtAt.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
-      const rowData = [c.rank.toString(), c.teamName, c.speciesName, c.weight.toFixed(3), c.length ? c.length.toFixed(1) : "-", catchTime, c.points.toFixed(0)];
+      const rowData = [
+        (index + 1).toString(),
+        (c.teamName || "N/A").slice(0, 25),
+        (c.speciesName || "N/A").slice(0, 20),
+        c.weight.toFixed(3),
+        c.length ? c.length.toFixed(1) : "-",
+        catchTime,
+        c.points.toFixed(0)
+      ];
 
       rowData.forEach((data, colIndex) => {
         doc.text(data, xPos, currentY + 5, { width: columns[colIndex].width - 10, align: "center", lineBreak: false });
@@ -831,10 +851,8 @@ export class PDFService {
       currentY += rowHeight;
     });
 
-    if (catches.length > 30) {
-      doc.moveDown(0.5);
-      doc.fontSize(9).fillColor("#666666").text(`... e altre ${catches.length - 30} catture`, { align: "center" });
-    }
+    // Sync doc.y per elementi successivi
+    doc.y = currentY;
   }
 
   private static drawLeaderboardFooter(doc: PDFKit.PDFDocument, organizerName: string, tournament: TournamentPDFData): void {

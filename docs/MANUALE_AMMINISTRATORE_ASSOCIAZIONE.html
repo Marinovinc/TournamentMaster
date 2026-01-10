@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manuale Amministratore Associazione - TournamentMaster</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --card-bg: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--bg);
+            padding: 0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header .subtitle {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header .version {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            opacity: 0.7;
+            position: relative;
+            z-index: 1;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .toc {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .toc h2 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .toc ol {
+            list-style-position: inside;
+            padding-left: 0;
+        }
+
+        .toc li {
+            padding: 0.5rem 0;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .toc li:last-child {
+            border-bottom: none;
+        }
+
+        .toc a {
+            color: var(--text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover {
+            color: var(--primary);
+        }
+
+        .section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: var(--primary);
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--primary);
+        }
+
+        h3 {
+            color: var(--text);
+            font-size: 1.25rem;
+            margin: 1.5rem 0 1rem;
+        }
+
+        h4 {
+            color: var(--secondary);
+            font-size: 1rem;
+            margin: 1rem 0 0.5rem;
+            font-weight: 600;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        ol, ul {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        strong {
+            color: var(--text);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover {
+            background: var(--bg);
+        }
+
+        .path {
+            background: #f1f5f9;
+            border-left: 4px solid var(--primary);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .state-flow {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            font-family: 'Consolas', monospace;
+            font-size: 1rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+
+        .checklist {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .checklist li {
+            padding: 0.5rem 0 0.5rem 2rem;
+            position: relative;
+        }
+
+        .checklist li::before {
+            content: '\\2610';
+            position: absolute;
+            left: 0;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+
+        .formula {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Consolas', monospace;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .example {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 0.5rem 0;
+        }
+
+        .problem-solution {
+            background: #fef2f2;
+            border-left: 4px solid var(--danger);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .problem-solution.solution {
+            background: #ecfdf5;
+            border-left-color: var(--success);
+        }
+
+        .faq-item {
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+        }
+
+        .faq-item:last-child {
+            border-bottom: none;
+        }
+
+        .faq-item strong {
+            color: var(--primary);
+        }
+
+        .contact-box {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .contact-box h3 {
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .glossary-table td:first-child {
+            font-weight: 600;
+            color: var(--primary);
+            width: 30%;
+        }
+
+        .screenshot {
+            width: 100%;
+            max-width: 800px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .screenshot-container {
+            text-align: center;
+            margin: 1.5rem 0;
+        }
+
+        .screenshot-caption {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            .header {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .section {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid var(--border);
+            }
+            .no-print {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.75rem;
+            }
+            .container {
+                padding: 1rem;
+            }
+            .section {
+                padding: 1.5rem;
+            }
+            table {
+                font-size: 0.85rem;
+            }
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Manuale Amministratore Associazione</h1>
+        <p class="subtitle">TournamentMaster - Guida Operativa Completa</p>
+        <p class="version">Versione 1.0.0 | Data: 2026-01-10 | Destinatari: Amministratori di Associazioni di Pesca Sportiva</p>
+    </div>
+
+    <div class="container">
+        <!-- Indice -->
+        <div class="toc">
+            <h2>Indice</h2>
+            <ol>
+                <li><a href="#primo-accesso">Primo Accesso</a></li>
+                <li><a href="#dashboard">La Tua Dashboard</a></li>
+                <li><a href="#gestione-tornei">Gestione Tornei</a></li>
+                <li><a href="#gestione-partecipanti">Gestione Partecipanti</a></li>
+                <li><a href="#gestione-giudici">Gestione Giudici e Staff</a></li>
+                <li><a href="#validazione-catture">Validazione Catture</a></li>
+                <li><a href="#classifiche">Classifiche e Punteggi</a></li>
+                <li><a href="#import-export">Import/Export Dati</a></li>
+                <li><a href="#archivio">Archivio e Statistiche</a></li>
+                <li><a href="#impostazioni">Impostazioni Associazione</a></li>
+                <li><a href="#problemi">Risoluzione Problemi</a></li>
+                <li><a href="#faq">Domande Frequenti</a></li>
+            </ol>
+        </div>
+
+        <!-- Sezione 1: Primo Accesso -->
+        <div class="section" id="primo-accesso">
+            <h2>1. Primo Accesso</h2>
+
+            <h3>1.1 Accedere alla Piattaforma</h3>
+            <ol>
+                <li>Apri il browser e vai all'indirizzo della piattaforma</li>
+                <li>Clicca su <strong>"Accedi"</strong> in alto a destra</li>
+                <li>Inserisci:
+                    <ul>
+                        <li><strong>Email</strong>: l'indirizzo email fornito dal Super Admin</li>
+                        <li><strong>Password</strong>: la password temporanea ricevuta via email</li>
+                    </ul>
+                </li>
+                <li>Clicca <strong>"Accedi"</strong></li>
+            </ol>
+
+            <h3>1.2 Primo Accesso - Cambio Password</h3>
+            <p>Al primo accesso ti verra chiesto di:</p>
+            <ol>
+                <li>Cambiare la password temporanea</li>
+                <li>Completare il profilo (nome, telefono, foto)</li>
+                <li>Accettare i termini di servizio</li>
+            </ol>
+
+            <h3>1.3 Recupero Password</h3>
+            <p>Se hai dimenticato la password:</p>
+            <ol>
+                <li>Clicca <strong>"Password dimenticata?"</strong> nella pagina di login</li>
+                <li>Inserisci la tua email</li>
+                <li>Controlla la casella email (anche spam)</li>
+                <li>Clicca il link ricevuto e imposta una nuova password</li>
+            </ol>
+
+            <div class="screenshot-container">
+                <img src="screenshots/01_login.png" alt="Pagina di Login" class="screenshot">
+                <p class="screenshot-caption">Figura 1.1 - Pagina di Login</p>
+            </div>
+        </div>
+
+        <!-- Sezione 2: Dashboard -->
+        <div class="section" id="dashboard">
+            <h2>2. La Tua Dashboard</h2>
+            <p>Dopo il login, vedrai la <strong>Dashboard Amministratore</strong> con:</p>
+
+            <h3>2.1 Panoramica Rapida</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sezione</th>
+                        <th>Cosa Mostra</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>Tornei Attivi</strong></td><td>Numero di tornei in corso</td></tr>
+                    <tr><td><strong>Iscrizioni Pendenti</strong></td><td>Iscrizioni in attesa di approvazione</td></tr>
+                    <tr><td><strong>Catture da Validare</strong></td><td>Catture in attesa di verifica</td></tr>
+                    <tr><td><strong>Partecipanti Totali</strong></td><td>Numero utenti registrati</td></tr>
+                </tbody>
+            </table>
+
+            <h3>2.2 Menu Principale</h3>
+            <p>Il menu laterale ti permette di accedere a:</p>
+            <ul>
+                <li><strong>Dashboard</strong> - Panoramica generale</li>
+                <li><strong>Tornei</strong> - Gestione completa tornei</li>
+                <li><strong>Utenti</strong> - Gestione partecipanti e staff</li>
+                <li><strong>Squadre</strong> - Visualizza team registrati</li>
+                <li><strong>Report</strong> - Statistiche e analisi</li>
+                <li><strong>Archivio</strong> - Storico tornei passati</li>
+                <li><strong>Impostazioni</strong> - Configurazione associazione</li>
+            </ul>
+
+            <div class="screenshot-container">
+                <img src="screenshots/02_dashboard.png" alt="Dashboard Amministratore" class="screenshot">
+                <p class="screenshot-caption">Figura 2.1 - Dashboard Amministratore</p>
+            </div>
+        </div>
+
+        <!-- Sezione 3: Gestione Tornei -->
+        <div class="section" id="gestione-tornei">
+            <h2>3. Gestione Tornei</h2>
+
+            <h3>3.1 Creare un Nuovo Torneo</h3>
+            <div class="path">Dashboard &rarr; Tornei &rarr; <strong>+ Nuovo Torneo</strong></div>
+
+            <h4>Step 1: Informazioni Base</h4>
+            <ul>
+                <li><strong>Nome Torneo</strong>: Es. "Campionato Sociale 2026"</li>
+                <li><strong>Descrizione</strong>: Breve descrizione della gara</li>
+                <li><strong>Disciplina</strong>: Seleziona tra: Drifting, Big Game, Traina, Bolentino, Spinning, Shore, Vertical Jigging, Eging, Carpfishing, ecc.</li>
+                <li><strong>Livello</strong>: Club, Provinciale, Regionale, Nazionale</li>
+            </ul>
+
+            <h4>Step 2: Date e Orari</h4>
+            <ul>
+                <li><strong>Data Inizio</strong>: Quando inizia la gara</li>
+                <li><strong>Data Fine</strong>: Quando termina (opzionale per gare di un giorno)</li>
+                <li><strong>Apertura Iscrizioni</strong>: Da quando si possono iscrivere</li>
+                <li><strong>Chiusura Iscrizioni</strong>: Deadline per iscriversi</li>
+                <li><strong>Orario Partenza</strong>: Ora di inizio gara</li>
+                <li><strong>Orario Rientro</strong>: Ora massima di rientro</li>
+            </ul>
+
+            <h4>Step 3: Location e Zone</h4>
+            <ul>
+                <li><strong>Localita</strong>: Dove si svolge (es. "Porto di Ischia")</li>
+                <li><strong>Zone di Pesca</strong>: Definisci le aree valide per pescare
+                    <ul>
+                        <li>Clicca sulla mappa per disegnare il poligono</li>
+                        <li>Oppure carica un file GeoJSON</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h4>Step 4: Quote e Limiti</h4>
+            <ul>
+                <li><strong>Quota Iscrizione</strong>: Importo in Euro (0 = gratuito)</li>
+                <li><strong>Max Partecipanti</strong>: Limite massimo iscritti</li>
+                <li><strong>Min Partecipanti</strong>: Minimo per confermare la gara</li>
+                <li><strong>Max Membri per Squadra</strong>: Da 1 a 6</li>
+            </ul>
+
+            <h4>Step 5: Regolamento</h4>
+            <ul>
+                <li><strong>Peso Minimo Cattura</strong>: Peso minimo per validita (kg)</li>
+                <li><strong>Max Catture per Giorno</strong>: Limite catture (0 = illimitato)</li>
+                <li><strong>Specie Ammesse</strong>: Seleziona le specie valide</li>
+                <li><strong>Note Regolamento</strong>: Regole aggiuntive</li>
+            </ul>
+            <p>Clicca <strong>"Salva Bozza"</strong> per salvare senza pubblicare.</p>
+
+            <div class="screenshot-container">
+                <img src="screenshots/03_tournaments.png" alt="Lista Tornei" class="screenshot">
+                <p class="screenshot-caption">Figura 3.1 - Lista Tornei</p>
+            </div>
+
+            <h3>3.2 Stati del Torneo</h3>
+            <p>Un torneo attraversa questi stati:</p>
+            <div class="state-flow">
+                BOZZA &rarr; PUBBLICATO &rarr; ISCRIZIONI APERTE &rarr; IN CORSO &rarr; COMPLETATO
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Stato</th>
+                        <th>Significato</th>
+                        <th>Azioni Disponibili</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>BOZZA</strong></td><td>In fase di creazione</td><td>Modifica tutto, Pubblica</td></tr>
+                    <tr><td><strong>PUBBLICATO</strong></td><td>Visibile ma non iscrivibile</td><td>Apri iscrizioni</td></tr>
+                    <tr><td><strong>ISCRIZIONI APERTE</strong></td><td>Si accettano iscritti</td><td>Chiudi iscrizioni</td></tr>
+                    <tr><td><strong>IN CORSO</strong></td><td>Gara attiva</td><td>Registra catture, Concludi</td></tr>
+                    <tr><td><strong>COMPLETATO</strong></td><td>Gara terminata</td><td>Genera report, Archivia</td></tr>
+                    <tr><td><strong>ANNULLATO</strong></td><td>Gara cancellata</td><td>-</td></tr>
+                </tbody>
+            </table>
+
+            <h3>3.3 Pubblicare un Torneo</h3>
+            <div class="path">Tornei &rarr; [Seleziona Torneo] &rarr; <strong>Pubblica</strong></div>
+            <p>Prima di pubblicare, verifica:</p>
+            <ul class="checklist">
+                <li>Almeno una zona di pesca definita</li>
+                <li>Date corrette</li>
+                <li>Quota iscrizione impostata</li>
+                <li>Regolamento completo</li>
+            </ul>
+
+            <h3>3.4 Aprire le Iscrizioni</h3>
+            <div class="path">Tornei &rarr; [Torneo Pubblicato] &rarr; <strong>Apri Iscrizioni</strong></div>
+            <p>Da questo momento i partecipanti potranno:</p>
+            <ol>
+                <li>Visualizzare il torneo nella lista pubblica</li>
+                <li>Iscriversi (singolarmente o come squadra)</li>
+                <li>Pagare la quota (se prevista)</li>
+            </ol>
+
+            <h3>3.5 Avviare la Gara</h3>
+            <div class="path">Tornei &rarr; [Torneo] &rarr; <strong>Avvia Torneo</strong></div>
+            <p>Requisiti:</p>
+            <ul class="checklist">
+                <li>Iscrizioni chiuse</li>
+                <li>Minimo partecipanti raggiunto</li>
+                <li>Almeno un giudice assegnato</li>
+            </ul>
+
+            <h3>3.6 Concludere la Gara</h3>
+            <div class="path">Tornei &rarr; [Torneo In Corso] &rarr; <strong>Concludi Torneo</strong></div>
+            <p>Dopo aver concluso:</p>
+            <ul>
+                <li>La classifica diventa definitiva</li>
+                <li>Non si possono piu registrare catture</li>
+                <li>Si possono generare i report finali</li>
+            </ul>
+        </div>
+
+        <!-- Sezione 4: Gestione Partecipanti -->
+        <div class="section" id="gestione-partecipanti">
+            <h2>4. Gestione Partecipanti</h2>
+
+            <h3>4.1 Visualizzare gli Iscritti</h3>
+            <div class="path">Tornei &rarr; [Torneo] &rarr; <strong>Partecipanti</strong></div>
+            <p>Vedrai una tabella con:</p>
+            <ul>
+                <li>Nome partecipante</li>
+                <li>Email e telefono</li>
+                <li>Squadra/Barca</li>
+                <li>Stato iscrizione (Pendente, Confermato, Rifiutato)</li>
+                <li>Stato pagamento</li>
+            </ul>
+
+            <div class="screenshot-container">
+                <img src="screenshots/05_participants.png" alt="Lista Partecipanti" class="screenshot">
+                <p class="screenshot-caption">Figura 4.1 - Lista Partecipanti Torneo</p>
+            </div>
+
+            <h3>4.2 Approvare/Rifiutare Iscrizioni</h3>
+            <p>Per ogni iscrizione pendente:</p>
+            <ol>
+                <li>Clicca sulla riga del partecipante</li>
+                <li>Verifica i dati e documenti</li>
+                <li>Clicca:
+                    <ul>
+                        <li><strong>Approva</strong> - Conferma l'iscrizione</li>
+                        <li><strong>Rifiuta</strong> - Inserisci motivazione e rifiuta</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h3>4.3 Aggiungere Partecipante Manualmente</h3>
+            <div class="path">Partecipanti &rarr; <strong>+ Aggiungi Partecipante</strong></div>
+            <p>Utile per:</p>
+            <ul>
+                <li>Iscrizioni telefoniche</li>
+                <li>Iscrizioni last-minute</li>
+                <li>Correzioni</li>
+            </ul>
+
+            <h3>4.4 Esportare Lista Partecipanti</h3>
+            <div class="path">Partecipanti &rarr; <strong>Esporta</strong></div>
+            <p>Formati disponibili:</p>
+            <ul>
+                <li><strong>Excel (.xlsx)</strong> - Per elaborazioni</li>
+                <li><strong>CSV</strong> - Per importare altrove</li>
+                <li><strong>PDF</strong> - Per stampa</li>
+            </ul>
+        </div>
+
+        <!-- Sezione 5: Gestione Giudici -->
+        <div class="section" id="gestione-giudici">
+            <h2>5. Gestione Giudici e Staff</h2>
+
+            <h3>5.1 Assegnare Giudici al Torneo</h3>
+            <div class="path">Tornei &rarr; [Torneo] &rarr; <strong>Giudici</strong></div>
+            <ol>
+                <li>Clicca <strong>"+ Assegna Giudice"</strong></li>
+                <li>Seleziona un utente con ruolo JUDGE dalla lista</li>
+                <li>Scegli il ruolo nel torneo:
+                    <ul>
+                        <li><strong>Direttore di Gara</strong> - Responsabile principale</li>
+                        <li><strong>Giudice</strong> - Valida catture</li>
+                        <li><strong>Ispettore</strong> - Controllo barche</li>
+                    </ul>
+                </li>
+                <li>Clicca <strong>"Assegna"</strong></li>
+            </ol>
+
+            <div class="screenshot-container">
+                <img src="screenshots/06_judges.png" alt="Gestione Giudici" class="screenshot">
+                <p class="screenshot-caption">Figura 5.1 - Assegnazione Giudici</p>
+            </div>
+
+            <h3>5.2 Creare un Nuovo Giudice</h3>
+            <p>Se il giudice non e ancora registrato:</p>
+            <ol>
+                <li>Vai su <strong>Utenti</strong> &rarr; <strong>+ Nuovo Utente</strong></li>
+                <li>Inserisci email, nome, telefono</li>
+                <li>Seleziona ruolo: <strong>JUDGE</strong></li>
+                <li>Salva - ricevera email con credenziali</li>
+            </ol>
+
+            <h3>5.3 Assegnare Ispettori alle Barche</h3>
+            <div class="path">Tornei &rarr; [Torneo] &rarr; <strong>Giudici</strong> &rarr; <strong>Assegnazioni</strong></div>
+            <p>Per tornei Drifting/Big Game:</p>
+            <ol>
+                <li>Vedi la matrice Barche x Ispettori</li>
+                <li>Trascina un ispettore sulla barca assegnata</li>
+                <li>Il sistema verifica che l'ispettore non sia della stessa societa</li>
+            </ol>
+
+            <h3>5.4 Stampare Assegnazioni</h3>
+            <p>Clicca <strong>"Stampa PDF Assegnazioni"</strong> per generare:</p>
+            <ul>
+                <li>Lista ispettori con barca assegnata</li>
+                <li>Contatti di emergenza</li>
+                <li>Mappa zone di pesca</li>
+            </ul>
+        </div>
+
+        <!-- Sezione 6: Validazione Catture -->
+        <div class="section" id="validazione-catture">
+            <h2>6. Validazione Catture</h2>
+
+            <h3>6.1 Visualizzare Catture Pendenti</h3>
+            <div class="path">Dashboard &rarr; <strong>Catture da Validare</strong></div>
+            <p>Oppure: Tornei &rarr; [Torneo] &rarr; <strong>Catture</strong></p>
+
+            <div class="screenshot-container">
+                <img src="screenshots/07_catches.png" alt="Lista Catture" class="screenshot">
+                <p class="screenshot-caption">Figura 6.1 - Catture da Validare</p>
+            </div>
+
+            <h3>6.2 Validare una Cattura</h3>
+            <p>Per ogni cattura vedrai:</p>
+            <ul>
+                <li><strong>Foto</strong> (clicca per ingrandire)</li>
+                <li><strong>Dati</strong>: peso, lunghezza, specie</li>
+                <li><strong>GPS</strong>: posizione sulla mappa</li>
+                <li><strong>Orario</strong>: quando e stata registrata</li>
+                <li><strong>Pescatore</strong>: chi l'ha registrata</li>
+            </ul>
+
+            <h4>Per approvare:</h4>
+            <ol>
+                <li>Verifica la foto (pesce visibile, misure corrette)</li>
+                <li>Controlla che il GPS sia nella zona valida</li>
+                <li>Clicca <strong>"Approva"</strong></li>
+                <li>(Opzionale) Aggiungi note</li>
+            </ol>
+
+            <h4>Per rifiutare:</h4>
+            <ol>
+                <li>Clicca <strong>"Rifiuta"</strong></li>
+                <li>Seleziona il motivo:
+                    <ul>
+                        <li>Foto non valida</li>
+                        <li>Fuori zona</li>
+                        <li>Peso non verificabile</li>
+                        <li>Specie non ammessa</li>
+                        <li>Altro (specifica)</li>
+                    </ul>
+                </li>
+                <li>Conferma</li>
+            </ol>
+
+            <h3>6.3 Catture Contestate</h3>
+            <p>Se un partecipante contesta un rifiuto:</p>
+            <ol>
+                <li>Vai su Catture &rarr; <strong>Contestate</strong></li>
+                <li>Rivedi la cattura con il Direttore di Gara</li>
+                <li>Conferma rifiuto o Approva</li>
+            </ol>
+        </div>
+
+        <!-- Sezione 7: Classifiche -->
+        <div class="section" id="classifiche">
+            <h2>7. Classifiche e Punteggi</h2>
+
+            <h3>7.1 Visualizzare la Classifica</h3>
+            <div class="path">Tornei &rarr; [Torneo] &rarr; <strong>Classifica</strong></div>
+            <p>La classifica mostra:</p>
+            <ul>
+                <li>Posizione</li>
+                <li>Partecipante/Squadra</li>
+                <li>Punti totali</li>
+                <li>Numero catture</li>
+                <li>Peso totale</li>
+                <li>Cattura maggiore</li>
+            </ul>
+
+            <div class="screenshot-container">
+                <img src="screenshots/08_leaderboard.png" alt="Classifica Torneo" class="screenshot">
+                <p class="screenshot-caption">Figura 7.1 - Classifica Torneo</p>
+            </div>
+
+            <h3>7.2 Come si Calcolano i Punti</h3>
+            <p>Il sistema calcola automaticamente:</p>
+            <div class="formula">
+                Punti = Peso (kg) x 100 x Moltiplicatore Specie
+            </div>
+            <div class="example">
+                <strong>Esempio:</strong><br>
+                Cattura: 5.5 kg di Tonno (moltiplicatore 1.5)<br>
+                Punti: 5.5 x 100 x 1.5 = <strong>825 punti</strong>
+            </div>
+
+            <h3>7.3 Classifica Live</h3>
+            <p>Durante la gara, la classifica si aggiorna in tempo reale quando:</p>
+            <ul>
+                <li>Viene approvata una cattura</li>
+                <li>Viene assegnata una penalita</li>
+            </ul>
+
+            <h3>7.4 Generare Classifica PDF</h3>
+            <div class="path">Classifica &rarr; <strong>Esporta PDF</strong></div>
+            <p>Il PDF include:</p>
+            <ul>
+                <li>Intestazione associazione</li>
+                <li>Logo e nome torneo</li>
+                <li>Classifica completa</li>
+                <li>Dettaglio catture per partecipante</li>
+                <li>Firma Direttore di Gara</li>
+            </ul>
+        </div>
+
+        <!-- Sezione 8: Import/Export -->
+        <div class="section" id="import-export">
+            <h2>8. Import/Export Dati</h2>
+
+            <h3>8.1 Importare Partecipanti da Excel</h3>
+            <div class="path">Tornei &rarr; [Torneo] &rarr; <strong>Import/Export</strong> &rarr; <strong>Importa Partecipanti</strong></div>
+            <ol>
+                <li>Scarica il <strong>template Excel</strong> cliccando "Scarica Template"</li>
+                <li>Compila il file con i dati dei partecipanti:
+                    <ul>
+                        <li>Nome, Cognome</li>
+                        <li>Email</li>
+                        <li>Telefono</li>
+                        <li>Nome Squadra (opzionale)</li>
+                        <li>Nome Barca (opzionale)</li>
+                    </ul>
+                </li>
+                <li>Carica il file compilato</li>
+                <li>Rivedi l'anteprima e conferma</li>
+            </ol>
+
+            <h3>8.2 Esportare Dati</h3>
+            <div class="path">Import/Export &rarr; <strong>Esporta</strong></div>
+            <p>Puoi esportare:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dato</th>
+                        <th>Formati</th>
+                        <th>Uso</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>Partecipanti</strong></td><td>Excel, CSV, JSON</td><td>Lista iscritti</td></tr>
+                    <tr><td><strong>Catture</strong></td><td>Excel, CSV, JSON</td><td>Dettaglio catture</td></tr>
+                    <tr><td><strong>Classifica</strong></td><td>Excel, CSV, JSON, PDF</td><td>Risultati</td></tr>
+                    <tr><td><strong>FIPSAS</strong></td><td>Excel (formato federale)</td><td>Omologazione</td></tr>
+                </tbody>
+            </table>
+
+            <h3>8.3 Formato FIPSAS</h3>
+            <p>L'export FIPSAS genera un file conforme ai requisiti federali:</p>
+            <ul>
+                <li>Intestazione gara</li>
+                <li>Dati organizzatore</li>
+                <li>Classifica ufficiale</li>
+                <li>Campo firma Direttore</li>
+            </ul>
+        </div>
+
+        <!-- Sezione 9: Archivio -->
+        <div class="section" id="archivio">
+            <h2>9. Archivio e Statistiche</h2>
+
+            <h3>9.1 Hall of Fame</h3>
+            <div class="path">Dashboard &rarr; <strong>Archivio</strong> &rarr; <strong>Hall of Fame</strong></div>
+            <p>Mostra i vincitori di tutti i tornei passati:</p>
+            <ul>
+                <li>Classifica Generale</li>
+                <li>Cattura Maggiore</li>
+                <li>Piu Catture</li>
+            </ul>
+            <p>Puoi filtrare per:</p>
+            <ul>
+                <li>Anno</li>
+                <li>Disciplina</li>
+            </ul>
+
+            <div class="screenshot-container">
+                <img src="screenshots/10_archive.png" alt="Archivio Tornei" class="screenshot">
+                <p class="screenshot-caption">Figura 9.1 - Archivio e Hall of Fame</p>
+            </div>
+
+            <h3>9.2 Record Associazione</h3>
+            <div class="path">Archivio &rarr; <strong>Record</strong></div>
+            <p>Visualizza i record storici:</p>
+            <ul>
+                <li>Cattura piu grande (peso)</li>
+                <li>Piu catture in un torneo</li>
+                <li>Piu punti in un torneo</li>
+                <li>Piu vittorie (partecipante)</li>
+            </ul>
+
+            <h3>9.3 Statistiche Partecipanti</h3>
+            <div class="path">Archivio &rarr; <strong>Le Mie Statistiche</strong></div>
+            <p>Ogni partecipante puo vedere:</p>
+            <ul>
+                <li>Tornei partecipati</li>
+                <li>Vittorie e podi</li>
+                <li>Catture totali</li>
+                <li>Peso totale</li>
+                <li>Miglior posizione</li>
+            </ul>
+
+            <h3>9.4 Report Analitici</h3>
+            <div class="path">Dashboard &rarr; <strong>Report</strong></div>
+            <p>Disponibili:</p>
+            <ul>
+                <li>Andamento iscrizioni nel tempo</li>
+                <li>Distribuzione catture per specie</li>
+                <li>Performance per zona</li>
+                <li>Trend stagionali</li>
+            </ul>
+        </div>
+
+        <!-- Sezione 10: Impostazioni -->
+        <div class="section" id="impostazioni">
+            <h2>10. Impostazioni Associazione</h2>
+
+            <h3>10.1 Branding e Personalizzazione</h3>
+            <div class="path">Impostazioni &rarr; <strong>Branding</strong></div>
+            <p>Puoi personalizzare:</p>
+            <ul>
+                <li><strong>Logo</strong> - Carica il logo dell'associazione</li>
+                <li><strong>Banner</strong> - Immagine header</li>
+                <li><strong>Colori</strong> - Colore primario e secondario</li>
+                <li><strong>Nome</strong> - Nome visualizzato</li>
+                <li><strong>Descrizione</strong> - Chi siete</li>
+            </ul>
+
+            <div class="screenshot-container">
+                <img src="screenshots/12_association_public.png" alt="Pagina Pubblica Associazione" class="screenshot">
+                <p class="screenshot-caption">Figura 10.1 - Pagina Pubblica dell'Associazione</p>
+            </div>
+
+            <h3>10.2 Informazioni Contatto</h3>
+            <div class="path">Impostazioni &rarr; <strong>Contatti</strong></div>
+            <ul>
+                <li>Indirizzo sede</li>
+                <li>Email di contatto</li>
+                <li>Telefono</li>
+                <li>Sito web</li>
+                <li>Social media (Facebook, Instagram)</li>
+            </ul>
+
+            <h3>10.3 Dati FIPSAS</h3>
+            <div class="path">Impostazioni &rarr; <strong>FIPSAS</strong></div>
+            <p>Se affiliati FIPSAS:</p>
+            <ul>
+                <li>Codice societa</li>
+                <li>Codice comitato</li>
+                <li>Regione/Provincia</li>
+            </ul>
+
+            <h3>10.4 Gestione Utenti Associazione</h3>
+            <div class="path">Impostazioni &rarr; <strong>Utenti</strong></div>
+            <p>Puoi:</p>
+            <ul>
+                <li>Vedere tutti gli utenti registrati</li>
+                <li>Modificare ruoli (Partecipante, Giudice, Organizzatore)</li>
+                <li>Disattivare account</li>
+                <li>Resettare password</li>
+            </ul>
+
+            <div class="screenshot-container">
+                <img src="screenshots/09_users.png" alt="Gestione Utenti" class="screenshot">
+                <p class="screenshot-caption">Figura 10.2 - Gestione Utenti</p>
+            </div>
+        </div>
+
+        <!-- Sezione 11: Problemi -->
+        <div class="section" id="problemi">
+            <h2>11. Risoluzione Problemi</h2>
+
+            <h3>11.1 Non riesco ad accedere</h3>
+            <div class="problem-solution">
+                <strong>Problema:</strong> Password errata o dimenticata
+            </div>
+            <div class="problem-solution solution">
+                <strong>Soluzione:</strong>
+                <ol>
+                    <li>Clicca "Password dimenticata"</li>
+                    <li>Controlla anche la cartella spam</li>
+                    <li>Se non ricevi email, contatta il Super Admin</li>
+                </ol>
+            </div>
+
+            <h3>11.2 Un partecipante non riesce a iscriversi</h3>
+            <div class="problem-solution">
+                <strong>Problema:</strong> Errore durante l'iscrizione
+            </div>
+            <div class="problem-solution solution">
+                <strong>Verifica:</strong>
+                <ol>
+                    <li>Le iscrizioni sono aperte?</li>
+                    <li>C'e ancora posto (max partecipanti)?</li>
+                    <li>Il partecipante ha completato il profilo?</li>
+                    <li>Ha caricato i documenti richiesti?</li>
+                </ol>
+            </div>
+
+            <h3>11.3 La cattura non appare in classifica</h3>
+            <div class="problem-solution">
+                <strong>Problema:</strong> Cattura registrata ma punti non visibili
+            </div>
+            <div class="problem-solution solution">
+                <strong>Verifica:</strong>
+                <ol>
+                    <li>La cattura e stata approvata? (stato = APPROVED)</li>
+                    <li>Il GPS era nella zona valida?</li>
+                    <li>La specie e tra quelle ammesse?</li>
+                </ol>
+            </div>
+
+            <h3>11.4 Non posso avviare il torneo</h3>
+            <div class="problem-solution">
+                <strong>Problema:</strong> Pulsante "Avvia" disabilitato
+            </div>
+            <div class="problem-solution solution">
+                <strong>Verifica:</strong>
+                <ol>
+                    <li>Le iscrizioni sono chiuse?</li>
+                    <li>C'e il minimo di partecipanti?</li>
+                    <li>E stato assegnato almeno un giudice?</li>
+                </ol>
+            </div>
+
+            <h3>11.5 Il PDF non si genera</h3>
+            <div class="problem-solution">
+                <strong>Problema:</strong> Errore generazione PDF
+            </div>
+            <div class="problem-solution solution">
+                <strong>Soluzione:</strong>
+                <ol>
+                    <li>Riprova dopo qualche secondo</li>
+                    <li>Verifica che ci siano dati da esportare</li>
+                    <li>Se persiste, contatta supporto</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Sezione 12: FAQ -->
+        <div class="section" id="faq">
+            <h2>12. Domande Frequenti</h2>
+
+            <h3>Generali</h3>
+            <div class="faq-item">
+                <strong>D: Posso gestire piu tornei contemporaneamente?</strong><br>
+                R: Si, non c'e limite al numero di tornei attivi.
+            </div>
+            <div class="faq-item">
+                <strong>D: I partecipanti possono iscriversi da soli?</strong><br>
+                R: Si, una volta pubblicato il torneo e aperte le iscrizioni.
+            </div>
+            <div class="faq-item">
+                <strong>D: Posso modificare un torneo gia pubblicato?</strong><br>
+                R: Si, ma con limitazioni (non puoi cambiare date se ci sono iscritti).
+            </div>
+
+            <h3>Iscrizioni</h3>
+            <div class="faq-item">
+                <strong>D: Come gestisco i pagamenti?</strong><br>
+                R: Il sistema traccia lo stato pagamento. Il pagamento effettivo avviene fuori piattaforma (bonifico, contanti). Tu confermi manualmente.
+            </div>
+            <div class="faq-item">
+                <strong>D: Posso rimborsare un iscritto?</strong><br>
+                R: Si, cambia lo stato in "Rimborsato" e gestisci il rimborso offline.
+            </div>
+            <div class="faq-item">
+                <strong>D: C'e una lista d'attesa?</strong><br>
+                R: Se raggiungi il massimo, i nuovi iscritti vanno in waitlist automatica.
+            </div>
+
+            <h3>Durante la Gara</h3>
+            <div class="faq-item">
+                <strong>D: Chi puo registrare le catture?</strong><br>
+                R: I partecipanti dalla loro app, oppure ispettori/giudici dal pannello.
+            </div>
+            <div class="faq-item">
+                <strong>D: Posso correggere una cattura gia approvata?</strong><br>
+                R: Si, vai su Catture &rarr; [Cattura] &rarr; Modifica. Solo admin e direttore.
+            </div>
+            <div class="faq-item">
+                <strong>D: Come gestisco una protesta?</strong><br>
+                R: Vai su Catture &rarr; Contestate, rivedi con il direttore e decidi.
+            </div>
+
+            <h3>Report</h3>
+            <div class="faq-item">
+                <strong>D: Posso stampare la classifica durante la gara?</strong><br>
+                R: Si, sara marcata come "Provvisoria".
+            </div>
+            <div class="faq-item">
+                <strong>D: Il PDF e valido per FIPSAS?</strong><br>
+                R: Usa l'export specifico "Formato FIPSAS" per la documentazione federale.
+            </div>
+        </div>
+
+        <!-- Contatti Supporto -->
+        <div class="section">
+            <div class="contact-box">
+                <h3>Contatti Supporto</h3>
+                <p>Per assistenza tecnica:</p>
+                <p><strong>Email:</strong> supporto@tournamentmaster.it</p>
+                <p><strong>Telefono:</strong> +39 XXX XXX XXXX</p>
+                <p><strong>Orari:</strong> Lun-Ven 9:00-18:00</p>
+                <br>
+                <p>Per problemi urgenti durante una gara:</p>
+                <p><strong>Hotline:</strong> +39 XXX XXX XXXX (attiva durante i tornei)</p>
+            </div>
+        </div>
+
+        <!-- Glossario -->
+        <div class="section">
+            <h2>Glossario</h2>
+            <table class="glossary-table">
+                <thead>
+                    <tr>
+                        <th>Termine</th>
+                        <th>Significato</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Tenant</td><td>La tua associazione sulla piattaforma</td></tr>
+                    <tr><td>TENANT_ADMIN</td><td>Il tuo ruolo di amministratore</td></tr>
+                    <tr><td>Bozza (Draft)</td><td>Torneo non ancora pubblicato</td></tr>
+                    <tr><td>Catch</td><td>Una cattura registrata</td></tr>
+                    <tr><td>Strike</td><td>Un'abboccata/ferrata durante la pesca</td></tr>
+                    <tr><td>Leaderboard</td><td>Classifica in tempo reale</td></tr>
+                    <tr><td>GPS Validation</td><td>Verifica che la cattura sia nella zona</td></tr>
+                    <tr><td>Homologation</td><td>Omologazione FIPSAS del risultato</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>Documento aggiornato il 2026-01-10</p>
+            <p>TournamentMaster v1.5.1</p>
+        </div>
+    </div>
+</body>
+</html>

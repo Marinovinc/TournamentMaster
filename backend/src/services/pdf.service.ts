@@ -45,6 +45,20 @@ export interface TournamentPDFData {
 
 export class PDFService {
   /**
+   * Helper per scaricare immagine da URL e convertirla in Buffer
+   */
+  private static async fetchImageBuffer(url: string): Promise<Buffer | null> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Genera PDF Assegnazioni Giudici di Bordo
    */
   static async generateJudgeAssignmentsPDF(
@@ -118,6 +132,12 @@ export class PDFService {
       };
     });
 
+    // Scarica logo se disponibile
+    let logoBuffer: Buffer | null = null;
+    if (tournament.tenant.logo) {
+      logoBuffer = await this.fetchImageBuffer(tournament.tenant.logo);
+    }
+
     // Genera PDF
     return this.buildJudgeAssignmentsPDF(
       {
@@ -132,7 +152,8 @@ export class PDFService {
       },
       assignments,
       `${tournament.organizer.firstName} ${tournament.organizer.lastName}`,
-      tournament.tenant.primaryColor || "#0066CC"
+      tournament.tenant.primaryColor || "#0066CC",
+      logoBuffer
     );
   }
 
@@ -209,6 +230,12 @@ export class PDFService {
       };
     });
 
+    // Scarica logo se disponibile
+    let logoBuffer: Buffer | null = null;
+    if (tournament.tenant.logo) {
+      logoBuffer = await this.fetchImageBuffer(tournament.tenant.logo);
+    }
+
     // Genera PDF
     return this.buildJudgeAssignmentsPDF(
       {
@@ -223,7 +250,8 @@ export class PDFService {
       },
       assignments,
       `${tournament.organizer.firstName} ${tournament.organizer.lastName}`,
-      tournament.tenant.primaryColor || "#0066CC"
+      tournament.tenant.primaryColor || "#0066CC",
+      logoBuffer
     );
   }
 
@@ -234,7 +262,8 @@ export class PDFService {
     tournament: TournamentPDFData,
     assignments: JudgeAssignment[],
     organizerName: string,
-    primaryColor: string
+    primaryColor: string,
+    logoBuffer: Buffer | null = null
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
@@ -256,8 +285,8 @@ export class PDFService {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      // Header
-      this.drawHeader(doc, tournament, primaryColor);
+      // Header con banner
+      this.drawHeader(doc, tournament, primaryColor, logoBuffer);
 
       // Tabella assegnazioni
       this.drawAssignmentsTable(doc, assignments, primaryColor);
@@ -270,27 +299,65 @@ export class PDFService {
   }
 
   /**
-   * Disegna header del documento
+   * Disegna header del documento con banner colorato e logo
    */
   private static drawHeader(
     doc: PDFKit.PDFDocument,
     tournament: TournamentPDFData,
-    primaryColor: string
+    primaryColor: string,
+    logoBuffer: Buffer | null = null
   ): void {
     const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const bannerHeight = 60;
+    const bannerY = doc.page.margins.top;
+    const logoSize = 50;
+    const logoPadding = 5;
 
-    // Titolo associazione
+    // === BANNER COLORATO ===
+    doc.fillColor(primaryColor);
+    doc.rect(
+      doc.page.margins.left,
+      bannerY,
+      pageWidth,
+      bannerHeight
+    ).fill();
+
+    // Logo a sinistra (se disponibile)
+    let textStartX = doc.page.margins.left + 15;
+    if (logoBuffer) {
+      try {
+        doc.image(logoBuffer, doc.page.margins.left + logoPadding, bannerY + logoPadding, {
+          width: logoSize,
+          height: logoSize,
+          fit: [logoSize, logoSize],
+        });
+        textStartX = doc.page.margins.left + logoSize + logoPadding * 3;
+      } catch {
+        // Se il logo non carica, continua senza
+      }
+    }
+
+    // Nome associazione nel banner (bianco)
     doc
-      .fontSize(14)
-      .fillColor(primaryColor)
-      .text(tournament.tenantName.toUpperCase(), { align: "center" });
+      .fontSize(18)
+      .fillColor("#FFFFFF")
+      .font("Helvetica-Bold")
+      .text(
+        tournament.tenantName.toUpperCase(),
+        textStartX,
+        bannerY + 20,
+        { width: pageWidth - (textStartX - doc.page.margins.left) - 15, align: "left" }
+      );
 
-    doc.moveDown(0.3);
+    // Muovi cursore sotto il banner
+    doc.y = bannerY + bannerHeight + 15;
+    doc.x = doc.page.margins.left;
 
     // Titolo documento
     doc
       .fontSize(20)
       .fillColor("#000000")
+      .font("Helvetica-Bold")
       .text("ASSEGNAZIONI GIUDICI DI BORDO", { align: "center" });
 
     doc.moveDown(0.5);
@@ -299,6 +366,7 @@ export class PDFService {
     doc
       .fontSize(16)
       .fillColor(primaryColor)
+      .font("Helvetica")
       .text(tournament.name, { align: "center" });
 
     doc.moveDown(0.3);
@@ -717,6 +785,12 @@ export class PDFService {
         };
       });
 
+    // Scarica logo se disponibile
+    let logoBuffer: Buffer | null = null;
+    if (tournament.tenant.logo) {
+      logoBuffer = await this.fetchImageBuffer(tournament.tenant.logo);
+    }
+
     // Genera PDF
     return this.buildLeaderboardPDF(
       {
@@ -732,7 +806,8 @@ export class PDFService {
       leaderboard,
       catchDetails,
       `${tournament.organizer.firstName} ${tournament.organizer.lastName}`,
-      tournament.tenant.primaryColor || "#0066CC"
+      tournament.tenant.primaryColor || "#0066CC",
+      logoBuffer
     );
   }
 
@@ -744,7 +819,8 @@ export class PDFService {
     leaderboard: any[],
     catchDetails: any[],
     organizerName: string,
-    primaryColor: string
+    primaryColor: string,
+    logoBuffer: Buffer | null = null
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
@@ -765,14 +841,14 @@ export class PDFService {
       doc.on("error", reject);
 
       // === PAGINA 1: CLASSIFICA SQUADRE ===
-      this.drawLeaderboardHeader(doc, tournament, primaryColor, "CLASSIFICA UFFICIALE");
+      this.drawLeaderboardHeader(doc, tournament, primaryColor, "CLASSIFICA UFFICIALE", logoBuffer);
       this.drawLeaderboardTable(doc, leaderboard, primaryColor);
       this.drawLeaderboardFooter(doc, organizerName, tournament);
 
       // === PAGINA 2: DETTAGLIO CATTURE ===
       if (catchDetails.length > 0) {
         doc.addPage();
-        this.drawLeaderboardHeader(doc, tournament, primaryColor, "DETTAGLIO CATTURE");
+        this.drawLeaderboardHeader(doc, tournament, primaryColor, "DETTAGLIO CATTURE", logoBuffer);
         this.drawCatchesTable(doc, catchDetails, primaryColor);
         this.drawLeaderboardFooter(doc, organizerName, tournament);
       }
@@ -785,13 +861,59 @@ export class PDFService {
     doc: PDFKit.PDFDocument,
     tournament: TournamentPDFData,
     primaryColor: string,
-    title: string
+    title: string,
+    logoBuffer: Buffer | null = null
   ): void {
-    doc.fontSize(12).fillColor(primaryColor).text(tournament.tenantName.toUpperCase(), { align: "center" });
-    doc.moveDown(0.2);
+    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const bannerHeight = 60;
+    const bannerY = doc.page.margins.top;
+    const logoSize = 50;
+    const logoPadding = 5;
+
+    // === BANNER COLORATO ===
+    doc.fillColor(primaryColor);
+    doc.rect(
+      doc.page.margins.left,
+      bannerY,
+      pageWidth,
+      bannerHeight
+    ).fill();
+
+    // Logo a sinistra (se disponibile)
+    let textStartX = doc.page.margins.left + 15;
+    if (logoBuffer) {
+      try {
+        doc.image(logoBuffer, doc.page.margins.left + logoPadding, bannerY + logoPadding, {
+          width: logoSize,
+          height: logoSize,
+          fit: [logoSize, logoSize],
+        });
+        textStartX = doc.page.margins.left + logoSize + logoPadding * 3;
+      } catch {
+        // Se il logo non carica, continua senza
+      }
+    }
+
+    // Nome associazione nel banner (bianco)
+    doc
+      .fontSize(18)
+      .fillColor("#FFFFFF")
+      .font("Helvetica-Bold")
+      .text(
+        tournament.tenantName.toUpperCase(),
+        textStartX,
+        bannerY + 20,
+        { width: pageWidth - (textStartX - doc.page.margins.left) - 15, align: "left" }
+      );
+
+    // Muovi cursore sotto il banner
+    doc.y = bannerY + bannerHeight + 15;
+    doc.x = doc.page.margins.left;
+
+    // Titolo documento
     doc.fontSize(22).fillColor("#000000").font("Helvetica-Bold").text(title, { align: "center" });
     doc.moveDown(0.3);
-    doc.fontSize(16).fillColor(primaryColor).text(tournament.name, { align: "center" });
+    doc.fontSize(16).fillColor(primaryColor).font("Helvetica").text(tournament.name, { align: "center" });
     doc.moveDown(0.2);
 
     const startDate = tournament.startDate.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
@@ -1030,6 +1152,12 @@ export class PDFService {
         points: Number(c.weight) * (c.species?.pointsMultiplier ? Number(c.species.pointsMultiplier) : 1) * 100,
       }));
 
+      // Scarica logo se disponibile
+      let logoBuffer: Buffer | null = null;
+      if (tournament.tenant.logo) {
+        logoBuffer = await this.fetchImageBuffer(tournament.tenant.logo);
+      }
+
       return this.buildLeaderboardPDF(
         {
           id: tournament.id,
@@ -1044,7 +1172,8 @@ export class PDFService {
         leaderboard,
         catchDetails,
         `${tournament.organizer.firstName} ${tournament.organizer.lastName}`,
-        tournament.tenant.primaryColor || "#0066CC"
+        tournament.tenant.primaryColor || "#0066CC",
+        logoBuffer
       );
     }
 

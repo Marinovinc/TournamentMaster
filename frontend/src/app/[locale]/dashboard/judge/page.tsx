@@ -67,6 +67,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface Tournament {
+  id: string;
+  name: string;
+  status: string;
+}
+
 interface Catch {
   id: string;
   weight: number;
@@ -109,6 +115,8 @@ export default function JudgeDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>(isHistoryMode ? "ALL" : "PENDING");
   const [searchQuery, setSearchQuery] = useState("");
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>("ALL");
 
   // Dialog state
   const [selectedCatch, setSelectedCatch] = useState<Catch | null>(null);
@@ -122,37 +130,87 @@ export default function JudgeDashboardPage() {
   // Check authorization
   const canValidate = hasRole("SUPER_ADMIN", "TENANT_ADMIN", "ORGANIZER", "JUDGE");
 
+  // Fetch tournaments list
+  useEffect(() => {
+    const fetchTournaments = async () => {
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_URL}/api/tournaments?limit=100`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          // Filter to show only ONGOING and recently COMPLETED tournaments
+          const relevantTournaments = (data.data.tournaments || data.data || [])
+            .filter((t: Tournament) =>
+              t.status === "ONGOING" || t.status === "COMPLETED"
+            );
+          setTournaments(relevantTournaments);
+        }
+      } catch (error) {
+        console.error("Failed to fetch tournaments:", error);
+        // Demo tournaments
+        setTournaments([
+          { id: "t1", name: "Trofeo Ischia Big Game 2024", status: "ONGOING" },
+          { id: "t2", name: "Coppa Inverno Ischia 2024", status: "ONGOING" },
+        ]);
+      }
+    };
+    fetchTournaments();
+  }, [token]);
+
   useEffect(() => {
     fetchCatches();
-  }, [token, statusFilter]);
+  }, [token, statusFilter, selectedTournamentId]);
 
   const fetchCatches = async () => {
     if (!token) return;
 
     setLoading(true);
     try {
+      let url: string;
       const params = new URLSearchParams();
-      if (statusFilter && statusFilter !== "ALL") {
-        params.append("status", statusFilter);
-      }
-      params.append("limit", "50");
 
-      const res = await fetch(`${API_URL}/api/catches?${params}`, {
+      // If a specific tournament is selected and status is PENDING, use the tournament-specific endpoint
+      if (selectedTournamentId && selectedTournamentId !== "ALL" && statusFilter === "PENDING") {
+        url = `${API_URL}/api/catches/tournament/${selectedTournamentId}/pending`;
+        params.append("limit", "50");
+      } else {
+        // Use general endpoint with filters
+        url = `${API_URL}/api/catches`;
+        if (statusFilter && statusFilter !== "ALL") {
+          params.append("status", statusFilter);
+        }
+        if (selectedTournamentId && selectedTournamentId !== "ALL") {
+          params.append("tournamentId", selectedTournamentId);
+        }
+        params.append("limit", "50");
+      }
+
+      const res = await fetch(`${url}?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await res.json();
 
       if (data.success) {
-        setCatches(data.data || []);
+        setCatches(data.data?.catches || data.data || []);
       } else {
-        // If API fails, show demo data
-        setCatches(getDemoCatches());
+        // If API fails, show demo data filtered by tournament
+        let demoCatches = getDemoCatches();
+        if (selectedTournamentId && selectedTournamentId !== "ALL") {
+          demoCatches = demoCatches.filter(c => c.tournament.id === selectedTournamentId);
+        }
+        setCatches(demoCatches);
       }
     } catch (error) {
       console.error("Failed to fetch catches:", error);
-      // Show demo data on error
-      setCatches(getDemoCatches());
+      // Show demo data on error, filtered by tournament
+      let demoCatches = getDemoCatches();
+      if (selectedTournamentId && selectedTournamentId !== "ALL") {
+        demoCatches = demoCatches.filter(c => c.tournament.id === selectedTournamentId);
+      }
+      setCatches(demoCatches);
     } finally {
       setLoading(false);
     }
@@ -409,9 +467,13 @@ export default function JudgeDashboardPage() {
               )}
             </h1>
             <p className="text-muted-foreground mt-1">
-              {isHistoryMode 
+              {isHistoryMode
                 ? "Archivio catture validate dei tornei completati"
-                : `${pendingCount} catture in attesa di validazione`}
+                : `${pendingCount} catture in attesa di validazione${
+                    selectedTournamentId !== "ALL"
+                      ? ` per ${tournaments.find(t => t.id === selectedTournamentId)?.name || "torneo selezionato"}`
+                      : ""
+                  }`}
             </p>
           </div>
           <HelpGuide pageKey="judge" position="inline" isAdmin={true} />
@@ -429,12 +491,35 @@ export default function JudgeDashboardPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Cerca per pescatore, torneo, specie..."
+                placeholder="Cerca per pescatore, specie..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
               />
             </div>
+            {/* Tournament Filter */}
+            <Select value={selectedTournamentId} onValueChange={setSelectedTournamentId}>
+              <SelectTrigger className="w-[280px]">
+                <Fish className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Seleziona torneo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Tutti i tornei</SelectItem>
+                {tournaments.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    <span className="flex items-center gap-2">
+                      {t.name}
+                      {t.status === "ONGOING" && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                          In Corso
+                        </span>
+                      )}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Status Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[200px]">
                 <Filter className="h-4 w-4 mr-2" />

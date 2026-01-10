@@ -9,7 +9,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,7 +35,24 @@ import {
   Pause,
   Ban,
   Edit,
+  Circle,
+  AlertCircle,
+  ListChecks,
+  ChevronRight,
+  TrendingUp,
+  Scale,
+  Activity,
+  RefreshCw,
+  MessageSquare,
+  Gavel,
+  Shield,
+  BarChart3,
+  Building2,
+  Gift,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { HelpGuide } from "@/components/HelpGuide";
+import { toast } from "sonner";
 
 interface Tournament {
   id: string;
@@ -64,6 +81,39 @@ interface Tournament {
   }>;
 }
 
+interface TournamentStats {
+  totalCatches: number;
+  pendingCatches: number;
+  approvedCatches: number;
+  rejectedCatches: number;
+  catchesPerHour: number;
+  totalWeight: number;
+  averageWeight: number;
+  topCatcher: {
+    userId: string;
+    name: string;
+    catches: number;
+    weight: number;
+  } | null;
+  recentActivity: Array<{
+    id: string;
+    type: string;
+    description: string;
+    timestamp: string;
+    userName?: string;
+  }>;
+  participantsStats: {
+    total: number;
+    confirmed: number;
+    pending: number;
+  };
+  inspectorsStats: {
+    total: number;
+    assigned: number;
+    coverage: number;
+  };
+}
+
 const disciplineLabels: Record<string, string> = {
   BIG_GAME: "Big Game",
   DRIFTING: "Drifting",
@@ -85,6 +135,153 @@ const statusConfig: Record<string, { label: string; color: string; bgColor: stri
   CANCELLED: { label: "Annullato", color: "text-gray-500", bgColor: "bg-gray-200" },
 };
 
+// Checklist per fase - cosa fare in ogni stato del torneo
+interface ChecklistItem {
+  id: string;
+  label: string;
+  completed: boolean;
+  warning?: boolean;
+  link?: string;
+}
+
+function getChecklistForPhase(tournament: Tournament, locale: string): ChecklistItem[] {
+  const basePath = `/${locale}/dashboard/tournaments/${tournament.id}`;
+
+  switch (tournament.status) {
+    case "DRAFT":
+      return [
+        {
+          id: "basic-info",
+          label: "Informazioni base compilate",
+          completed: !!tournament.name && !!tournament.startDate && !!tournament.endDate,
+          link: `${basePath}/edit`,
+        },
+        {
+          id: "location",
+          label: "Luogo definito",
+          completed: !!tournament.location && tournament.location !== "",
+          link: `${basePath}/edit`,
+        },
+        {
+          id: "fee",
+          label: "Quota iscrizione impostata",
+          completed: tournament.registrationFee !== null && parseFloat(tournament.registrationFee) > 0,
+          link: `${basePath}/edit`,
+        },
+        {
+          id: "zones",
+          label: "Zone di pesca definite",
+          completed: false, // Verificato lato server se ci sono zone
+          link: `${basePath}/zones`,
+        },
+      ];
+
+    case "PUBLISHED":
+      return [
+        {
+          id: "announcement",
+          label: "Torneo pubblicato e visibile",
+          completed: true,
+        },
+        {
+          id: "share",
+          label: "Link condiviso con potenziali partecipanti",
+          completed: false, // Non tracciabile automaticamente
+        },
+      ];
+
+    case "REGISTRATION_OPEN":
+      return [
+        {
+          id: "min-participants",
+          label: "Minimo partecipanti raggiunto",
+          completed: tournament.minParticipants
+            ? tournament._count.registrations >= tournament.minParticipants
+            : tournament._count.registrations > 0,
+          warning: tournament.minParticipants
+            ? tournament._count.registrations < tournament.minParticipants
+            : false,
+          link: `${basePath}/participants`,
+        },
+        {
+          id: "inspectors",
+          label: "Ispettori da assegnare",
+          completed: false, // Verificato dal backend
+          link: `${basePath}/judges`,
+        },
+        {
+          id: "staff",
+          label: "Staff/Giudici di gara da assegnare",
+          completed: false, // Verificato dal backend
+          link: `${basePath}/staff`,
+        },
+      ];
+
+    case "REGISTRATION_CLOSED":
+      return [
+        {
+          id: "inspectors-assigned",
+          label: "Tutti gli ispettori assegnati",
+          completed: false, // Da verificare
+          link: `${basePath}/judges`,
+        },
+        {
+          id: "staff-assigned",
+          label: "Giudici di gara assegnati",
+          completed: false, // Da verificare
+          link: `${basePath}/staff`,
+        },
+        {
+          id: "ready-start",
+          label: "Pronto per iniziare",
+          completed: tournament._count.registrations > 0,
+          link: `${basePath}/settings`,
+        },
+      ];
+
+    case "ONGOING":
+      return [
+        {
+          id: "catches-monitoring",
+          label: "Monitoraggio catture attivo",
+          completed: true,
+          link: `/${locale}/dashboard/judge?tournamentId=${tournament.id}`,
+        },
+        {
+          id: "pending-catches",
+          label: "Catture da validare",
+          completed: false, // Mostrato come warning se ci sono pending
+          warning: true, // Sempre warning durante ONGOING
+          link: `/${locale}/dashboard/judge?tournamentId=${tournament.id}`,
+        },
+      ];
+
+    case "COMPLETED":
+      return [
+        {
+          id: "all-validated",
+          label: "Tutte le catture validate",
+          completed: true, // Assumiamo completato se siamo in COMPLETED
+        },
+        {
+          id: "final-ranking",
+          label: "Classifica finale disponibile",
+          completed: true,
+          link: `${basePath}/settings`, // Per scaricare PDF
+        },
+        {
+          id: "export-data",
+          label: "Esporta dati torneo",
+          completed: false,
+          link: `${basePath}/settings`,
+        },
+      ];
+
+    default:
+      return [];
+  }
+}
+
 export default function TournamentManagementPage() {
   const params = useParams();
   const router = useRouter();
@@ -95,8 +292,29 @@ export default function TournamentManagementPage() {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<TournamentStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const previousStatusRef = useRef<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+  // Notifica cambio stato
+  useEffect(() => {
+    if (tournament && previousStatusRef.current !== null && tournament.status !== previousStatusRef.current) {
+      const newStatus = statusConfig[tournament.status];
+      const oldStatus = statusConfig[previousStatusRef.current];
+      toast.success(
+        `Stato cambiato: ${oldStatus?.label || previousStatusRef.current} → ${newStatus?.label || tournament.status}`,
+        {
+          description: `Il torneo "${tournament.name}" ha cambiato stato`,
+          duration: 5000,
+        }
+      );
+    }
+    if (tournament) {
+      previousStatusRef.current = tournament.status;
+    }
+  }, [tournament?.status]);
 
   // Fetch tournament data
   useEffect(() => {
@@ -135,6 +353,34 @@ export default function TournamentManagementPage() {
 
     fetchTournament();
   }, [token, tournamentId, API_URL]);
+
+  // Fetch stats for ONGOING/COMPLETED tournaments
+  const fetchStats = async () => {
+    if (!token || !tournamentId || !tournament) return;
+    if (!["ONGOING", "COMPLETED"].includes(tournament.status)) return;
+
+    try {
+      setStatsLoading(true);
+      const res = await fetch(`${API_URL}/api/tournaments/${tournamentId}/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data.data);
+      }
+    } catch (err) {
+      console.error("Error fetching stats:", err);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  // Fetch stats when tournament is loaded and is ONGOING/COMPLETED
+  useEffect(() => {
+    if (tournament && ["ONGOING", "COMPLETED"].includes(tournament.status)) {
+      fetchStats();
+    }
+  }, [tournament?.id, tournament?.status]);
 
   // Cleanup on unmount - don't remove tournament mode as user might navigate to sub-pages
   // Tournament mode is exited via the sidebar button
@@ -194,6 +440,7 @@ export default function TournamentManagementPage() {
             <ArrowLeft className="h-4 w-4" />
             Torna ai tornei
           </Link>
+          <div className="flex items-center gap-3">
           <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
             {tournament.name}
             {isOngoing && (
@@ -203,7 +450,9 @@ export default function TournamentManagementPage() {
               </span>
             )}
           </h1>
-          <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
+          <HelpGuide pageKey="tournamentManagement" position="inline" isAdmin={true} />
+        </div>
+        <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.bgColor} ${status.color}`}>
               {status.label}
             </span>
@@ -291,6 +540,119 @@ export default function TournamentManagementPage() {
         </Card>
       </div>
 
+      {/* Phase Checklist */}
+      {tournament.status !== "CANCELLED" && (
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ListChecks className="h-5 w-5" />
+                Checklist Fase: {statusConfig[tournament.status]?.label || tournament.status}
+              </CardTitle>
+              <Badge variant="outline" className="text-xs">
+                {(() => {
+                  const items = getChecklistForPhase(tournament, locale);
+                  const completed = items.filter(i => i.completed).length;
+                  return `${completed}/${items.length} completati`;
+                })()}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Progress bar */}
+            {(() => {
+              const items = getChecklistForPhase(tournament, locale);
+              const completed = items.filter(i => i.completed).length;
+              const percentage = items.length > 0 ? Math.round((completed / items.length) * 100) : 0;
+              return (
+                <div className="space-y-1">
+                  <Progress value={percentage} className="h-2" />
+                  <p className="text-xs text-muted-foreground text-right">{percentage}% completato</p>
+                </div>
+              );
+            })()}
+
+            {/* Checklist items */}
+            <div className="space-y-2">
+              {getChecklistForPhase(tournament, locale).map((item) => (
+                <div
+                  key={item.id}
+                  className={`flex items-center justify-between p-3 rounded-lg ${
+                    item.completed
+                      ? "bg-green-50 dark:bg-green-950/20"
+                      : item.warning
+                      ? "bg-amber-50 dark:bg-amber-950/20"
+                      : "bg-muted/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {item.completed ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : item.warning ? (
+                      <AlertCircle className="h-5 w-5 text-amber-600" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <span className={item.completed ? "text-green-700 dark:text-green-400" : ""}>
+                      {item.label}
+                    </span>
+                  </div>
+                  {item.link && !item.completed && (
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={item.link}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Next action suggestion */}
+            {tournament.status === "DRAFT" && (
+              <div className="pt-2 border-t">
+                <Button size="sm" asChild>
+                  <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/settings`}>
+                    <Play className="h-4 w-4 mr-2" />
+                    Pubblica Torneo
+                  </Link>
+                </Button>
+              </div>
+            )}
+            {tournament.status === "PUBLISHED" && (
+              <div className="pt-2 border-t">
+                <Button size="sm" asChild>
+                  <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/settings`}>
+                    <Play className="h-4 w-4 mr-2" />
+                    Apri Iscrizioni
+                  </Link>
+                </Button>
+              </div>
+            )}
+            {tournament.status === "REGISTRATION_CLOSED" && (
+              <div className="pt-2 border-t">
+                <Button size="sm" asChild>
+                  <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/settings`}>
+                    <Play className="h-4 w-4 mr-2" />
+                    Avvia Torneo
+                  </Link>
+                </Button>
+              </div>
+            )}
+            {tournament.status === "ONGOING" && (
+              <div className="pt-2 border-t">
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/${locale}/dashboard/judge?tournamentId=${tournament.id}`}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Valida Catture
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Description */}
       {tournament.description && (
         <Card>
@@ -299,6 +661,147 @@ export default function TournamentManagementPage() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">{tournament.description}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Real-time Metrics - Only for ONGOING/COMPLETED */}
+      {(isOngoing || isCompleted) && (
+        <Card className="border-l-4 border-l-green-500">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Metriche {isOngoing && "Live"}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchStats}
+                disabled={statsLoading}
+              >
+                <RefreshCw className={`h-4 w-4 ${statsLoading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {stats ? (
+              <div className="space-y-6">
+                {/* Main Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                    <p className="text-2xl font-bold text-blue-600">{stats.totalCatches}</p>
+                    <p className="text-xs text-muted-foreground">Catture Totali</p>
+                  </div>
+                  <div className="text-center p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
+                    <p className="text-2xl font-bold text-amber-600">{stats.pendingCatches}</p>
+                    <p className="text-xs text-muted-foreground">Da Validare</p>
+                  </div>
+                  <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                    <p className="text-2xl font-bold text-green-600">{stats.approvedCatches}</p>
+                    <p className="text-xs text-muted-foreground">Approvate</p>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                    <p className="text-2xl font-bold text-red-600">{stats.rejectedCatches}</p>
+                    <p className="text-xs text-muted-foreground">Rifiutate</p>
+                  </div>
+                </div>
+
+                {/* Weight and Trend Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <Scale className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-lg font-bold">{stats.totalWeight.toFixed(1)} kg</p>
+                      <p className="text-xs text-muted-foreground">Peso Totale</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <Scale className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-lg font-bold">{stats.averageWeight.toFixed(2)} kg</p>
+                      <p className="text-xs text-muted-foreground">Media Peso</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-lg font-bold">{stats.catchesPerHour}/ora</p>
+                      <p className="text-xs text-muted-foreground">Trend Catture</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <UserCheck className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-lg font-bold">{stats.inspectorsStats.coverage}%</p>
+                      <p className="text-xs text-muted-foreground">Copertura Ispettori</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Catcher */}
+                {stats.topCatcher && (
+                  <div className="p-4 bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Trophy className="h-8 w-8 text-amber-500" />
+                      <div>
+                        <p className="font-bold text-amber-700 dark:text-amber-400">
+                          Top: {stats.topCatcher.name}
+                        </p>
+                        <p className="text-sm text-amber-600 dark:text-amber-500">
+                          {stats.topCatcher.catches} catture - {stats.topCatcher.weight.toFixed(1)} kg totali
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Activity */}
+                {stats.recentActivity.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
+                      Attivita Recente
+                    </h4>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {stats.recentActivity.slice(0, 5).map((activity) => (
+                        <div
+                          key={activity.id}
+                          className="flex items-center gap-2 text-sm p-2 bg-muted/30 rounded"
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              activity.type === "catch_approved"
+                                ? "bg-green-500"
+                                : activity.type === "catch_rejected"
+                                ? "bg-red-500"
+                                : activity.type === "catch_submitted"
+                                ? "bg-blue-500"
+                                : "bg-purple-500"
+                            }`}
+                          />
+                          <span className="flex-1 truncate">{activity.description}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(activity.timestamp).toLocaleTimeString(locale, {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : statsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-4">
+                Nessuna statistica disponibile
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -331,11 +834,71 @@ export default function TournamentManagementPage() {
               </Link>
             </Button>
 
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+              <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/staff`}>
+                <Gavel className="h-5 w-5 text-blue-600" />
+                <span className="text-xs">Giudici/Staff</span>
+              </Link>
+            </Button>
+
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+              <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/communications`}>
+                <MessageSquare className="h-5 w-5" />
+                <span className="text-xs">Comunicazioni</span>
+              </Link>
+            </Button>
+
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+              <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/penalties`}>
+                <Gavel className="h-5 w-5" />
+                <span className="text-xs">Penalita</span>
+              </Link>
+            </Button>
+
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+              <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/homologation`}>
+                <Shield className="h-5 w-5" />
+                <span className="text-xs">Omologazione</span>
+              </Link>
+            </Button>
+
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+              <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/sponsors`}>
+                <Building2 className="h-5 w-5" />
+                <span className="text-xs">Sponsor</span>
+              </Link>
+            </Button>
+
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+              <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/prizes`}>
+                <Gift className="h-5 w-5" />
+                <span className="text-xs">Premi</span>
+              </Link>
+            </Button>
+
+            {(isOngoing || isCompleted) && (
+              <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+                <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/analytics`}>
+                  <BarChart3 className="h-5 w-5" />
+                  <span className="text-xs">Analytics</span>
+                </Link>
+              </Button>
+            )}
+
             {(isOngoing || tournament.status === "REGISTRATION_CLOSED") && (
               <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
                 <Link href={`/${locale}/dashboard/strikes?tournamentId=${tournament.id}`}>
                   <Zap className="h-5 w-5" />
                   <span className="text-xs">Strike Live</span>
+                </Link>
+              </Button>
+            )}
+
+            {isOngoing && (
+              <Button variant="default" className="h-auto py-4 flex-col gap-2 bg-red-600 hover:bg-red-700" asChild>
+                <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/live`}>
+                  <Activity className="h-5 w-5" />
+                  <span className="text-xs">Live Dashboard</span>
                 </Link>
               </Button>
             )}

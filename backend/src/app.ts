@@ -31,6 +31,7 @@ import notificationRoutes from "./routes/notification.routes";
 import sponsorRoutes from "./routes/sponsor.routes";
 import archiveRoutes from "./routes/archive.routes";
 import importExportRoutes from "./routes/import-export.routes";
+import staffRoutes from "./routes/staff.routes";
 
 // Create Express app
 const app: Application = express();
@@ -107,6 +108,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/sponsors", sponsorRoutes);
 app.use("/api/archive", archiveRoutes);
 app.use("/api/import-export", importExportRoutes);
+app.use("/api/staff", staffRoutes);
 
 // Static files for prizes uploads
 app.use("/uploads/prizes", express.static(path.join(__dirname, "../uploads/prizes")));

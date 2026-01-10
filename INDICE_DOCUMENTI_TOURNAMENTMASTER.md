@@ -1,13 +1,19 @@
 # TournamentMaster - Indice Completo Documenti e File
 
 **Data creazione:** 2026-01-02
-**Ultimo aggiornamento:** 2026-01-04
-**Versione progetto:** 1.5.0
-**Percorso principale:** `C:\Users\marin\Downloads\TournamentMaster\`
+**Ultimo aggiornamento:** 2026-01-10
+**Versione progetto:** 1.5.1
+**Percorso principale:** `D:\Dev\TournamentMaster\`
 
 ---
 
 ## TODO - PROSSIMA SESSIONE
+
+### Priorita CRITICA (PDF Fix - 2026-01-10)
+- [ ] **VERIFICARE VISIVAMENTE** PDF `test_pdf_v2.pdf` mostra correttamente: Squadra, Barca, Angler, Canna
+- [ ] Testare PDF con altri tornei COMPLETED
+- [ ] Verificare percorso fallback (senza LeaderboardEntry) funzioni ancora
+- [ ] Aggiungere unit test per `generatePublicLeaderboardPDF`
 
 ### Priorita Alta
 - [ ] Testare API `/api/tenants/public/:slug` con tenant reale
@@ -16,17 +22,18 @@
 - [ ] Eseguire `prisma db push` per applicare nuovi campi Tenant
 
 ### Priorita Media
+- [ ] Refactoring: evitare duplicazione logica mapping tra percorsi PDF
 - [ ] Aggiungere upload immagini invece di URL manuali (logo, banner)
 - [ ] Aggiungere preview live nella pagina admin branding
 - [ ] Aggiungere validazione colori HEX nel frontend
 - [ ] Aggiungere link "Visita pagina pubblica" in admin branding
-- [ ] Testare PDF leaderboard FIPSAS con dati reali
 
 ### Priorita Bassa
 - [ ] Documentare nuovi endpoint nella documentazione completa
 - [ ] Aggiungere sezione branding nella guida utente
 - [ ] Testare cache 60s pagina pubblica funzioni correttamente
 - [ ] Verificare comportamento con campi null/undefined
+- [ ] Ottimizzare query PDF (potenzialmente join invece di query separate)
 
 ---
 
@@ -34,11 +41,13 @@
 
 | Categoria | Quantita |
 |-----------|----------|
-| Documentazione (.md) | 25 file |
+| Documentazione (.md) | 28 file |
+| Manuali utente (.html/.pdf) | 2 file |
 | File sorgente chiave | 11 file |
 | Migrazioni database | 3 cartelle |
 | File distribuzione | 3 file (APK, HTML, batch) |
-| **TOTALE** | **~42 file rilevanti** |
+| Screenshot documentazione | 12 file |
+| **TOTALE** | **~59 file rilevanti** |
 
 ---
 
@@ -75,6 +84,16 @@
 - **Dimensione:** 7 KB
 - **Data:** 2026-01-03
 - **Descrizione:** Handover deploy Railway. URL backend/frontend deployati, 16 tabelle migrate, utenti configurati, CONFESSIONE ERRORI (password assunta, modifica DB senza autorizzazione), lezioni apprese.
+
+### 1.8 HANDOVER_SESSIONE_PDF_FIX_20260110.md (NUOVO)
+- **Dimensione:** 8 KB
+- **Data:** 2026-01-10
+- **Descrizione:** Handover fix PDF Leaderboard DETTAGLIO CATTURE. Fix colonne Squadra (mostrava nome angler), Barca, Canna mancanti. CONFESSIONE ERRORI: lavoro a tentativi iniziale, non verificato quale percorso codice eseguito, errori pre-esistenti in homologation.service.ts. Root cause: due percorsi in generatePublicLeaderboardPDF (LeaderboardEntry vs Teams).
+
+### 1.9 DOCUMENTO_TECNICO_PDF_SERVICE_20260110.md (NUOVO)
+- **Dimensione:** 18 KB
+- **Data:** 2026-01-10
+- **Descrizione:** Documentazione tecnica completa PDF Service. Architettura classe, database schema (teams, team_members, catches, leaderboard_entries), metodi principali, flusso dati dettagliato con diagramma, interfacce TypeScript (CatchDetail, LeaderboardRow), query Prisma, mapping dati (userToTeamMap, teamIdToName, teamIdToBoatName), endpoint API, troubleshooting.
 
 ---
 
@@ -134,7 +153,51 @@
 
 ---
 
-## 5. DOCUMENTAZIONE FRONTEND
+## 5. MANUALE AMMINISTRATORE ASSOCIAZIONE (NUOVO)
+
+### 5.1 docs/MANUALE_AMMINISTRATORE_ASSOCIAZIONE.md
+- **Dimensione:** 15 KB
+- **Data creazione:** 2026-01-10
+- **Descrizione:** Manuale operativo completo per amministratori associazioni di pesca. 12 sezioni: Primo Accesso, Dashboard, Gestione Tornei, Partecipanti, Giudici/Staff, Validazione Catture, Classifiche, Import/Export, Archivio, Impostazioni, Risoluzione Problemi, FAQ. Include glossario e contatti supporto.
+
+### 5.2 docs/MANUALE_AMMINISTRATORE_ASSOCIAZIONE.html
+- **Dimensione:** 45 KB
+- **Data creazione:** 2026-01-10
+- **Descrizione:** Versione HTML con CSS professionale. Header blu, tabelle formattate, checklist interattive, box problema/soluzione colorati, sezione FAQ espandibile. Include 12 screenshot embedded. Responsive per tablet/mobile. Supporto stampa ottimizzato.
+
+### 5.3 docs/MANUALE_AMMINISTRATORE_ASSOCIAZIONE.pdf
+- **Dimensione:** 1 MB (17 pagine)
+- **Data creazione:** 2026-01-10
+- **Descrizione:** Versione PDF professionale generata con reportlab. Header/footer su ogni pagina, tabelle con alternanza colori, immagini embedded, numerazione pagine, indice, glossario. Pronto per stampa o distribuzione.
+
+### 5.4 docs/screenshots/ (12 file PNG)
+- **Dimensione totale:** ~1.1 MB
+- **Data creazione:** 2026-01-10
+- **Descrizione:** Screenshot catturati automaticamente con Playwright. Coprono tutte le sezioni principali:
+  - `01_login.png` - Pagina di login
+  - `02_dashboard.png` - Dashboard amministratore
+  - `03_tournaments.png` - Lista tornei
+  - `04_tournament_detail.png` - Dettaglio torneo
+  - `05_participants.png` - Gestione partecipanti
+  - `06_judges.png` - Assegnazione giudici/ispettori
+  - `07_catches.png` - Live Dashboard catture
+  - `08_leaderboard.png` - Classifica pubblica
+  - `09_users.png` - Gestione utenti
+  - `10_archive.png` - Archivio storico
+  - `11_messages.png` - Sistema messaggi
+  - `12_association_public.png` - Pagina pubblica associazione
+
+### 5.5 docs/capture-screenshots.js
+- **Dimensione:** 6 KB
+- **Descrizione:** Script Playwright per cattura automatica screenshot. Naviga tutte le pagine principali, effettua login, attende caricamento, salva PNG 1400x900. Configurabile per URL, credenziali, locale.
+
+### 5.6 docs/generate_pdf_manual.py
+- **Dimensione:** 25 KB
+- **Descrizione:** Script Python per generazione PDF con reportlab. Stili personalizzati (header blu, tabelle), embedding immagini, header/footer automatici, indice, glossario. Verifica presenza screenshot prima di generare.
+
+---
+
+## 6. DOCUMENTAZIONE FRONTEND
 
 ### 5.1 frontend/README.md
 - **Descrizione:** README standard Next.js con istruzioni base npm run dev/build/start.
@@ -288,7 +351,16 @@
 ### Per sessioni precedenti:
 1. `HANDOVER_SESSIONE_RAILWAY_DEPLOY_20260103.md` - Deploy Railway
 2. `HANDOVER_SESSIONE_BRANDING_20260104.md` - Branding associazioni
+3. `HANDOVER_SESSIONE_PDF_FIX_20260110.md` - Fix PDF Leaderboard (Squadra, Barca, Canna)
+
+### Per PDF Service:
+1. Leggere `DOCUMENTO_TECNICO_PDF_SERVICE_20260110.md` (architettura completa)
+2. Consultare `HANDOVER_SESSIONE_PDF_FIX_20260110.md` (errori e lezioni)
+3. File chiave:
+   - Service: `backend/src/services/pdf.service.ts`
+   - Schema: `backend/prisma/schema.prisma` (Team, TeamMember, Catch, LeaderboardEntry)
+   - Endpoint: `GET /api/reports/public/pdf/leaderboard/:tournamentId`
 
 ---
 
-*Documento aggiornato il 2026-01-04*
+*Documento aggiornato il 2026-01-10*

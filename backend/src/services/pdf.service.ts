@@ -285,6 +285,7 @@ export class PDFService {
       doc.text(col.header, xPos, currentY + 8, {
         width: col.width - 10,
         align: "left",
+        lineBreak: false,
       });
       xPos += col.width;
     });
@@ -310,6 +311,7 @@ export class PDFService {
           doc.text(col.header, xPos, currentY + 8, {
             width: col.width - 10,
             align: "left",
+            lineBreak: false,
           });
           xPos += col.width;
         });
@@ -361,6 +363,9 @@ export class PDFService {
 
       currentY += rowHeight;
     });
+
+    // Sync doc.y per elementi successivi
+    doc.y = currentY;
 
     // Statistiche riepilogative
     doc.moveDown(1);

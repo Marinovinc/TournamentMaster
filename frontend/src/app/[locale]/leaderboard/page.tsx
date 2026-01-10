@@ -107,7 +107,7 @@ export default async function LeaderboardPage({
             <Award className="inline h-8 w-8 mr-3 text-primary" />
             Classifiche
           </h1>
-          <HelpGuide pageKey="tournaments" position="inline" />
+          <HelpGuide pageKey="leaderboard" position="inline" />
         </div>
         <p className="text-muted-foreground text-lg">
           Consulta le classifiche in tempo reale dei tornei in corso

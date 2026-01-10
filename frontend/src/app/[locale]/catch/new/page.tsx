@@ -42,6 +42,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { HelpGuide } from "@/components/HelpGuide";
 
 // Types
 interface Tournament {
@@ -335,12 +336,15 @@ export default function NewCatchPage() {
     <div className="container max-w-2xl mx-auto py-8 px-4 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Fish className="h-6 w-6" />
-            Nuova Cattura
-          </h1>
-          <p className="text-muted-foreground">Registra la tua cattura</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Fish className="h-6 w-6" />
+              Nuova Cattura
+            </h1>
+            <p className="text-muted-foreground">Registra la tua cattura</p>
+          </div>
+          <HelpGuide pageKey="catchNew" position="inline" />
         </div>
         <Link href={`/${locale}/dashboard`}>
           <Button variant="ghost" size="sm">

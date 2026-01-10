@@ -413,7 +413,7 @@ export default function TeamsPage() {
               Gestisci barche, equipaggio e ispettori per i tornei
             </p>
           </div>
-          <HelpGuide pageKey="teams" position="inline" />
+          <HelpGuide pageKey="teams" position="inline" isAdmin={isAdmin} />
         </div>
         {isAdmin && (
           <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">

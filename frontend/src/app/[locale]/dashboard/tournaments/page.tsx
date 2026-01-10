@@ -535,7 +535,7 @@ export default function TournamentsPage() {
               Crea, modifica e gestisci i tornei di pesca
             </p>
           </div>
-          <HelpGuide pageKey="tournaments" position="inline" />
+          <HelpGuide pageKey="admin" position="inline" isAdmin={true} />
         </div>
         {isAdmin && (
           <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">

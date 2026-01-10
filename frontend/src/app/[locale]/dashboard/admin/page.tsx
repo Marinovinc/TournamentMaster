@@ -581,7 +581,7 @@ export default function AdminDashboardPage() {
               Gestisci tornei, utenti e monitora le statistiche
             </p>
           </div>
-          <HelpGuide pageKey="admin" position="inline" />
+          <HelpGuide pageKey="admin" position="inline" isAdmin={true} />
         </div>
         <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />

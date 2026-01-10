@@ -414,7 +414,7 @@ export default function JudgeDashboardPage() {
                 : `${pendingCount} catture in attesa di validazione`}
             </p>
           </div>
-          <HelpGuide pageKey="judge" position="inline" />
+          <HelpGuide pageKey="judge" position="inline" isAdmin={true} />
         </div>
         <Button onClick={fetchCatches} variant="outline">
           <RefreshCw className="h-4 w-4 mr-2" />

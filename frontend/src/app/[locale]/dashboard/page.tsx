@@ -111,7 +111,7 @@ export default function DashboardPage() {
               Ecco un riepilogo della tua attività
             </p>
           </div>
-          <HelpGuide pageKey="dashboard" position="inline" />
+          <HelpGuide pageKey="dashboard" position="inline" isAdmin={isAdmin} />
         </div>
         <Badge variant={getRoleBadgeVariant(user?.role || "")}>
           {getRoleLabel(user?.role || "")}

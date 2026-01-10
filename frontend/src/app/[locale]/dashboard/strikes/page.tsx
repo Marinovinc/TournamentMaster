@@ -369,7 +369,7 @@ export default function StrikesPage() {
                 : "Monitoraggio abboccate in tempo reale"}
             </p>
           </div>
-          <HelpGuide pageKey="strikes" position="inline" />
+          <HelpGuide pageKey="strikes" position="inline" isAdmin={true} />
         </div>
         <div className="flex items-center gap-2">
           {!isHistoryMode && (

@@ -443,7 +443,7 @@ export default function UsersPage() {
               Gestisci gli utenti della piattaforma
             </p>
           </div>
-          <HelpGuide pageKey="users" position="inline" />
+          <HelpGuide pageKey="users" position="inline" isAdmin={true} />
         </div>
       </div>
 

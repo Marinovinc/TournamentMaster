@@ -8,17 +8,21 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { User, Bell, Shield, Palette } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Impostazioni</h1>
-        <p className="text-muted-foreground">
-          Gestisci le impostazioni del tuo account e le preferenze
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Impostazioni</h1>
+          <p className="text-muted-foreground">
+            Gestisci le impostazioni del tuo account e le preferenze
+          </p>
+        </div>
+        <HelpGuide pageKey="settings" isAdmin={isAdmin} />
       </div>
 
       <div className="grid gap-6">

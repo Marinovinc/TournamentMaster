@@ -52,6 +52,7 @@ import {
   Megaphone,
   Star,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 import {
   getInbox,
   getSentMessages,
@@ -323,16 +324,19 @@ export default function MessagesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Mail className="h-8 w-8" />
-            Messaggi
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {unreadCount.total > 0
-              ? `${unreadCount.total} messaggi non letti`
-              : "Nessun messaggio non letto"}
-          </p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <Mail className="h-8 w-8" />
+              Messaggi
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {unreadCount.total > 0
+                ? `${unreadCount.total} messaggi non letti`
+                : "Nessun messaggio non letto"}
+            </p>
+          </div>
+          <HelpGuide pageKey="messages" isAdmin={isAdmin} position="inline" />
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={fetchData}>

@@ -52,6 +52,7 @@ model Tenant {
   tournaments   Tournament[]
   bannerImages  BannerImage[]
   memberships   Membership[]
+  sponsors      Sponsor[]
 
   @@map("tenants")
 }
@@ -120,6 +121,9 @@ model User {
   // Messaging
   sentMessages        Message[] @relation("SentMessages")
   receivedMessages    Message[] @relation("ReceivedMessages")
+
+  // Prizes won
+  prizesWon           Prize[]
 
   @@index([email])
   @@index([tenantId])
@@ -334,6 +338,11 @@ model Tournament {
   staff               TournamentStaff[]
   mediaLibrary        BannerImage[]
   userMedia           UserMedia[]
+  messages            Message[]
+  penalties           Penalty[]
+  homologation        TournamentHomologation?
+  sponsors            TournamentSponsor[]
+  prizes              Prize[]
 
   @@index([tenantId])
   @@index([status])
@@ -506,6 +515,7 @@ model Team {
   // Membri equipaggio
   members       TeamMember[]
   strikes       Strike[]
+  penalties     Penalty[]
 
   @@unique([tournamentId, boatNumber])
   @@index([tournamentId])
@@ -631,6 +641,7 @@ model Catch {
   // Fish details
   weight        Decimal     @db.Decimal(8, 3) // Weight in kg
   length        Decimal?    @db.Decimal(6, 2) // Length in cm
+  rodNumber     Int?        // Numero canna che ha pescato
 
   // GPS Location (separate columns for performance)
   latitude      Decimal     @db.Decimal(10, 8)
@@ -1100,6 +1111,10 @@ model Message {
   // Multi-tenant
   tenantId      String
 
+  // Riferimento a torneo (opzionale, per messaggi torneo-specifici)
+  tournamentId  String?
+  tournament    Tournament?     @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
+
   // Stato lettura (per messaggi diretti)
   isRead        Boolean         @default(false)
   readAt        DateTime?
@@ -1123,6 +1138,7 @@ model Message {
   @@index([senderId])
   @@index([recipientId])
   @@index([tenantId])
+  @@index([tournamentId])
   @@index([type])
   @@index([isRead])
   @@index([createdAt])
@@ -1220,4 +1236,381 @@ model UserMedia {
   @@index([isPublic])
   @@index([takenAt])
   @@map("user_media")
+}
+
+// ================================
+// PENALTY SYSTEM (Sistema Penalità)
+// ================================
+
+enum PenaltyType {
+  LATE_ARRIVAL         // Ritardo partenza
+  ZONE_VIOLATION       // Fuori zona di pesca
+  EQUIPMENT_VIOLATION  // Attrezzatura non conforme
+  UNSPORTSMANLIKE      // Comportamento antisportivo
+  CATCH_VIOLATION      // Cattura non conforme (sottomisura, specie protetta)
+  SAFETY_VIOLATION     // Violazione sicurezza
+  RULE_VIOLATION       // Violazione regolamento generico
+  WARNING              // Ammonizione (senza punti)
+  DISQUALIFICATION     // Squalifica totale
+}
+
+enum PenaltyStatus {
+  ACTIVE               // Penalità attiva
+  APPEALED             // In appello
+  UPHELD               // Appello respinto, penalità confermata
+  OVERTURNED           // Appello accolto, penalità annullata
+  EXPIRED              // Scaduta
+}
+
+model Penalty {
+  id              String        @id @default(uuid())
+
+  // Tipo e stato
+  type            PenaltyType
+  status          PenaltyStatus @default(ACTIVE)
+
+  // Punti penalità (negativi = sottrazione punti)
+  points          Int           @default(0)
+
+  // Descrizione
+  reason          String        @db.Text
+  evidence        String?       @db.Text    // Descrizione prove/testimonianze
+  evidencePhotos  String?       @db.Text    // JSON array di URL foto
+
+  // Chi ha emesso la penalità
+  issuedById      String
+  issuedAt        DateTime      @default(now())
+
+  // Appello (opzionale)
+  appealedAt      DateTime?
+  appealReason    String?       @db.Text
+  appealDecision  String?       @db.Text
+  appealDecidedBy String?
+  appealDecidedAt DateTime?
+
+  // Target: Team o singolo utente
+  teamId          String?
+  team            Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId          String?
+
+  // Torneo di riferimento
+  tournamentId    String
+  tournament      Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([tournamentId])
+  @@index([teamId])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@map("penalties")
+}
+
+// ================================
+// NOTIFICATION SYSTEM
+// ================================
+
+enum NotificationType {
+  TOURNAMENT_REMINDER     // Promemoria torneo (iscrizioni, inizio, fine)
+  CATCH_VALIDATED         // Cattura validata/rifiutata
+  RANKING_CHANGE          // Cambio posizione classifica
+  PENALTY_ISSUED          // Penalità ricevuta
+  MESSAGE_RECEIVED        // Nuovo messaggio ricevuto
+  REGISTRATION_CONFIRMED  // Iscrizione confermata
+  TEAM_INVITE             // Invito in team
+  SYSTEM_ALERT            // Avviso di sistema
+  HOMOLOGATION_UPDATE     // Aggiornamento omologazione
+}
+
+enum NotificationChannel {
+  IN_APP         // Solo in-app
+  EMAIL          // Email
+  PUSH           // Push notification (future)
+  SMS            // SMS (future)
+}
+
+model Notification {
+  id              String           @id @default(uuid())
+
+  // Tipo e contenuto
+  type            NotificationType
+  title           String           @db.VarChar(255)
+  body            String           @db.Text
+  icon            String?          @db.VarChar(50)    // Icon name for UI
+  actionUrl       String?          @db.VarChar(500)   // URL to navigate on click
+
+  // Riferimenti opzionali
+  tournamentId    String?
+  teamId          String?
+  catchId         String?
+  messageId       String?
+
+  // Stato
+  isRead          Boolean          @default(false)
+  readAt          DateTime?
+  isArchived      Boolean          @default(false)
+
+  // Canale utilizzato
+  channel         NotificationChannel @default(IN_APP)
+  emailSent       Boolean          @default(false)
+  emailSentAt     DateTime?
+
+  // Scheduling
+  scheduledFor    DateTime?        // Per notifiche programmate
+  sentAt          DateTime?
+
+  // Destinatario
+  userId          String
+  tenantId        String?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([scheduledFor])
+  @@map("notifications")
+}
+
+// Preferenze notifiche utente
+model NotificationPreference {
+  id              String           @id @default(uuid())
+
+  // Preferenze per tipo
+  tournamentReminders   Boolean    @default(true)
+  catchUpdates          Boolean    @default(true)
+  rankingChanges        Boolean    @default(true)
+  penaltyAlerts         Boolean    @default(true)
+  messageNotifications  Boolean    @default(true)
+  systemAlerts          Boolean    @default(true)
+
+  // Canali preferiti
+  emailEnabled          Boolean    @default(true)
+  pushEnabled           Boolean    @default(true)
+
+  // Timing
+  reminderDaysBefore    Int        @default(1)   // Giorni prima per reminder
+  digestEnabled         Boolean    @default(false) // Riassunto giornaliero invece di singole notifiche
+  digestTime            String?    @db.VarChar(5)   // HH:MM per invio digest
+
+  // Quiet hours
+  quietHoursEnabled     Boolean    @default(false)
+  quietHoursStart       String?    @db.VarChar(5)   // HH:MM
+  quietHoursEnd         String?    @db.VarChar(5)   // HH:MM
+
+  userId          String           @unique
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("notification_preferences")
+}
+
+// ================================
+// FIPSAS HOMOLOGATION (Omologazione)
+// ================================
+
+enum HomologationStatus {
+  NOT_REQUIRED         // Torneo non richiede omologazione FIPSAS
+  PENDING              // In attesa di preparazione documenti
+  READY_TO_SUBMIT      // Pronto per invio
+  SUBMITTED            // Inviato al comitato settore
+  UNDER_REVIEW         // In revisione dal comitato
+  CORRECTIONS_NEEDED   // Richieste correzioni
+  HOMOLOGATED          // Omologato ufficialmente
+  REJECTED             // Rifiutato
+}
+
+model TournamentHomologation {
+  id                  String             @id @default(uuid())
+
+  // Stato corrente
+  status              HomologationStatus @default(NOT_REQUIRED)
+
+  // Informazioni FIPSAS
+  fipsasEventCode     String?            @db.VarChar(50)    // Codice evento FIPSAS
+  homologationNumber  String?            @db.VarChar(50)    // Numero omologazione assegnato
+
+  // Date importanti
+  submittedAt         DateTime?
+  reviewedAt          DateTime?
+  homologatedAt       DateTime?
+
+  // Documenti (JSON array di URL)
+  documents           String?            @db.Text
+
+  // Note del revisore
+  reviewerNotes       String?            @db.Text
+  correctionRequests  String?            @db.Text
+
+  // Checklist conformità (JSON object)
+  complianceChecklist String?            @db.Text
+
+  // Chi ha gestito
+  submittedById       String?
+  reviewedById        String?
+
+  // Torneo di riferimento (1:1)
+  tournamentId        String             @unique
+  tournament          Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([status])
+  @@map("tournament_homologations")
+}
+
+// ================================
+// SPONSORSHIP & PRIZES
+// ================================
+
+enum SponsorTier {
+  PLATINUM      // Sponsor principale - visibilità massima
+  GOLD          // Sponsor gold - logo grande
+  SILVER        // Sponsor silver - logo medio
+  BRONZE        // Sponsor bronze - logo piccolo
+  SUPPORTER     // Sostenitore - solo menzione
+}
+
+model Sponsor {
+  id              String        @id @default(uuid())
+
+  // Info sponsor
+  name            String        @db.VarChar(255)
+  description     String?       @db.Text
+  logo            String?       @db.VarChar(500)
+  website         String?       @db.VarChar(255)
+  contactEmail    String?       @db.VarChar(255)
+  contactPhone    String?       @db.VarChar(50)
+
+  // Livello sponsorship
+  tier            SponsorTier   @default(BRONZE)
+
+  // Visibilità
+  isActive        Boolean       @default(true)
+  displayOrder    Int           @default(0)
+
+  // Associazione
+  tenantId        String?
+  tenant          Tenant?       @relation(fields: [tenantId], references: [id])
+
+  // Relazioni
+  tournaments     TournamentSponsor[]
+  prizes          Prize[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([tier])
+  @@map("sponsors")
+}
+
+model TournamentSponsor {
+  id              String        @id @default(uuid())
+
+  // Personalizzazione per torneo
+  tier            SponsorTier?  // Override del tier per questo torneo
+  customMessage   String?       @db.Text
+  displayOrder    Int           @default(0)
+
+  // Relazioni
+  tournamentId    String
+  tournament      Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  sponsorId       String
+  sponsor         Sponsor       @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([tournamentId, sponsorId])
+  @@index([tournamentId])
+  @@index([sponsorId])
+  @@map("tournament_sponsors")
+}
+
+enum PrizeCategory {
+  FIRST_PLACE     // Primo classificato
+  SECOND_PLACE    // Secondo classificato
+  THIRD_PLACE     // Terzo classificato
+  BIGGEST_CATCH   // Pesce più grande
+  MOST_CATCHES    // Più catture
+  YOUNGEST        // Più giovane
+  OLDEST          // Più anziano
+  SPECIAL         // Premio speciale
+  PARTICIPATION   // Premio partecipazione
+}
+
+model Prize {
+  id              String        @id @default(uuid())
+
+  // Info premio
+  name            String        @db.VarChar(255)
+  description     String?       @db.Text
+  category        PrizeCategory @default(SPECIAL)
+  position        Int?          // Per premi di classifica (1, 2, 3...)
+
+  // Valore
+  value           Decimal?      @db.Decimal(10, 2)
+  valueDescription String?      @db.VarChar(255) // es. "1000€ + Canna da pesca"
+
+  // Sponsor che offre il premio
+  sponsorId       String?
+  sponsor         Sponsor?      @relation(fields: [sponsorId], references: [id])
+
+  // Torneo
+  tournamentId    String
+  tournament      Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  // Vincitore (assegnato a fine torneo)
+  winnerId        String?
+  winner          User?         @relation(fields: [winnerId], references: [id])
+
+  // Stato
+  isAwarded       Boolean       @default(false)
+  awardedAt       DateTime?
+
+  // Media (foto/video del premio)
+  media           PrizeMedia[]
+
+  displayOrder    Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([tournamentId])
+  @@index([sponsorId])
+  @@index([category])
+  @@map("prizes")
+}
+
+model PrizeMedia {
+  id              String        @id @default(uuid())
+
+  // Info media
+  type            String        @db.VarChar(20) // "image" | "video"
+  url             String        @db.VarChar(500)
+  thumbnailUrl    String?       @db.VarChar(500)
+  filename        String?       @db.VarChar(255)
+  mimeType        String?       @db.VarChar(100)
+  size            Int?          // bytes
+
+  // Metadati
+  caption         String?       @db.VarChar(500)
+  displayOrder    Int           @default(0)
+
+  // Premio associato
+  prizeId         String
+  prize           Prize         @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([prizeId])
+  @@map("prize_media")
 }

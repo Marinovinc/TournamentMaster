@@ -24,6 +24,13 @@ import skipperRoutes from "./routes/skipper.routes";
 import membershipRoutes from "./routes/membership.routes";
 import userMediaRoutes from "./routes/user-media.routes";
 import messageRoutes from "./routes/message.routes";
+import penaltyRoutes from "./routes/penalty.routes";
+import homologationRoutes from "./routes/homologation.routes";
+import analyticsRoutes from "./routes/analytics.routes";
+import notificationRoutes from "./routes/notification.routes";
+import sponsorRoutes from "./routes/sponsor.routes";
+import archiveRoutes from "./routes/archive.routes";
+import importExportRoutes from "./routes/import-export.routes";
 
 // Create Express app
 const app: Application = express();
@@ -93,6 +100,16 @@ app.use("/api/skippers", skipperRoutes);
 app.use("/api/memberships", membershipRoutes);
 app.use("/api/user-media", userMediaRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/penalties", penaltyRoutes);
+app.use("/api/homologation", homologationRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/sponsors", sponsorRoutes);
+app.use("/api/archive", archiveRoutes);
+app.use("/api/import-export", importExportRoutes);
+
+// Static files for prizes uploads
+app.use("/uploads/prizes", express.static(path.join(__dirname, "../uploads/prizes")));
 
 // 404 handler
 app.use((req: Request, res: Response) => {

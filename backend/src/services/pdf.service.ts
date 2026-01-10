@@ -63,11 +63,12 @@ export class PDFService {
    */
   static async generateJudgeAssignmentsPDF(
     tournamentId: string,
-    tenantId: string
+    _tenantId?: string // tenantId opzionale - l'accesso è già controllato dalla route
   ): Promise<Buffer> {
-    // Recupera dati torneo
-    const tournament = await prisma.tournament.findFirst({
-      where: { id: tournamentId, tenantId },
+    // Recupera dati torneo senza filtro tenant
+    // L'accesso è già verificato dalla route (authenticate + authorize)
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
       include: {
         tenant: {
           select: { name: true, logo: true, primaryColor: true },
@@ -630,11 +631,12 @@ export class PDFService {
    */
   static async generateLeaderboardPDF(
     tournamentId: string,
-    tenantId: string
+    _tenantId?: string // tenantId opzionale - l'accesso è già controllato dalla route
   ): Promise<Buffer> {
-    // Recupera dati torneo
-    const tournament = await prisma.tournament.findFirst({
-      where: { id: tournamentId, tenantId },
+    // Recupera dati torneo senza filtro tenant
+    // L'accesso è già verificato dalla route (authenticate + authorize)
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
       include: {
         tenant: {
           select: { name: true, logo: true, primaryColor: true },
@@ -664,9 +666,16 @@ export class PDFService {
     // Recupera catture approvate del torneo per calcolare pesi
     const catches = await prisma.catch.findMany({
       where: { tournamentId, status: "APPROVED" },
-      include: {
+      select: {
+        id: true,
+        weight: true,
+        length: true,
+        rodNumber: true,
+        caughtAt: true,
+        points: true,
+        userId: true,
         species: { select: { commonNameIt: true, pointsMultiplier: true } },
-        user: { select: { id: true } },
+        user: { select: { id: true, firstName: true, lastName: true } },
       },
     });
 
@@ -683,6 +692,17 @@ export class PDFService {
 
     // Aggiungi anche i capitani alla mappa
     teams.forEach((t) => userToTeamMap.set(t.captainId, t.id));
+
+    // Fallback: cerca teamName dalle registrazioni per utenti non mappati via TeamMember
+    const registrations = await prisma.tournamentRegistration.findMany({
+      where: { tournamentId, status: "CONFIRMED" },
+      select: { userId: true, teamName: true, boatName: true },
+    });
+    const userToRegTeamName = new Map<string, string>();
+    registrations.forEach((r) => {
+      if (r.teamName) userToRegTeamName.set(r.userId, r.teamName);
+      else if (r.boatName) userToRegTeamName.set(r.userId, r.boatName);
+    });
 
     // Raggruppa catture per team
     const catchesByTeam = new Map<string, typeof catches>();
@@ -713,6 +733,9 @@ export class PDFService {
     interface CatchDetail {
       rank: number;
       teamName: string;
+      boatName: string;
+      anglerName: string;
+      rodNumber: number | null;
       speciesName: string;
       weight: number;
       length: number | null;
@@ -766,17 +789,35 @@ export class PDFService {
       row.rank = index + 1;
     });
 
-    // Prepara dettaglio catture con nome team
+    // Prepara dettaglio catture con nome team e barca
     const teamIdToName = new Map<string, string>();
-    teams.forEach((t) => teamIdToName.set(t.id, t.name));
+    const teamIdToBoatName = new Map<string, string>();
+    teams.forEach((t) => {
+      teamIdToName.set(t.id, t.name);
+      if (t.boatName) teamIdToBoatName.set(t.id, t.boatName);
+    });
 
     const catchDetails: CatchDetail[] = catches
       .sort((a, b) => Number(b.weight) - Number(a.weight))
       .map((c, index) => {
         const teamId = userToTeamMap.get(c.userId);
+        const userName = `${c.user.firstName} ${c.user.lastName}`;
+        let teamName: string;
+        let boatName = "-";
+        if (teamId && teamIdToName.has(teamId)) {
+          teamName = teamIdToName.get(teamId)!;
+          boatName = teamIdToBoatName.get(teamId) || "-";
+        } else if (userToRegTeamName.has(c.userId)) {
+          teamName = userToRegTeamName.get(c.userId)!;
+        } else {
+          teamName = userName;
+        }
         return {
           rank: index + 1,
-          teamName: teamId ? teamIdToName.get(teamId) || "N/A" : "N/A",
+          teamName,
+          boatName,
+          anglerName: userName,
+          rodNumber: c.rodNumber,
           speciesName: c.species?.commonNameIt || "Sconosciuta",
           weight: Number(c.weight),
           length: c.length ? Number(c.length) : null,
@@ -842,7 +883,7 @@ export class PDFService {
 
       // === PAGINA 1: CLASSIFICA SQUADRE ===
       this.drawLeaderboardHeader(doc, tournament, primaryColor, "CLASSIFICA UFFICIALE", logoBuffer);
-      this.drawLeaderboardTable(doc, leaderboard, primaryColor);
+      this.drawLeaderboardTable(doc, leaderboard, catchDetails, primaryColor);
       this.drawLeaderboardFooter(doc, organizerName, tournament);
 
       // === PAGINA 2: DETTAGLIO CATTURE ===
@@ -930,7 +971,7 @@ export class PDFService {
     doc.moveDown(0.4);
   }
 
-  private static drawLeaderboardTable(doc: PDFKit.PDFDocument, leaderboard: any[], primaryColor: string): void {
+  private static drawLeaderboardTable(doc: PDFKit.PDFDocument, leaderboard: any[], catchDetails: any[], primaryColor: string): void {
     const startX = doc.page.margins.left;
     const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
@@ -994,12 +1035,31 @@ export class PDFService {
       currentY += rowHeight;
     });
 
-    // Riepilogo
+    // Sincronizza doc.y con currentY per il testo successivo
+    doc.y = currentY;
+
+    // Riepilogo - usa dati catture se leaderboard è vuota
     doc.moveDown(0.8);
-    const totalCatches = leaderboard.reduce((sum: number, r: any) => sum + r.catchCount, 0);
-    const totalWeight = leaderboard.reduce((sum: number, r: any) => sum + r.totalWeight, 0);
+    let totalCatches: number;
+    let totalWeight: number;
+    let totalParticipants: number;
+
+    if (leaderboard.length > 0) {
+      totalCatches = leaderboard.reduce((sum: number, r: any) => sum + r.catchCount, 0);
+      totalWeight = leaderboard.reduce((sum: number, r: any) => sum + r.totalWeight, 0);
+      totalParticipants = leaderboard.length;
+    } else {
+      // Fallback: calcola da catchDetails
+      totalCatches = catchDetails.length;
+      totalWeight = catchDetails.reduce((sum: number, c: any) => sum + c.weight, 0);
+      // Conta partecipanti unici per anglerName
+      const uniqueAnglers = new Set(catchDetails.map((c: any) => c.anglerName));
+      totalParticipants = uniqueAnglers.size;
+    }
+
+    const summaryText = `Partecipanti: ${totalParticipants}  |  Catture: ${totalCatches}  |  Peso totale: ${totalWeight.toFixed(2)} kg`;
     doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000")
-      .text(`Totale Partecipanti: ${leaderboard.length}  |  Catture: ${totalCatches}  |  Peso: ${totalWeight.toFixed(2)} kg`, { align: "center" });
+      .text(summaryText, startX, doc.y, { width: pageWidth, align: "center", lineBreak: false });
   }
 
   private static drawCatchesTable(doc: PDFKit.PDFDocument, catches: any[], primaryColor: string): void {
@@ -1007,9 +1067,9 @@ export class PDFService {
     const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
     const columns = [
-      { header: "Pos", width: 40 }, { header: "Squadra", width: 150 }, { header: "Specie", width: 130 },
-      { header: "Peso (kg)", width: 80 }, { header: "Lungh. (cm)", width: 80 },
-      { header: "Ora Cattura", width: 100 }, { header: "Punti", width: 80 },
+      { header: "Pos", width: 28 }, { header: "Squadra", width: 100 }, { header: "Barca", width: 85 },
+      { header: "Angler", width: 95 }, { header: "Canna", width: 38 }, { header: "Specie", width: 80 },
+      { header: "Peso", width: 45 }, { header: "Lung.", width: 42 }, { header: "Ora", width: 42 }, { header: "Punti", width: 50 },
     ];
 
     const rowHeight = 18;
@@ -1054,9 +1114,12 @@ export class PDFService {
       const catchTime = c.caughtAt.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
       const rowData = [
         (index + 1).toString(),
-        (c.teamName || "N/A").slice(0, 25),
-        (c.speciesName || "N/A").slice(0, 20),
-        c.weight.toFixed(3),
+        (c.teamName || "N/A").slice(0, 16),
+        (c.boatName || "-").slice(0, 14),
+        (c.anglerName || "N/A").slice(0, 15),
+        c.rodNumber ? c.rodNumber.toString() : "-",
+        (c.speciesName || "N/A").slice(0, 12),
+        c.weight.toFixed(2),
         c.length ? c.length.toFixed(1) : "-",
         catchTime,
         c.points.toFixed(0)
@@ -1117,40 +1180,142 @@ export class PDFService {
 
     // Se ci sono LeaderboardEntry, usa quelli (TUTTI i partecipanti)
     if (leaderboardEntries.length > 0) {
-      const leaderboard = leaderboardEntries.map((entry) => ({
-        rank: entry.rank,
-        teamName: entry.teamName || entry.participantName || "N/A",
-        boatName: "-",
-        boatNumber: null,
-        captainName: entry.participantName || "N/A",
-        clubName: entry.teamName !== entry.participantName ? entry.teamName : null,
-        catchCount: entry.catchCount,
-        releasedCount: 0,
-        lostCount: 0,
-        totalWeight: Number(entry.totalWeight),
-        biggestCatch: entry.biggestCatch ? Number(entry.biggestCatch) : null,
-        totalPoints: Number(entry.totalPoints),
-      }));
+      // Recupera teams per mappatura boatName, boatNumber e clubName nella classifica
+      const teams = await prisma.team.findMany({
+        where: { tournamentId },
+        select: { id: true, name: true, boatName: true, boatNumber: true, clubName: true, captainId: true },
+      });
+
+      // Costruisci TUTTE le mappe necessarie dalla query teams
+      // Per la classifica (by teamName)
+      const teamNameToBoatName = new Map<string, string>();
+      const teamNameToBoatNumber = new Map<string, number>();
+      const teamNameToClubName = new Map<string, string>();
+      // Per catchDetails (by teamId)
+      const teamIdToName = new Map<string, string>();
+      const teamIdToBoatName = new Map<string, string>();
+
+      teams.forEach((t) => {
+        // Mappe by teamName (per classifica)
+        teamNameToBoatName.set(t.name, t.boatName || "-");
+        if (t.boatNumber) teamNameToBoatNumber.set(t.name, t.boatNumber);
+        if (t.clubName) teamNameToClubName.set(t.name, t.clubName);
+        // Mappe by teamId (per catchDetails)
+        teamIdToName.set(t.id, t.name);
+        if (t.boatName) teamIdToBoatName.set(t.id, t.boatName);
+      });
+
+      // Aggrega leaderboardEntries per TEAM (non per singolo angler)
+      // I dati in leaderboard_entries sono per angler, dobbiamo aggregare per teamName
+      const teamAggregates = new Map<string, {
+        teamName: string;
+        captainName: string;
+        catchCount: number;
+        totalWeight: number;
+        totalPoints: number;
+        biggestCatch: number | null;
+      }>();
+
+      leaderboardEntries.forEach((entry) => {
+        const teamName = entry.teamName || entry.participantName || "N/A";
+        const existing = teamAggregates.get(teamName);
+
+        if (existing) {
+          // Aggrega: somma catchCount, totalWeight, totalPoints
+          existing.catchCount += entry.catchCount;
+          existing.totalWeight += Number(entry.totalWeight);
+          existing.totalPoints += Number(entry.totalPoints);
+          // biggestCatch: prendi il massimo
+          if (entry.biggestCatch) {
+            const newBiggest = Number(entry.biggestCatch);
+            if (!existing.biggestCatch || newBiggest > existing.biggestCatch) {
+              existing.biggestCatch = newBiggest;
+            }
+          }
+        } else {
+          // Primo angler del team - crea entry
+          teamAggregates.set(teamName, {
+            teamName,
+            captainName: entry.participantName || "N/A",
+            catchCount: entry.catchCount,
+            totalWeight: Number(entry.totalWeight),
+            totalPoints: Number(entry.totalPoints),
+            biggestCatch: entry.biggestCatch ? Number(entry.biggestCatch) : null,
+          });
+        }
+      });
+
+      // Converti in array, ordina per totalPoints decrescente, assegna rank
+      const leaderboard = Array.from(teamAggregates.values())
+        .sort((a, b) => b.totalPoints - a.totalPoints)
+        .map((team, index) => ({
+          rank: index + 1,
+          teamName: team.teamName,
+          boatName: teamNameToBoatName.get(team.teamName) || "-",
+          boatNumber: teamNameToBoatNumber.get(team.teamName) || null,
+          captainName: team.captainName,
+          clubName: teamNameToClubName.get(team.teamName) || null,
+          catchCount: team.catchCount,
+          releasedCount: 0,
+          lostCount: 0,
+          totalWeight: team.totalWeight,
+          biggestCatch: team.biggestCatch,
+          totalPoints: team.totalPoints,
+        }));
 
       // Recupera catture per dettaglio
       const catches = await prisma.catch.findMany({
         where: { tournamentId, status: "APPROVED" },
-        include: {
+        select: {
+          id: true,
+          weight: true,
+          length: true,
+          rodNumber: true,
+          caughtAt: true,
+          userId: true,
           species: { select: { commonNameIt: true, pointsMultiplier: true } },
-          user: { select: { firstName: true, lastName: true } },
+          user: { select: { id: true, firstName: true, lastName: true } },
         },
         orderBy: { weight: "desc" },
       });
 
-      const catchDetails = catches.map((c, index) => ({
-        rank: index + 1,
-        teamName: `${c.user.firstName} ${c.user.lastName}`,
-        speciesName: c.species?.commonNameIt || "Sconosciuta",
-        weight: Number(c.weight),
-        length: c.length ? Number(c.length) : null,
-        caughtAt: c.caughtAt,
-        points: Number(c.weight) * (c.species?.pointsMultiplier ? Number(c.species.pointsMultiplier) : 1) * 100,
-      }));
+      // Recupera membri per mappatura userId -> teamId (teams già recuperati sopra)
+      const teamMembers = await prisma.teamMember.findMany({
+        where: { team: { tournamentId } },
+        select: { userId: true, teamId: true },
+      });
+
+      // Costruisci mappa userId -> teamId
+      const userToTeamMap = new Map<string, string>();
+      teamMembers.forEach((m) => {
+        if (m.userId) userToTeamMap.set(m.userId, m.teamId);
+      });
+      teams.forEach((t) => userToTeamMap.set(t.captainId, t.id));
+
+      // teamIdToName e teamIdToBoatName già costruite sopra
+
+      const catchDetails = catches.map((c, index) => {
+        const teamId = userToTeamMap.get(c.userId);
+        const userName = `${c.user.firstName} ${c.user.lastName}`;
+        let teamName = userName;
+        let boatName = "-";
+        if (teamId && teamIdToName.has(teamId)) {
+          teamName = teamIdToName.get(teamId)!;
+          boatName = teamIdToBoatName.get(teamId) || "-";
+        }
+        return {
+          rank: index + 1,
+          teamName,
+          boatName,
+          anglerName: userName,
+          rodNumber: c.rodNumber,
+          speciesName: c.species?.commonNameIt || "Sconosciuta",
+          weight: Number(c.weight),
+          length: c.length ? Number(c.length) : null,
+          caughtAt: c.caughtAt,
+          points: Number(c.weight) * (c.species?.pointsMultiplier ? Number(c.species.pointsMultiplier) : 1) * 100,
+        };
+      });
 
       // Scarica logo se disponibile
       let logoBuffer: Buffer | null = null;

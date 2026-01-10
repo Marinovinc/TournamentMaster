@@ -1,7 +1,7 @@
 # TOURNAMENTMASTER - DOCUMENTO PROGETTO UNIFICATO
 
-**Versione Documento:** 2.0.0
-**Data:** 2026-01-02
+**Versione Documento:** 2.1.0
+**Data:** 2026-01-10
 **Origine:** Unificazione di 3 documenti sorgente
 **Autore:** Team TournamentMaster
 
@@ -44,6 +44,7 @@
 23. [Gamification](#23-gamification)
 24. [Feature Roadmap](#24-feature-roadmap)
 25. [Funzioni Dettagliate Backend e Frontend](#25-funzioni-dettagliate-backend-e-frontend)
+26. [Documentazione e Manuali](#26-documentazione-e-manuali)
 
 ---
 
@@ -1629,6 +1630,67 @@ interface AuthContextType {
 2. Calcolo classifica definitiva
 3. Generazione report e certificati
 4. Archiviazione dati
+
+---
+
+## 26. DOCUMENTAZIONE E MANUALI
+
+### 26.1 Manuale Amministratore Associazione
+
+Documentazione completa per gli amministratori delle associazioni sportive.
+
+| File | Formato | Descrizione |
+|------|---------|-------------|
+| `docs/MANUALE_AMMINISTRATORE_ASSOCIAZIONE.md` | Markdown | Versione sorgente |
+| `docs/MANUALE_AMMINISTRATORE_ASSOCIAZIONE.html` | HTML | Versione web standalone |
+| `docs/MANUALE_AMMINISTRATORE_ASSOCIAZIONE.pdf` | PDF | Versione stampabile |
+
+**Contenuti del manuale:**
+1. Introduzione e primi passi
+2. Dashboard panoramica
+3. Gestione tornei (creazione, configurazione, workflow)
+4. Gestione partecipanti e giudici
+5. Monitoraggio catture in tempo reale
+6. Gestione utenti
+7. Archivio storico
+8. Sistema messaggistica
+9. Pagina pubblica associazione
+10. Best practices e troubleshooting
+
+### 26.2 Screenshot Documentazione
+
+Directory: `docs/screenshots/`
+
+| Screenshot | Pagina |
+|------------|--------|
+| 01_login.png | Pagina login |
+| 02_dashboard.png | Dashboard principale |
+| 03_tournaments.png | Lista tornei |
+| 04_tournament_detail.png | Dettaglio torneo |
+| 05_participants.png | Gestione partecipanti |
+| 06_judges.png | Gestione giudici |
+| 07_catches.png | Catture live |
+| 08_leaderboard.png | Classifica pubblica |
+| 09_users.png | Gestione utenti |
+| 10_archive.png | Archivio tornei |
+| 11_messages.png | Sistema messaggistica |
+| 12_association_public.png | Pagina pubblica |
+
+### 26.3 Script Automazione Documentazione
+
+| Script | Tecnologia | Funzione |
+|--------|------------|----------|
+| `docs/capture-screenshots.js` | Playwright | Cattura automatica screenshot delle pagine |
+| `docs/generate_pdf_manual.py` | ReportLab | Generazione PDF professionale dal markdown |
+
+**Utilizzo:**
+```bash
+# Cattura screenshot (richiede server attivo su localhost:3000)
+node docs/capture-screenshots.js
+
+# Genera PDF
+python docs/generate_pdf_manual.py
+```
 
 ---
 

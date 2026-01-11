@@ -4,7 +4,7 @@ import { locales, defaultLocale } from './i18n/config';
 export default createMiddleware({
   locales,
   defaultLocale,
-  localePrefix: 'as-needed', // Hide default locale from URL
+  localePrefix: 'always', // Always show locale in URL (required for basePath to work correctly)
 });
 
 export const config = {

@@ -224,6 +224,55 @@ Prima di ogni commit, verificare:
 
 ---
 
+## LOG SESSIONE (OBBLIGATORIO)
+
+Il file `claude_session_Tournament.md` deve essere mantenuto aggiornato in tempo reale.
+
+**REGOLA FONDAMENTALE:**
+1. **PRIMA** di ogni operazione: registrare cosa si sta per fare
+2. **DOPO** ogni operazione: confermare il risultato (successo/errore)
+
+### Formato Log
+
+```markdown
+### [Data] - [Obiettivo Sessione]
+
+#### Operazione N: [Descrizione]
+- **Pre:** [Cosa sto per fare]
+- **Comandi/File:** [Dettagli tecnici]
+- **Post:** [Risultato - OK/ERRORE + dettagli]
+```
+
+### Esempio
+
+```markdown
+#### Operazione 3: Modifica middleware.ts
+- **Pre:** Cambio localePrefix da 'as-needed' a 'always'
+- **File:** `frontend/src/middleware.ts` (backup: .BACKUP_20260111)
+- **Post:** OK - file modificato, richiede restart frontend
+
+#### Operazione 4: Restart frontend
+- **Pre:** Riavvio per applicare modifiche middleware
+- **Comando:** `curl -X POST server_manager_api.php?action=restart&service=frontend`
+- **Post:** OK - Frontend riavviato (PID 40208 -> nuovo PID)
+```
+
+### Quando Aggiornare
+
+- Prima di modificare qualsiasi file
+- Dopo ogni modifica (successo o fallimento)
+- Prima di ogni riavvio servizio
+- Quando si incontra un errore
+- Al cambio di obiettivo/task
+
+**Il log serve per:**
+- Riprendere lavoro dopo interruzioni
+- Debugging
+- Tracciare decisioni
+- Rollback se necessario
+
+---
+
 ## STACK TECNOLOGICO
 
 ### Frontend

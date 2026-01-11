@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   // Standalone for Docker/server deployment
   output: "standalone",
 
+  // Base path for Apache reverse proxy (http://localhost/tm/)
+  basePath: "/tm",
+
   // Enable experimental features for better performance
   experimental: {
     // Optimize package imports

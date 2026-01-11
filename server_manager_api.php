@@ -329,8 +329,8 @@ function startService(string $service, bool $force = false): array {
             $backendPath = str_replace('/', '\\', TM_PATH) . '\\backend';
             $vbsContent = 'Set WshShell = CreateObject("WScript.Shell")' . "\r\n";
             $vbsContent .= 'WshShell.CurrentDirectory = "' . $backendPath . '"' . "\r\n";
-            // Stile 0 = finestra nascosta - nessuna finestra visibile
-            $vbsContent .= 'WshShell.Run "cmd /c npm run dev", 0, False' . "\r\n";
+            // Stile 6 = finestra minimizzata (nodemon richiede terminale)
+            $vbsContent .= 'WshShell.Run "cmd /c npm run dev", 6, False' . "\r\n";
             file_put_contents($vbsFile, $vbsContent);
 
             // Esegui VBS
@@ -371,8 +371,8 @@ function startService(string $service, bool $force = false): array {
             $frontendPath = str_replace('/', '\\', TM_PATH) . '\\frontend';
             $vbsContent = 'Set WshShell = CreateObject("WScript.Shell")' . "\r\n";
             $vbsContent .= 'WshShell.CurrentDirectory = "' . $frontendPath . '"' . "\r\n";
-            // Stile 0 = finestra nascosta - nessuna finestra visibile
-            $vbsContent .= 'WshShell.Run "cmd /c npm run dev", 0, False' . "\r\n";
+            // Stile 6 = finestra minimizzata (Next.js richiede terminale)
+            $vbsContent .= 'WshShell.Run "cmd /c npm run dev", 6, False' . "\r\n";
             file_put_contents($vbsFile, $vbsContent);
 
             // Esegui VBS

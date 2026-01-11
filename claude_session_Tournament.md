@@ -216,3 +216,92 @@ Eliminare le finestre visibili per frontend e backend (richiesta utente: "senza 
 
 ### RISULTATO: SUCCESSO
 I servizi ora girano completamente in background senza finestre visibili.
+
+#### Op 4: Git commit
+- **Pre:** Commit modifiche proxy e finestre nascoste
+- **Commit:** e28e296 - "feat: Apache reverse proxy + servizi in background"
+- **File committati:** 7 files (CLAUDE.md, next.config.ts, middleware.ts, server_manager_api.php, START_SERVER_MANAGER.bat, claude_session_Tournament.md, CONFIGURAZIONE_APACHE_PROXY_20260111.md)
+- **Post:** OK - Commit completato
+
+---
+
+## RIEPILOGO SESSIONE COMPLETA
+
+### Modifiche Totali Giornata 2026-01-11
+
+1. **Fix Kill Node Orfani** - Protezione Claude Code da kill automatico
+2. **Apache Reverse Proxy** - Porta 8088 eliminata, tutto su porta 80
+3. **Servizi Background** - Frontend/backend senza finestre visibili
+4. **Session Logging** - Aggiunta sezione log in CLAUDE.md
+
+### URLs Finali
+| Servizio | URL |
+|----------|-----|
+| Frontend | http://localhost/tm/ |
+| Backend API | http://localhost/tm/api/ |
+| Server Manager | http://localhost/tournamentmaster/server_manager.html |
+
+### Porte
+| Porta | Servizio | Note |
+|-------|----------|------|
+| 80 | Apache (proxy) | Pubblico |
+| 3000 | Next.js | Interno, nascosto |
+| 3001 | Express | Interno, nascosto |
+| ~~8088~~ | ~~PHP~~ | Eliminata |
+
+---
+
+## Sessione 2026-01-11 (Continuazione 4) - PM2 Background Services
+
+### Obiettivo
+Eliminare finestre visibili usando PM2 invece di VBS con finestre minimizzate.
+
+### Investigazione
+- **PM2:** Installato (v6.0.14) ✓
+- **pm2-windows-service:** Non installato (non necessario per uso base)
+- **NSSM:** Non disponibile
+- **Processi PM2 attivi:** Nessuno
+
+### Comandi identificati
+- Backend: `nodemon --exec ts-node src/index.ts`
+- Frontend: `next dev`
+
+### Piano
+1. Fermare processi attuali (VBS)
+2. Avviare con PM2 (daemon, nessuna finestra)
+3. Verificare funzionamento
+
+### Operazioni
+
+#### Op 1: Stop processi VBS
+- **Pre:** Fermo backend e frontend attuali via API
+- **Comando:** `server_manager_api.php?action=stop&service=all`
+- **Post:** OK - Backend (PID 40992) e Frontend (PID 7632) fermati
+
+#### Op 2: Creazione ecosystem.config.js
+- **Pre:** Creo file configurazione PM2
+- **File:** `D:\Dev\TournamentMaster\ecosystem.config.js`
+- **Post:** OK - File creato
+
+#### Op 3: Tentativi avvio PM2
+- **Tentativo 1:** `pm2 start npm --name` → Errore SyntaxError (npm.CMD)
+- **Tentativo 2:** `script: 'npm'` → Errore EINVAL
+- **Tentativo 3:** `script: 'nodemon.cmd'` → Errore EINVAL
+- **Tentativo 4:** `script: 'node_modules/nodemon/bin/nodemon.js'` → SUCCESSO
+
+#### Op 4: Verifica funzionamento
+- **Backend:** http://localhost/tm/api/health → 200 OK
+- **Frontend:** http://localhost/tm/it → 200 OK
+- **Finestre:** NESSUNA VISIBILE ✓
+
+### RISULTATO: SUCCESSO
+PM2 gestisce frontend e backend in background senza finestre.
+
+### Comandi PM2 utili
+```bash
+pm2 list              # Stato servizi
+pm2 logs              # Log in tempo reale
+pm2 restart all       # Riavvia tutto
+pm2 stop all          # Ferma tutto
+pm2 start ecosystem.config.js  # Avvia da config
+```

@@ -976,7 +976,7 @@ export default function TournamentsPage() {
 
       {/* Create Tournament Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Crea Nuovo Torneo</DialogTitle>
             <DialogDescription>
@@ -1229,7 +1229,7 @@ export default function TournamentsPage() {
 
       {/* Edit Tournament Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Modifica Torneo</DialogTitle>
             <DialogDescription>

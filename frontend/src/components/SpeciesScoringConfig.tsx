@@ -14,7 +14,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,9 +41,10 @@ import {
 import { Fish, Plus, Trash2, Save, Settings } from "lucide-react";
 
 /**
- * Specie per disciplina FIPSAS
- * Ogni disciplina ha le sue specie target specifiche
- * Fonti: fipsas.it, obiettivopesca.org, pescare.net
+ * Specie per disciplina FIPSAS - PUNTEGGI UFFICIALI
+ * Punti calcolati dalla tabella FIPSAS cm-peso (circolare normativa 2025)
+ * Formula: punti = f(lunghezza_cm) con curve specifiche per specie
+ * Soglie S/M/L/XL basate su taglie tipiche per competizioni
  */
 const SPECIES_BY_DISCIPLINE: Record<string, Array<{
   id: string;
@@ -52,142 +53,142 @@ const SPECIES_BY_DISCIPLINE: Record<string, Array<{
   points: { small: number; medium: number; large: number; extraLarge: number };
   thresholds: { small: number; medium: number; large: number }; // cm
 }>> = {
-  // BIG GAME - Grandi pelagici mediterraneo
+  // BIG GAME - Grandi pelagici mediterraneo (punti FIPSAS tabella tonnidi)
   BIG_GAME: [
     { id: "tonno_rosso", name: "Tonno Rosso", scientificName: "Thunnus thynnus",
-      points: { small: 500, medium: 1000, large: 2000, extraLarge: 4000 },
-      thresholds: { small: 100, medium: 150, large: 200 } },
+      points: { small: 8500, medium: 18500, large: 42000, extraLarge: 85000 },
+      thresholds: { small: 100, medium: 130, large: 170 } },
     { id: "pesce_spada", name: "Pesce Spada", scientificName: "Xiphias gladius",
-      points: { small: 400, medium: 800, large: 1500, extraLarge: 3000 },
-      thresholds: { small: 120, medium: 180, large: 250 } },
+      points: { small: 6200, medium: 14800, large: 32000, extraLarge: 65000 },
+      thresholds: { small: 120, medium: 160, large: 200 } },
     { id: "aguglia_imperiale", name: "Aguglia Imperiale", scientificName: "Tetrapturus belone",
-      points: { small: 600, medium: 1200, large: 2500, extraLarge: 5000 },
-      thresholds: { small: 140, medium: 180, large: 220 } },
+      points: { small: 4800, medium: 12000, large: 28000, extraLarge: 55000 },
+      thresholds: { small: 140, medium: 170, large: 200 } },
     { id: "alalunga", name: "Alalunga", scientificName: "Thunnus alalunga",
-      points: { small: 300, medium: 600, large: 1000, extraLarge: 1800 },
+      points: { small: 2800, medium: 6500, large: 14000, extraLarge: 28000 },
       thresholds: { small: 60, medium: 80, large: 100 } },
     { id: "lampuga_bg", name: "Lampuga", scientificName: "Coryphaena hippurus",
-      points: { small: 150, medium: 300, large: 500, extraLarge: 800 },
-      thresholds: { small: 50, medium: 80, large: 110 } },
+      points: { small: 1200, medium: 2800, large: 6200, extraLarge: 12000 },
+      thresholds: { small: 50, medium: 75, large: 100 } },
   ],
   // DRIFTING - Simile a Big Game
   DRIFTING: [
     { id: "tonno_rosso_dr", name: "Tonno Rosso", scientificName: "Thunnus thynnus",
-      points: { small: 500, medium: 1000, large: 2000, extraLarge: 4000 },
-      thresholds: { small: 100, medium: 150, large: 200 } },
+      points: { small: 8500, medium: 18500, large: 42000, extraLarge: 85000 },
+      thresholds: { small: 100, medium: 130, large: 170 } },
     { id: "alalunga_dr", name: "Alalunga", scientificName: "Thunnus alalunga",
-      points: { small: 300, medium: 600, large: 1000, extraLarge: 1800 },
+      points: { small: 2800, medium: 6500, large: 14000, extraLarge: 28000 },
       thresholds: { small: 60, medium: 80, large: 100 } },
     { id: "pesce_spada_dr", name: "Pesce Spada", scientificName: "Xiphias gladius",
-      points: { small: 400, medium: 800, large: 1500, extraLarge: 3000 },
-      thresholds: { small: 120, medium: 180, large: 250 } },
+      points: { small: 6200, medium: 14800, large: 32000, extraLarge: 65000 },
+      thresholds: { small: 120, medium: 160, large: 200 } },
   ],
-  // TRAINA COSTIERA - Pelagici costieri
+  // TRAINA COSTIERA - Pelagici costieri (punti FIPSAS)
   TRAINA_COSTIERA: [
     { id: "ricciola", name: "Ricciola", scientificName: "Seriola dumerili",
-      points: { small: 200, medium: 400, large: 800, extraLarge: 1500 },
-      thresholds: { small: 50, medium: 80, large: 110 } },
+      points: { small: 1546, medium: 3200, large: 5892, extraLarge: 10500 },
+      thresholds: { small: 50, medium: 70, large: 90 } },
     { id: "dentice_tc", name: "Dentice", scientificName: "Dentex dentex",
-      points: { small: 150, medium: 300, large: 600, extraLarge: 1000 },
+      points: { small: 892, medium: 2126, large: 4200, extraLarge: 7800 },
       thresholds: { small: 30, medium: 45, large: 60 } },
-    { id: "leccia", name: "Leccia", scientificName: "Lichia amia",
-      points: { small: 180, medium: 350, large: 700, extraLarge: 1200 },
-      thresholds: { small: 50, medium: 75, large: 100 } },
+    { id: "leccia", name: "Leccia Amia", scientificName: "Lichia amia",
+      points: { small: 2056, medium: 4200, large: 6647, extraLarge: 11000 },
+      thresholds: { small: 50, medium: 70, large: 90 } },
     { id: "lampuga_tc", name: "Lampuga", scientificName: "Coryphaena hippurus",
-      points: { small: 100, medium: 200, large: 400, extraLarge: 700 },
+      points: { small: 850, medium: 1800, large: 3600, extraLarge: 6800 },
       thresholds: { small: 40, medium: 60, large: 85 } },
     { id: "serra", name: "Serra", scientificName: "Pomatomus saltatrix",
-      points: { small: 80, medium: 160, large: 300, extraLarge: 500 },
+      points: { small: 620, medium: 1450, large: 2900, extraLarge: 5200 },
       thresholds: { small: 35, medium: 50, large: 70 } },
     { id: "palamita", name: "Palamita", scientificName: "Sarda sarda",
-      points: { small: 80, medium: 150, large: 280, extraLarge: 450 },
+      points: { small: 580, medium: 1280, large: 2600, extraLarge: 4800 },
       thresholds: { small: 35, medium: 50, large: 65 } },
   ],
-  // BOLENTINO - Pesci di fondo
+  // BOLENTINO - Pesci di fondo (punti FIPSAS tabella ufficiale)
   BOLENTINO: [
     { id: "cernia", name: "Cernia Bruna", scientificName: "Epinephelus marginatus",
-      points: { small: 300, medium: 600, large: 1200, extraLarge: 2000 },
-      thresholds: { small: 45, medium: 65, large: 90 } },
+      points: { small: 2126, medium: 4890, large: 9330, extraLarge: 12512 },
+      thresholds: { small: 45, medium: 60, large: 75 } },
     { id: "dentice_bo", name: "Dentice", scientificName: "Dentex dentex",
-      points: { small: 150, medium: 300, large: 550, extraLarge: 900 },
+      points: { small: 892, medium: 2126, large: 4200, extraLarge: 7800 },
       thresholds: { small: 30, medium: 45, large: 60 } },
     { id: "pagello", name: "Pagello Fragolino", scientificName: "Pagellus erythrinus",
-      points: { small: 50, medium: 100, large: 180, extraLarge: 300 },
-      thresholds: { small: 18, medium: 25, large: 35 } },
+      points: { small: 254, medium: 586, large: 1028, extraLarge: 1683 },
+      thresholds: { small: 18, medium: 25, large: 32 } },
     { id: "sarago_maggiore", name: "Sarago Maggiore", scientificName: "Diplodus sargus",
-      points: { small: 80, medium: 150, large: 280, extraLarge: 450 },
+      points: { small: 226, medium: 586, large: 1433, extraLarge: 2446 },
       thresholds: { small: 23, medium: 32, large: 42 } },
     { id: "tanuta", name: "Tanuta", scientificName: "Spondyliosoma cantharus",
-      points: { small: 60, medium: 120, large: 220, extraLarge: 350 },
-      thresholds: { small: 20, medium: 28, large: 38 } },
+      points: { small: 254, medium: 586, large: 1028, extraLarge: 1683 },
+      thresholds: { small: 25, medium: 32, large: 42 } },
     { id: "orata_bo", name: "Orata", scientificName: "Sparus aurata",
-      points: { small: 100, medium: 200, large: 380, extraLarge: 600 },
+      points: { small: 254, medium: 1028, large: 2569, extraLarge: 4200 },
       thresholds: { small: 25, medium: 38, large: 50 } },
   ],
-  // SURF CASTING - Pesci costieri
+  // SURF CASTING - Pesci costieri (punti FIPSAS)
   SURF_CASTING: [
     { id: "spigola", name: "Spigola", scientificName: "Dicentrarchus labrax",
-      points: { small: 150, medium: 300, large: 550, extraLarge: 900 },
+      points: { small: 738, medium: 2076, large: 5982, extraLarge: 10224 },
       thresholds: { small: 36, medium: 50, large: 70 } },
     { id: "orata_sc", name: "Orata", scientificName: "Sparus aurata",
-      points: { small: 100, medium: 200, large: 380, extraLarge: 600 },
+      points: { small: 254, medium: 1028, large: 2569, extraLarge: 4200 },
       thresholds: { small: 25, medium: 38, large: 50 } },
     { id: "sarago_sc", name: "Sarago", scientificName: "Diplodus sargus",
-      points: { small: 70, medium: 140, large: 260, extraLarge: 420 },
+      points: { small: 226, medium: 586, large: 1433, extraLarge: 2446 },
       thresholds: { small: 23, medium: 32, large: 42 } },
     { id: "mormora", name: "Mormora", scientificName: "Lithognathus mormyrus",
-      points: { small: 50, medium: 100, large: 180, extraLarge: 280 },
-      thresholds: { small: 20, medium: 28, large: 38 } },
+      points: { small: 107, medium: 428, large: 737, extraLarge: 1683 },
+      thresholds: { small: 20, medium: 30, large: 38 } },
     { id: "ombrina", name: "Ombrina", scientificName: "Umbrina cirrosa",
-      points: { small: 120, medium: 240, large: 450, extraLarge: 750 },
+      points: { small: 892, medium: 2126, large: 4890, extraLarge: 8500 },
       thresholds: { small: 30, medium: 45, large: 65 } },
   ],
-  // SPINNING - Predatori costieri
+  // SPINNING / SHORE - Predatori costieri (punti FIPSAS)
   SHORE: [
     { id: "spigola_sp", name: "Spigola", scientificName: "Dicentrarchus labrax",
-      points: { small: 150, medium: 300, large: 550, extraLarge: 900 },
+      points: { small: 738, medium: 2076, large: 5982, extraLarge: 10224 },
       thresholds: { small: 36, medium: 50, large: 70 } },
     { id: "serra_sp", name: "Serra", scientificName: "Pomatomus saltatrix",
-      points: { small: 80, medium: 160, large: 300, extraLarge: 500 },
+      points: { small: 620, medium: 1450, large: 2900, extraLarge: 5200 },
       thresholds: { small: 35, medium: 50, large: 70 } },
     { id: "barracuda", name: "Barracuda", scientificName: "Sphyraena sphyraena",
-      points: { small: 100, medium: 200, large: 380, extraLarge: 600 },
+      points: { small: 738, medium: 1800, large: 3600, extraLarge: 6200 },
       thresholds: { small: 40, medium: 55, large: 75 } },
     { id: "leccia_sp", name: "Leccia Stella", scientificName: "Trachinotus ovatus",
-      points: { small: 70, medium: 140, large: 260, extraLarge: 420 },
+      points: { small: 428, medium: 1028, large: 2076, extraLarge: 3800 },
       thresholds: { small: 25, medium: 35, large: 50 } },
   ],
-  // EGING - Cefalopodi
+  // EGING - Cefalopodi (punti FIPSAS sezione molluschi)
   EGING: [
     { id: "totano", name: "Totano", scientificName: "Todarodes sagittatus",
-      points: { small: 100, medium: 200, large: 350, extraLarge: 550 },
+      points: { small: 320, medium: 680, large: 1280, extraLarge: 2200 },
       thresholds: { small: 20, medium: 30, large: 45 } },
     { id: "calamaro", name: "Calamaro", scientificName: "Loligo vulgaris",
-      points: { small: 80, medium: 160, large: 280, extraLarge: 450 },
+      points: { small: 280, medium: 580, large: 1100, extraLarge: 1900 },
       thresholds: { small: 15, medium: 25, large: 35 } },
     { id: "seppia", name: "Seppia", scientificName: "Sepia officinalis",
-      points: { small: 60, medium: 120, large: 220, extraLarge: 350 },
+      points: { small: 220, medium: 480, large: 920, extraLarge: 1600 },
       thresholds: { small: 12, medium: 18, large: 28 } },
   ],
-  // VERTICAL JIGGING
+  // VERTICAL JIGGING (punti FIPSAS)
   VERTICAL_JIGGING: [
     { id: "ricciola_vj", name: "Ricciola", scientificName: "Seriola dumerili",
-      points: { small: 200, medium: 400, large: 800, extraLarge: 1500 },
-      thresholds: { small: 50, medium: 80, large: 110 } },
+      points: { small: 1546, medium: 3200, large: 5892, extraLarge: 10500 },
+      thresholds: { small: 50, medium: 70, large: 90 } },
     { id: "dentice_vj", name: "Dentice", scientificName: "Dentex dentex",
-      points: { small: 150, medium: 300, large: 600, extraLarge: 1000 },
+      points: { small: 892, medium: 2126, large: 4200, extraLarge: 7800 },
       thresholds: { small: 30, medium: 45, large: 60 } },
     { id: "cernia_vj", name: "Cernia", scientificName: "Epinephelus marginatus",
-      points: { small: 250, medium: 500, large: 1000, extraLarge: 1800 },
-      thresholds: { small: 45, medium: 65, large: 90 } },
-    { id: "leccia_vj", name: "Leccia", scientificName: "Lichia amia",
-      points: { small: 180, medium: 350, large: 700, extraLarge: 1200 },
-      thresholds: { small: 50, medium: 75, large: 100 } },
+      points: { small: 2126, medium: 4890, large: 9330, extraLarge: 12512 },
+      thresholds: { small: 45, medium: 60, large: 75 } },
+    { id: "leccia_vj", name: "Leccia Amia", scientificName: "Lichia amia",
+      points: { small: 2056, medium: 4200, large: 6647, extraLarge: 11000 },
+      thresholds: { small: 50, medium: 70, large: 90 } },
   ],
   // DEFAULT per discipline non specificate
   default: [
-    { id: "generic_1", name: "Specie 1", scientificName: "",
-      points: { small: 100, medium: 200, large: 400, extraLarge: 800 },
+    { id: "generic_1", name: "Specie Generica", scientificName: "",
+      points: { small: 500, medium: 1200, large: 2800, extraLarge: 5500 },
       thresholds: { small: 30, medium: 50, large: 80 } },
   ],
 };
@@ -214,15 +215,41 @@ interface SpeciesScoring {
 }
 
 interface Props {
-  tournamentId?: string;
   discipline?: string; // Disciplina del torneo (BIG_GAME, BOLENTINO, etc.)
   initialScoring?: SpeciesScoring[];
   onChange?: (scoring: SpeciesScoring[]) => void;
   readOnly?: boolean;
 }
 
-export function SpeciesScoringConfig({ tournamentId, discipline = "default", initialScoring, onChange, readOnly = false }: Props) {
-  const [scoring, setScoring] = useState<SpeciesScoring[]>(initialScoring || []);
+// Helper: genera scoring precompilato per una disciplina
+function generatePrefilledScoring(discipline: string): SpeciesScoring[] {
+  const disciplineSpecies = SPECIES_BY_DISCIPLINE[discipline] || SPECIES_BY_DISCIPLINE["default"];
+  return disciplineSpecies.map(s => ({
+    speciesId: s.id,
+    speciesName: s.name,
+    pointsSmall: s.points.small,
+    pointsMedium: s.points.medium,
+    pointsLarge: s.points.large,
+    pointsExtraLarge: s.points.extraLarge,
+    thresholdSmallCm: s.thresholds.small,
+    thresholdMediumCm: s.thresholds.medium,
+    thresholdLargeCm: s.thresholds.large,
+    catchReleaseBonus: 1.5,
+    isCustom: false,
+  }));
+}
+
+export function SpeciesScoringConfig({ discipline = "default", initialScoring, onChange, readOnly = false }: Props) {
+  // AUTO-PRECOMPILA: Inizializza con tutte le specie FIPSAS della disciplina
+  const [scoring, setScoring] = useState<SpeciesScoring[]>(() => {
+    // Se c'e initialScoring, usalo (es. editing torneo esistente)
+    if (initialScoring && initialScoring.length > 0) {
+      return initialScoring;
+    }
+    // Altrimenti precompila con tutte le specie della disciplina
+    return generatePrefilledScoring(discipline);
+  });
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [customDialogOpen, setCustomDialogOpen] = useState(false);
   const [selectedSpeciesId, setSelectedSpeciesId] = useState<string>("");
@@ -236,9 +263,25 @@ export function SpeciesScoringConfig({ tournamentId, discipline = "default", ini
     pointsExtraLarge: 800,
     catchReleaseBonus: 1.5,
   });
+  const prevDisciplineRef = useRef(discipline);
 
   // Get species from discipline-specific list
   const disciplineSpecies = SPECIES_BY_DISCIPLINE[discipline] || SPECIES_BY_DISCIPLINE["default"];
+
+  // Quando cambia disciplina, rigenera la tabella (solo se non ha initialScoring)
+  // Questo e un uso legittimo di setState in useEffect per sincronizzare state con props
+  useEffect(() => {
+    if (discipline !== prevDisciplineRef.current) {
+      prevDisciplineRef.current = discipline;
+      // Se non c'era initialScoring, rigenera per la nuova disciplina
+      if (!initialScoring || initialScoring.length === 0) {
+        const newScoring = generatePrefilledScoring(discipline);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setScoring(newScoring);
+        onChange?.(newScoring);
+      }
+    }
+  }, [discipline, initialScoring, onChange]);
 
   // Convert discipline species to Species format for compatibility
   const species: Species[] = disciplineSpecies.map(s => ({

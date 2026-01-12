@@ -78,6 +78,7 @@ import {
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { HelpGuide } from "@/components/HelpGuide";
+import { SpeciesScoringConfig } from "@/components/SpeciesScoringConfig";
 import { getMediaUrl } from "@/lib/media";
 import { disciplineLabels } from '@/lib/disciplines';
 
@@ -145,6 +146,17 @@ export default function TournamentsPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
 
+  // Species Scoring for C&R mode
+  const [speciesScoring, setSpeciesScoring] = useState<Array<{
+    speciesId: string;
+    speciesName?: string;
+    pointsSmall: number;
+    pointsMedium: number;
+    pointsLarge: number;
+    pointsExtraLarge: number;
+    catchReleaseBonus: number;
+  }>>([]);
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
@@ -195,6 +207,14 @@ export default function TournamentsPage() {
 
   // Handle profile selection - auto-fill form fields
   const handleProfileSelect = (profileId: string) => {
+    // Handle "none" selection (manual configuration)
+    if (profileId === "none") {
+      setFormData({
+        ...formData,
+        profileId: "",
+      });
+      return;
+    }
     const profile = profiles.find((p) => p.id === profileId);
     if (profile) {
       setFormData({
@@ -987,14 +1007,14 @@ export default function TournamentsPage() {
             <div className="grid gap-2">
               <Label htmlFor="profile">Profilo Torneo (opzionale)</Label>
               <Select
-                value={formData.profileId}
+                value={formData.profileId || "none"}
                 onValueChange={handleProfileSelect}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={loadingProfiles ? "Caricamento..." : "Seleziona un profilo FIPSAS o personalizzato"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessun profilo (configurazione manuale)</SelectItem>
+                  <SelectItem value="none">Nessun profilo (configurazione manuale)</SelectItem>
                   {profiles.map((profile) => (
                     <SelectItem key={profile.id} value={profile.id}>
                       <div className="flex items-center gap-2">
@@ -1178,6 +1198,14 @@ export default function TournamentsPage() {
                 </p>
               )}
             </div>
+
+            {/* Species Scoring Config for C&R mode */}
+            {formData.gameMode === "CATCH_RELEASE" && (
+              <SpeciesScoringConfig
+                onChange={(scoring) => setSpeciesScoring(scoring)}
+                initialScoring={speciesScoring}
+              />
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>

@@ -190,7 +190,8 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
       await Promise.all(
         equipment.map(async (item) => {
           try {
-            const res = await fetch(`${API_URL}/api/user-media?equipmentId=${item.id}&limit=4`, {
+            const userParam = viewUserId ? `&userId=${viewUserId}` : "";
+            const res = await fetch(`${API_URL}/api/user-media?equipmentId=${item.id}&limit=4${userParam}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
@@ -209,7 +210,7 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
     }
 
     fetchAllEquipmentMedia();
-  }, [token, equipment]);
+  }, [token, equipment, viewUserId]);
 
   // Filter equipment
   const filteredEquipment =
@@ -291,7 +292,8 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
     setMediaDialogEquipment(item);
     setLoadingMedia(true);
     try {
-      const res = await fetch(`${API_URL}/api/user-media?equipmentId=${item.id}&limit=50`, {
+      const userParam = viewUserId ? `&userId=${viewUserId}` : "";
+      const res = await fetch(`${API_URL}/api/user-media?equipmentId=${item.id}&limit=50${userParam}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

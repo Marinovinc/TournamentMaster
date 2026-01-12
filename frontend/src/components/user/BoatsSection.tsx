@@ -207,7 +207,8 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
       await Promise.all(
         boats.map(async (boat) => {
           try {
-            const res = await fetch(`${API_URL}/api/user-media?boatId=${boat.id}&limit=4`, {
+            const userParam = viewUserId ? `&userId=${viewUserId}` : "";
+            const res = await fetch(`${API_URL}/api/user-media?boatId=${boat.id}&limit=4${userParam}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
@@ -226,7 +227,7 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
     }
 
     fetchAllBoatMedia();
-  }, [token, boats]);
+  }, [token, boats, viewUserId]);
 
   // Open dialog for new boat
   const handleAddNew = () => {
@@ -326,7 +327,8 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
     setMediaDialogBoat(boat);
     setLoadingMedia(true);
     try {
-      const res = await fetch(`${API_URL}/api/user-media?boatId=${boat.id}&limit=50`, {
+      const userParam = viewUserId ? `&userId=${viewUserId}` : "";
+      const res = await fetch(`${API_URL}/api/user-media?boatId=${boat.id}&limit=50${userParam}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

@@ -52,6 +52,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getUnreadCount } from "@/lib/messages";
+import { NotificationBell } from "@/components/notifications";
 
 interface NavItem {
   href: string;
@@ -327,6 +328,12 @@ export default function DashboardLayout({
             roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
           },
           {
+            href: `/${locale}/dashboard/archive`,
+            label: "Hall of Fame",
+            icon: <Trophy className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+          },
+          {
             href: `/${locale}/dashboard/admin/branding`,
             label: "Branding",
             icon: <Palette className="h-4 w-4" />,
@@ -387,6 +394,12 @@ export default function DashboardLayout({
             roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
           },
           {
+            href: `/${locale}/dashboard/archive`,
+            label: "Hall of Fame",
+            icon: <Trophy className="h-4 w-4" />,
+            roles: ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT", "ORGANIZER"],
+          },
+          {
             href: `/${locale}/dashboard/admin/branding`,
             label: "Branding",
             icon: <Palette className="h-4 w-4" />,
@@ -426,6 +439,11 @@ export default function DashboardLayout({
             label: "I Miei Risultati",
             icon: <Award className="h-4 w-4" />,
           },
+          {
+            href: `/${locale}/dashboard/archive`,
+            label: "Hall of Fame",
+            icon: <History className="h-4 w-4" />,
+          },
         ],
       },
       {
@@ -459,7 +477,8 @@ export default function DashboardLayout({
       [`/${locale}/dashboard/strikes`]: ["tornei"],
       [`/${locale}/dashboard/judge`]: ["tornei"],
       [`/${locale}/dashboard/teams`]: ["tornei"],
-      [`/${locale}/dashboard/reports`]: ["report"],
+      [`/${locale}/dashboard/reports`]: ["report", "assoc-report"],
+      [`/${locale}/dashboard/archive`]: ["report", "assoc-report", "miei-tornei"],
       [`/${locale}/dashboard/admin`]: ["report"],
       [`/${locale}/dashboard/admin/branding`]: ["report"],
       [`/${locale}/dashboard/admin/media`]: ["report", "assoc-report"],
@@ -710,9 +729,14 @@ export default function DashboardLayout({
         
         <nav className="p-4 flex-1 overflow-y-auto" style={{ maxHeight: impersonatingTenant ? "calc(100vh - 300px)" : "calc(100vh - 180px)" }}>
           <Link
-            href={`/${locale}/dashboard`}
+            href={
+              // Admin users with a tenant go to association page, others to dashboard
+              ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"].includes(user?.role || "") && user?.tenantSlug
+                ? `/${locale}/associazioni/${user.tenantSlug}`
+                : `/${locale}/dashboard`
+            }
             className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-              pathname === `/${locale}/dashboard`
+              pathname === `/${locale}/dashboard` || pathname.startsWith(`/${locale}/associazioni/`)
                 ? "bg-primary text-primary-foreground"
                 : "hover:bg-muted text-muted-foreground hover:text-foreground"
             }`}
@@ -795,10 +819,7 @@ export default function DashboardLayout({
           <div className="flex-1" />
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-            </Button>
+            <NotificationBell />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

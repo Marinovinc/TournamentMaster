@@ -721,31 +721,26 @@ export default function ArchivePage() {
 
                 return (
                   <Card key={prize.id} className="overflow-hidden">
-                    {/* Prize Images Grid */}
+                    {/* Prize Images - Fixed size */}
                     {prize.media && prize.media.length > 0 ? (
                       <div className="relative bg-muted">
                         <div className={`absolute top-0 left-0 right-0 h-2 z-10 ${categoryColors[prize.category] || "bg-gray-500"}`} />
-                        <div className={`grid gap-1 p-1 pt-3 ${
-                          prize.media.length === 1 ? 'grid-cols-1' :
-                          prize.media.length === 2 ? 'grid-cols-2' :
-                          prize.media.length === 3 ? 'grid-cols-3' :
-                          'grid-cols-2'
-                        }`}>
+                        <div className="flex flex-wrap justify-center gap-2 p-3 pt-4">
                           {prize.media.slice(0, 4).map((media, idx) => (
-                            <div key={media.id || idx} className="aspect-square bg-white rounded overflow-hidden">
+                            <div key={media.id || idx} className="w-16 h-16 bg-white rounded shadow-sm overflow-hidden flex-shrink-0">
                               <img
                                 src={getMediaUrl(media.thumbnailUrl || media.url)}
                                 alt={media.caption || prize.name}
-                                className="w-full h-full object-contain p-1"
+                                className="w-full h-full object-contain"
                               />
                             </div>
                           ))}
+                          {prize.media.length > 4 && (
+                            <div className="w-16 h-16 bg-black/60 rounded flex items-center justify-center text-white text-xs font-medium">
+                              +{prize.media.length - 4}
+                            </div>
+                          )}
                         </div>
-                        {prize.media.length > 4 && (
-                          <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
-                            +{prize.media.length - 4} altri
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <div className={`h-2 ${categoryColors[prize.category] || "bg-gray-500"}`} />

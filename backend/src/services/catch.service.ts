@@ -1,13 +1,14 @@
 import prisma from "../lib/prisma";
-import { CatchStatus, TournamentStatus } from "../types";
+import { CatchStatus, TournamentStatus, SizeCategory } from "../types";
 import { GPSService } from "./gps.service";
 import { LeaderboardService } from "./leaderboard.service";
+import { emitCatchUpdate, emitLeaderboardUpdate, emitActivity } from "./websocket.service";
 
 interface SubmitCatchData {
   tournamentId: string;
   userId: string;
-  weight: number;
-  length?: number;
+  weight?: number;  // Opzionale per C&R mode
+  length?: number;  // Alla forca per C&R mode
   latitude: number;
   longitude: number;
   gpsAccuracy?: number;
@@ -17,6 +18,9 @@ interface SubmitCatchData {
   videoPath?: string;
   caughtAt: Date;
   notes?: string;
+  // Catch & Release specific
+  sizeCategory?: SizeCategory;  // Fascia taglia per C&R mode
+  wasReleased?: boolean;        // Pesce rilasciato
 }
 
 interface CatchFilters {
@@ -54,6 +58,30 @@ export class CatchService {
 
     if (tournament.status !== TournamentStatus.ONGOING) {
       throw new Error("Tournament is not currently active");
+    }
+
+    // Check if tournament is Catch & Release mode
+    const isCatchReleaseMode = tournament.gameMode === "CATCH_RELEASE";
+
+    // Catch & Release mode validations
+    if (isCatchReleaseMode) {
+      // Video is mandatory for C&R mode
+      if (!data.videoPath) {
+        throw new Error("Video obbligatorio per tornei Catch & Release - deve mostrare il rilascio del pesce");
+      }
+      // Size category is mandatory for C&R mode
+      if (!data.sizeCategory) {
+        throw new Error("Fascia taglia (S/M/L/XL) obbligatoria per tornei Catch & Release");
+      }
+      // Species is mandatory for C&R scoring
+      if (!data.speciesId) {
+        throw new Error("Specie obbligatoria per tornei Catch & Release");
+      }
+    } else {
+      // Traditional mode: weight is mandatory
+      if (data.weight === undefined || data.weight === null) {
+        throw new Error("Peso obbligatorio per tornei tradizionali");
+      }
     }
 
     // Verify user is registered
@@ -103,9 +131,11 @@ export class CatchService {
       }
     }
 
-    // Check minimum weight
+    // Check minimum weight (only for traditional mode)
     if (
+      !isCatchReleaseMode &&
       tournament.minWeight &&
+      data.weight !== undefined &&
       data.weight < Number(tournament.minWeight)
     ) {
       throw new Error(
@@ -145,6 +175,9 @@ export class CatchService {
         status: CatchStatus.PENDING,
         isInsideZone: gpsValidation.isInsideZone,
         validationData: JSON.stringify(gpsValidation),
+        // Catch & Release specific fields
+        sizeCategory: data.sizeCategory,
+        wasReleased: data.wasReleased || false,
       },
       include: {
         user: {
@@ -162,6 +195,24 @@ export class CatchService {
         },
         species: true,
       },
+    });
+
+    // Emit WebSocket events
+    const userName = `${catchRecord.user.firstName} ${catchRecord.user.lastName}`;
+    emitCatchUpdate(data.tournamentId, {
+      id: catchRecord.id,
+      status: CatchStatus.PENDING,
+      weight: Number(catchRecord.weight),
+      userId: catchRecord.userId,
+      userName,
+    });
+
+    emitActivity(data.tournamentId, {
+      id: `catch-${catchRecord.id}`,
+      type: "catch_submitted",
+      description: `${userName} ha registrato una cattura di ${catchRecord.weight} kg`,
+      userName,
+      timestamp: new Date(),
     });
 
     return {
@@ -193,6 +244,16 @@ export class CatchService {
           },
         },
         species: true,
+        reviewer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        media: {
+          orderBy: { displayOrder: "asc" },
+        },
       },
     });
 
@@ -240,6 +301,7 @@ export class CatchService {
               id: true,
               firstName: true,
               lastName: true,
+              email: true,
             },
           },
           tournament: {
@@ -254,6 +316,16 @@ export class CatchService {
               commonNameIt: true,
               commonNameEn: true,
             },
+          },
+          reviewer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          media: {
+            orderBy: { displayOrder: "asc" },
           },
         },
         orderBy: { caughtAt: "desc" },
@@ -290,10 +362,12 @@ export class CatchService {
             id: true,
             pointsPerKg: true,
             bonusPoints: true,
+            gameMode: true,
           },
         },
         species: {
           select: {
+            id: true,
             pointsMultiplier: true,
           },
         },
@@ -308,14 +382,27 @@ export class CatchService {
       throw new Error("Catch has already been reviewed");
     }
 
-    // Calculate points
-    const basePoints =
-      Number(catchRecord.weight) *
-      Number(catchRecord.tournament.pointsPerKg);
-    const speciesMultiplier = catchRecord.species?.pointsMultiplier
-      ? Number(catchRecord.species.pointsMultiplier)
-      : 1;
-    const points = basePoints * speciesMultiplier;
+    // Calculate points based on game mode
+    let points: number;
+
+    if (catchRecord.tournament.gameMode === "CATCH_RELEASE") {
+      // Catch & Release mode: points based on species + size category
+      points = await this.calculateCatchReleasePoints(
+        catchRecord.tournament.id,
+        catchRecord.species?.id || null,
+        catchRecord.sizeCategory,
+        catchRecord.wasReleased
+      );
+    } else {
+      // Traditional mode: points based on weight
+      const basePoints =
+        Number(catchRecord.weight || 0) *
+        Number(catchRecord.tournament.pointsPerKg);
+      const speciesMultiplier = catchRecord.species?.pointsMultiplier
+        ? Number(catchRecord.species.pointsMultiplier)
+        : 1;
+      points = basePoints * speciesMultiplier;
+    }
 
     // Update catch
     const updatedCatch = await prisma.catch.update({
@@ -342,6 +429,13 @@ export class CatchService {
           },
         },
         species: true,
+        reviewer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
     });
 
@@ -350,6 +444,38 @@ export class CatchService {
       catchRecord.tournament.id,
       catchRecord.userId
     );
+
+    // Emit WebSocket events
+    const approvedUserName = `${updatedCatch.user.firstName} ${updatedCatch.user.lastName}`;
+    emitCatchUpdate(catchRecord.tournament.id, {
+      id: updatedCatch.id,
+      status: CatchStatus.APPROVED,
+      weight: Number(updatedCatch.weight),
+      userId: updatedCatch.userId,
+      userName: approvedUserName,
+    });
+
+    emitActivity(catchRecord.tournament.id, {
+      id: `approved-${updatedCatch.id}`,
+      type: "catch_approved",
+      description: `Cattura di ${approvedUserName} approvata: ${updatedCatch.weight} kg`,
+      userName: approvedUserName,
+      timestamp: new Date(),
+    });
+
+    // Fetch and emit updated leaderboard
+    const leaderboard = await LeaderboardService.getLeaderboard(catchRecord.tournament.id, { limit: 50 });
+    if (leaderboard && leaderboard.entries) {
+      emitLeaderboardUpdate(catchRecord.tournament.id, leaderboard.entries.map((e: any, i: number) => ({
+        rank: i + 1,
+        teamId: e.odilTeamId || undefined,
+        teamName: e.odilTeamName || undefined,
+        userId: e.odilUserId || undefined,
+        userName: e.odilUserName || undefined,
+        totalWeight: Number(e.totalWeight),
+        catchCount: e.catchCount,
+      })));
+    }
 
     return updatedCatch;
   }
@@ -401,7 +527,32 @@ export class CatchService {
           },
         },
         species: true,
+        reviewer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
+    });
+
+    // Emit WebSocket events
+    const rejectedUserName = `${updatedCatch.user.firstName} ${updatedCatch.user.lastName}`;
+    emitCatchUpdate(updatedCatch.tournament.id, {
+      id: updatedCatch.id,
+      status: CatchStatus.REJECTED,
+      weight: Number(updatedCatch.weight),
+      userId: updatedCatch.userId,
+      userName: rejectedUserName,
+    });
+
+    emitActivity(updatedCatch.tournament.id, {
+      id: `rejected-${updatedCatch.id}`,
+      type: "catch_rejected",
+      description: `Cattura di ${rejectedUserName} rifiutata: ${reviewNotes}`,
+      userName: rejectedUserName,
+      timestamp: new Date(),
     });
 
     return updatedCatch;
@@ -426,6 +577,13 @@ export class CatchService {
               id: true,
               firstName: true,
               lastName: true,
+              email: true,
+            },
+          },
+          tournament: {
+            select: {
+              id: true,
+              name: true,
             },
           },
           species: {
@@ -434,6 +592,9 @@ export class CatchService {
               commonNameIt: true,
               commonNameEn: true,
             },
+          },
+          media: {
+            orderBy: { displayOrder: "asc" },
           },
         },
         orderBy: { submittedAt: "asc" },
@@ -515,6 +676,84 @@ export class CatchService {
         biggestCatch,
       },
     };
+  }
+
+  /**
+   * Calculate points for Catch & Release mode
+   * Points are based on species + size category from SpeciesScoring table
+   */
+  private static async calculateCatchReleasePoints(
+    tournamentId: string,
+    speciesId: string | null,
+    sizeCategory: string | null,
+    wasReleased: boolean
+  ): Promise<number> {
+    // If no species, return 0 points
+    if (!speciesId) {
+      return 0;
+    }
+
+    // Look up scoring configuration for this tournament + species
+    const scoring = await prisma.speciesScoring.findUnique({
+      where: {
+        tournamentId_speciesId: {
+          tournamentId,
+          speciesId,
+        },
+      },
+    });
+
+    // If no specific scoring configured, use default values
+    let basePoints: number;
+    let bonusMultiplier = 1.5; // Default C&R bonus
+
+    if (scoring) {
+      // Get points based on size category
+      switch (sizeCategory) {
+        case "SMALL":
+          basePoints = scoring.pointsSmall;
+          break;
+        case "MEDIUM":
+          basePoints = scoring.pointsMedium;
+          break;
+        case "LARGE":
+          basePoints = scoring.pointsLarge;
+          break;
+        case "EXTRA_LARGE":
+          basePoints = scoring.pointsExtraLarge;
+          break;
+        default:
+          basePoints = scoring.pointsSmall; // Fallback to smallest
+      }
+
+      // Use configured bonus multiplier
+      bonusMultiplier = Number(scoring.catchReleaseBonus) || 1.5;
+    } else {
+      // Default points if no scoring configured
+      switch (sizeCategory) {
+        case "SMALL":
+          basePoints = 100;
+          break;
+        case "MEDIUM":
+          basePoints = 200;
+          break;
+        case "LARGE":
+          basePoints = 400;
+          break;
+        case "EXTRA_LARGE":
+          basePoints = 800;
+          break;
+        default:
+          basePoints = 100;
+      }
+    }
+
+    // Apply catch & release bonus if fish was released
+    const finalPoints = wasReleased
+      ? Math.round(basePoints * bonusMultiplier)
+      : basePoints;
+
+    return finalPoints;
   }
 }
 

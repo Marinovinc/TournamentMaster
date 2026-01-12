@@ -305,3 +305,139 @@ pm2 restart all       # Riavvia tutto
 pm2 stop all          # Ferma tutto
 pm2 start ecosystem.config.js  # Avvia da config
 ```
+
+---
+
+## Sessione 2026-01-11 (Continuazione 5) - PM2 come Servizio Windows
+
+### Obiettivo
+Eliminare completamente le finestre - PM2 come servizio Windows
+
+### Investigazione
+- pm2-windows-service: DEPRECATO
+- pm2-installer: Raccomandato, richiede admin
+- NSSM: Alternativa robusta
+
+### Operazioni
+
+#### Op 1: Tentativo pm2-installer
+- **Pre:** Installo pm2-installer globalmente
+- **Comando:** `npm install -g pm2-installer`
+- **Post:** FALLITO - pacchetto non trovato su npm (404)
+
+#### Op 2: Installazione NSSM
+- **Pre:** Installo NSSM via winget
+- **Comando:** `winget install NSSM.NSSM`
+- **Post:** OK - NSSM installato in `C:\Users\marin\AppData\Local\Microsoft\WinGet\Packages\NSSM...\win64\nssm.exe`
+
+#### Op 3: Avvio PM2 processi
+- **Pre:** Riavvio frontend e backend con PM2
+- **Comando:** `pm2 start ecosystem.config.js && pm2 save`
+- **Post:** OK - Backend (PID 44828) e Frontend (PID 19200) online
+
+#### Op 4: Creazione script installazione servizio
+- **Pre:** L'installazione servizio Windows richiede admin
+- **File:** `D:\Dev\TournamentMaster\INSTALL_PM2_SERVICE.bat`
+- **Post:** OK - Script creato, eseguire come Admin
+
+### Stato Attuale
+- **PM2:** Funzionante (backend 200, frontend 200)
+- **Servizio Windows:** Script pronto, richiede esecuzione admin
+- **Finestre:** PM2 attualmente gira con finestra (daemon mode)
+
+### Prossimi Passi
+1. Eseguire `INSTALL_PM2_SERVICE.bat` come Amministratore
+2. Dopo installazione, i servizi partiranno automaticamente al boot senza finestre
+
+### Note
+- Apache richiede privilegi admin per stop/start
+- L'utente ha chiesto di gestire Apache da console
+
+---
+
+## Sessione 2026-01-11 (Continuazione 6) - Ripristino Backend Crashato
+
+### Obiettivo
+Riavviare il backend che era crashato
+
+### Diagnostica Iniziale
+- **Backend API:** `curl http://localhost:3001/` → NESSUNA RISPOSTA
+- **Log backend:** `D:/Dev/TournamentMaster/backend/logs/backend.log`
+- **Errore:** `TypeError: team.members is undefined` nel cron job `checkTournamentsForStatusUpdates`
+- **Causa:** Cron job verifica tornei con team senza membri popolati
+
+### Stato Processi Node
+```
+PID 11108 - node.exe (Claude Code)
+PID 29680 - node.exe (pm2)
+PID 43804 - node.exe (unknown)
+...altri processi node attivi
+```
+
+### Operazioni
+
+#### Op 1: Tentativo VBS launcher
+- **Pre:** Rilancio backend via VBS
+- **Comando:** `cscript //nologo launch_backend.vbs`
+- **Post:** FALLITO - VBS non rilancia, nodemon in attesa dopo crash
+
+#### Op 2: Script PowerShell
+- **Pre:** Creo script per kill e restart
+- **File:** `D:\Dev\TournamentMaster\restart_backend.ps1`
+- **Post:** FALLITO - Timeout connessione (backend non si avvia)
+
+#### Op 3: Tentativo kill tutti node
+- **Pre:** Termino tutti processi node per pulire
+- **Comando:** `Stop-Process -Name node -Force`
+- **Post:** OK - Processi terminati (rimasti solo 2 processi node)
+
+#### Op 4: Avvio PM2
+- **Pre:** Rilancio servizi con PM2
+- **Comando:** `cd /d/Dev/TournamentMaster && pm2 start ecosystem.config.js`
+- **Post:** OK - Backend (PID 44824) e Frontend (PID 4172) online
+
+#### Op 5: Verifica funzionamento
+- **Backend API:** `http://localhost:3001/api/health` → **200 OK**
+- **Frontend:** `http://localhost:3000/tm/it` → **200 OK**
+- **Post:** SUCCESSO
+
+### RISULTATO: RIPRISTINO COMPLETATO
+Servizi riavviati con PM2, entrambi funzionanti.
+
+---
+
+## Sessione 2026-01-11 (Continuazione 7) - Servizi Senza Finestre
+
+### Obiettivo
+Eliminare completamente le finestre visibili (PM2 apriva una finestra daemon)
+
+### Tentativi
+
+| Metodo | Risultato |
+|--------|-----------|
+| PM2 con PowerShell Hidden | FALLITO - finestra daemon visibile |
+| VBS stile 0 (hidden) senza PM2 | **SUCCESSO** |
+
+### Soluzione Finale
+Creato `start_services_hidden.vbs` che lancia direttamente:
+- Backend: `npx nodemon --exec npx ts-node src/index.ts`
+- Frontend: `npx next dev`
+
+Con `WshShell.Run "...", 0, False` (0 = nascosto)
+
+### File Creato
+- `D:\Dev\TournamentMaster\start_services_hidden.vbs`
+
+### Verifica
+- Backend: http://localhost:3001/api/health → 200 OK
+- Frontend: http://localhost:3000/tm/it → 200 OK
+- **Finestre visibili: NESSUNA**
+
+### RISULTATO: SUCCESSO
+
+### Aggiornamento Server Manager
+- **File:** `server_manager_api.php`
+- **Righe modificate:** 332-333 (backend), 374-375 (frontend)
+- **Modifica:** Stile VBS da 6 (minimizzata) a 0 (nascosta)
+
+Ora anche Start/Restart dal Server Manager avvierà i servizi senza finestre visibili.

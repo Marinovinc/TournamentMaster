@@ -19,6 +19,7 @@ interface CreateStaffData {
   userId: string;
   role: TournamentStaffRole;
   notes?: string;
+  parentStaffId?: string; // Per JUDGE_ASSISTANT, ID del giudice principale
 }
 
 interface StaffFilters {
@@ -65,6 +66,20 @@ export class StaffService {
       throw new Error("User is already assigned with this role");
     }
 
+    // Per JUDGE_ASSISTANT, verifica che parentStaffId sia un giudice valido
+    if (data.role === 'JUDGE_ASSISTANT' && data.parentStaffId) {
+      const parentStaff = await prisma.tournamentStaff.findFirst({
+        where: {
+          id: data.parentStaffId,
+          tournamentId: data.tournamentId,
+          role: 'JUDGE',
+        },
+      });
+      if (!parentStaff) {
+        throw new Error('Parent judge not found or is not a judge for this tournament');
+      }
+    }
+
     // Create staff assignment
     const staff = await prisma.tournamentStaff.create({
       data: {
@@ -72,6 +87,7 @@ export class StaffService {
         userId: data.userId,
         role: data.role,
         notes: data.notes,
+        parentStaffId: data.parentStaffId,
       },
       include: {
         user: {
@@ -129,6 +145,31 @@ export class StaffService {
             lastName: true,
             role: true,
             avatar: true,
+          },
+        },
+        parentStaff: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+        assistants: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
           },
         },
       },
@@ -198,7 +239,7 @@ export class StaffService {
 
   /**
    * Get available users that can be assigned as staff
-   * (Users with JUDGE, ORGANIZER, or TENANT_ADMIN roles)
+   * Restituisce tutti gli associati del tenant (associazione)
    */
   static async getAvailableStaff(tournamentId: string, tenantId: string) {
     // Get already assigned staff for this tournament
@@ -209,13 +250,10 @@ export class StaffService {
 
     const excludeIds = assignedUserIds.map((s) => s.userId);
 
-    // Get users with appropriate roles who belong to the tenant
+    // Get all users who belong to the tenant (association members)
     const availableUsers = await prisma.user.findMany({
       where: {
         tenantId,
-        role: {
-          in: ["SUPER_ADMIN", "TENANT_ADMIN", "ORGANIZER", "JUDGE"],
-        },
         id: {
           notIn: excludeIds,
         },
@@ -253,6 +291,209 @@ export class StaffService {
     });
 
     return staff;
+  }
+
+  /**
+   * Get all judges in a tournament (for assigning assistants)
+   */
+  static async getJudges(tournamentId: string) {
+    const judges = await prisma.tournamentStaff.findMany({
+      where: {
+        tournamentId,
+        role: 'JUDGE',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+        assistants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return judges;
+  }
+
+  /**
+   * Get assistants of a specific judge
+   */
+  static async getAssistants(judgeStaffId: string) {
+    const assistants = await prisma.tournamentStaff.findMany({
+      where: {
+        parentStaffId: judgeStaffId,
+        role: 'JUDGE_ASSISTANT',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return assistants;
+  }
+
+  /**
+   * Assign an assistant to a judge
+   */
+  static async assignAssistant(
+    tournamentId: string,
+    judgeStaffId: string,
+    assistantUserId: string,
+    notes?: string
+  ) {
+    // Verify the judge exists and is a JUDGE
+    const judge = await prisma.tournamentStaff.findFirst({
+      where: {
+        id: judgeStaffId,
+        tournamentId,
+        role: 'JUDGE',
+      },
+    });
+
+    if (!judge) {
+      throw new Error('Judge not found in this tournament');
+    }
+
+    // Create assistant assignment
+    const assistant = await prisma.tournamentStaff.create({
+      data: {
+        tournamentId,
+        userId: assistantUserId,
+        role: 'JUDGE_ASSISTANT',
+        parentStaffId: judgeStaffId,
+        notes,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+        parentStaff: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return assistant;
+  }
+
+  /**
+   * Remove an assistant from a judge
+   */
+  static async removeAssistant(assistantStaffId: string) {
+    const assistant = await prisma.tournamentStaff.findFirst({
+      where: {
+        id: assistantStaffId,
+        role: 'JUDGE_ASSISTANT',
+      },
+    });
+
+    if (!assistant) {
+      throw new Error('Assistant not found');
+    }
+
+    await prisma.tournamentStaff.delete({
+      where: { id: assistantStaffId },
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * Reassign an assistant to a different judge
+   */
+  static async reassignAssistant(
+    assistantStaffId: string,
+    newJudgeStaffId: string
+  ) {
+    // Verify assistant exists
+    const assistant = await prisma.tournamentStaff.findFirst({
+      where: {
+        id: assistantStaffId,
+        role: 'JUDGE_ASSISTANT',
+      },
+    });
+
+    if (!assistant) {
+      throw new Error('Assistant not found');
+    }
+
+    // Verify new judge exists and is in the same tournament
+    const newJudge = await prisma.tournamentStaff.findFirst({
+      where: {
+        id: newJudgeStaffId,
+        tournamentId: assistant.tournamentId,
+        role: 'JUDGE',
+      },
+    });
+
+    if (!newJudge) {
+      throw new Error('New judge not found in this tournament');
+    }
+
+    // Update assignment
+    const updated = await prisma.tournamentStaff.update({
+      where: { id: assistantStaffId },
+      data: { parentStaffId: newJudgeStaffId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        parentStaff: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return updated;
   }
 }
 

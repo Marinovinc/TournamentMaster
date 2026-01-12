@@ -32,6 +32,8 @@ export interface User {
   firstName: string;
   lastName: string;
   role: UserRole;
+  avatar?: string | null;
+  phone?: string | null;
   tenantId?: string;
   tenantSlug?: string;
   tenantName?: string;
@@ -47,6 +49,7 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
   hasRole: (...roles: UserRole[]) => boolean;
   isAdmin: boolean;
   isJudge: boolean;
@@ -150,6 +153,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/");
   }, [router]);
 
+  // Update user function (for profile updates)
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setState(prev => {
+      if (!prev.user) return prev;
+      const newUser = { ...prev.user, ...updates };
+      localStorage.setItem("user", JSON.stringify(newUser));
+      return { ...prev, user: newUser };
+    });
+  }, []);
+
   // Role check helper
   const hasRole = useCallback((...roles: UserRole[]) => {
     if (!state.user) return false;
@@ -167,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ...state,
     login,
     logout,
+    updateUser,
     hasRole,
     isAdmin,
     isJudge,

@@ -17,6 +17,17 @@ import { ThumbnailService } from "../services/thumbnail.service";
 
 const router = Router();
 
+// Helper: parse tags (gestisce sia JSON array che comma-separated string)
+function parseTags(tags: string | null): string[] {
+  if (!tags) return [];
+  try {
+    const parsed = JSON.parse(tags);
+    return Array.isArray(parsed) ? parsed : [tags];
+  } catch (e) {
+    return tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+  }
+}
+
 // Multer config
 const userMediaStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -41,7 +52,7 @@ const userMediaUpload = multer({
       return;
     }
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov", ".webm", ".avi", ".mkv"];
+    const allowedExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif", ".mp4", ".mov", ".webm", ".avi", ".mkv", ".3gp"];
     if (allowedExts.includes(ext)) {
       cb(null, true);
       return;
@@ -107,7 +118,7 @@ router.get("/", authenticate, async (req: AuthenticatedRequest, res: Response) =
 
     res.json({
       success: true,
-      data: media.map(m => ({ ...m, tags: m.tags ? JSON.parse(m.tags) : [] })),
+      data: media.map(m => ({ ...m, tags: parseTags(m.tags) })),
       pagination: { total, limit: limit ? parseInt(limit as string) : 50, offset: offset ? parseInt(offset as string) : 0 },
     });
   } catch (error) {
@@ -128,7 +139,7 @@ router.post("/upload", authenticate, userMediaUpload.single("file"), async (req:
       return res.status(400).json({ success: false, message: "Categoria obbligatoria" });
     }
 
-    const isVideo = file.mimetype.startsWith("video/") || [".mp4", ".mov", ".webm", ".avi", ".mkv"].includes(path.extname(file.originalname).toLowerCase());
+    const isVideo = file.mimetype.startsWith("video/") || [".mp4", ".mov", ".webm", ".avi", ".mkv", ".3gp"].includes(path.extname(file.originalname).toLowerCase());
     const type = isVideo ? "VIDEO" : "PHOTO";
 
     const userMediaDir = path.join(__dirname, "../../../frontend/public/uploads/user-media");
@@ -188,7 +199,7 @@ router.post("/upload", authenticate, userMediaUpload.single("file"), async (req:
       },
     });
 
-    res.status(201).json({ success: true, data: { ...media, tags: media.tags ? JSON.parse(media.tags) : [] }, message: "Media caricato con successo" });
+    res.status(201).json({ success: true, data: { ...media, tags: parseTags(media.tags) }, message: "Media caricato con successo" });
   } catch (error) {
     console.error("Error uploading:", error);
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
@@ -204,7 +215,7 @@ router.get("/:id", authenticate, [param("id").isUUID()], async (req: Authenticat
       include: { boat: { select: { id: true, name: true } }, equipment: { select: { id: true, name: true } }, tournament: { select: { id: true, name: true } } },
     });
     if (!media) return res.status(404).json({ success: false, message: "Media non trovato" });
-    res.json({ success: true, data: { ...media, tags: media.tags ? JSON.parse(media.tags) : [] } });
+    res.json({ success: true, data: { ...media, tags: parseTags(media.tags) } });
   } catch (error) {
     res.status(500).json({ success: false, message: "Errore nel recupero del media" });
   }
@@ -222,7 +233,7 @@ router.put("/:id", authenticate, [param("id").isUUID(), ...updateMediaValidation
     if (req.body.isPublic !== undefined) updateData.isPublic = req.body.isPublic;
 
     const media = await prisma.userMedia.update({ where: { id: req.params.id }, data: updateData });
-    res.json({ success: true, data: { ...media, tags: media.tags ? JSON.parse(media.tags) : [] }, message: "Media aggiornato" });
+    res.json({ success: true, data: { ...media, tags: parseTags(media.tags) }, message: "Media aggiornato" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Errore aggiornamento" });
   }

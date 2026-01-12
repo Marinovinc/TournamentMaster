@@ -26,6 +26,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Save, Loader2, Trophy } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
+import { getMediaUrl } from "@/lib/media";
 
 interface Tournament {
   id: string;
@@ -203,7 +205,10 @@ export default function TournamentEditPage() {
           <ArrowLeft className="h-4 w-4" />
           Torna al torneo
         </Link>
-        <h1 className="text-2xl font-bold">Modifica Torneo</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Modifica Torneo</h1>
+          <HelpGuide pageKey="tournamentEdit" position="inline" isAdmin={true} />
+        </div>
         <p className="text-muted-foreground">Aggiorna i dettagli del torneo</p>
       </div>
 

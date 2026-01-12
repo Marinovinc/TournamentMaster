@@ -43,6 +43,7 @@ import {
   Globe,
   AlertCircle,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   BarChart,
@@ -519,7 +520,10 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
+          <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold tracking-tight">Report e Statistiche</h1>
+          <HelpGuide pageKey="reports" position="inline" isAdmin={true} />
+        </div>
           <p className="text-muted-foreground">
             {isSuperAdmin
               ? "Analisi globale della piattaforma e delle associazioni"

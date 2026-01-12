@@ -55,6 +55,7 @@ import {
   Play,
   ExternalLink,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 
 interface MediaItem {
   id: string;
@@ -124,6 +125,7 @@ const CATEGORIES = [
   "general",
 ];
 
+
 export default function SuperAdminMediaPage() {
   const { user, token } = useAuth();
   const router = useRouter();
@@ -175,6 +177,13 @@ export default function SuperAdminMediaPage() {
 
   // Delete dialog state
   const [deletingMedia, setDeletingMedia] = useState<MediaItem | null>(null);
+
+  // Helper to add basePath to media paths (for Apache reverse proxy)
+  const getMediaUrl = (mediaPath: string) => {
+    const basePath = '/tm';
+    if (mediaPath.startsWith('http')) return mediaPath;
+    return basePath + mediaPath;
+  };
 
   // Check if user is SUPER_ADMIN
   useEffect(() => {
@@ -438,7 +447,10 @@ export default function SuperAdminMediaPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
+          <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold tracking-tight">Media Library</h1>
+          <HelpGuide pageKey="adminMedia" position="inline" isAdmin={true} />
+        </div>
           <p className="text-muted-foreground">
             Gestisci foto e video disponibili per tutti i tornei
           </p>
@@ -767,7 +779,7 @@ export default function SuperAdminMediaPage() {
                   {isVideoFile(item.filename) ? (
                     <div className="relative w-full h-32 bg-black cursor-pointer" onClick={() => setViewingMedia(item)}>
                       <video
-                        src={item.path}
+                        src={getMediaUrl(item.path)}
                         className="w-full h-32 object-cover"
                         muted
                         preload="metadata"
@@ -784,7 +796,7 @@ export default function SuperAdminMediaPage() {
                     </div>
                   ) : (
                     <img
-                      src={item.path}
+                      src={getMediaUrl(item.path)}
                       alt={item.title}
                       className="w-full h-32 object-cover cursor-pointer"
                       onClick={() => setViewingMedia(item)}
@@ -830,7 +842,7 @@ export default function SuperAdminMediaPage() {
                   {isVideoFile(item.filename) ? (
                     <div className="relative w-16 h-16 bg-black rounded cursor-pointer" onClick={() => setViewingMedia(item)}>
                       <video
-                        src={item.path}
+                        src={getMediaUrl(item.path)}
                         className="w-16 h-16 object-cover rounded"
                         muted
                         preload="metadata"
@@ -841,7 +853,7 @@ export default function SuperAdminMediaPage() {
                     </div>
                   ) : (
                     <img
-                      src={item.path}
+                      src={getMediaUrl(item.path)}
                       alt={item.title}
                       className="w-16 h-16 object-cover rounded cursor-pointer"
                       onClick={() => setViewingMedia(item)}
@@ -921,7 +933,7 @@ export default function SuperAdminMediaPage() {
           {editingMedia && (
             <div className="grid gap-4 py-4">
               <img
-                src={editingMedia.path}
+                src={getMediaUrl(editingMedia.path)}
                 alt={editingMedia.title}
                 className="w-full h-32 object-cover rounded-lg"
               />
@@ -1032,7 +1044,7 @@ export default function SuperAdminMediaPage() {
             <div className="flex flex-col items-center">
               {(viewingMedia.mimeType?.startsWith('video/') || isVideoFile(viewingMedia.filename)) ? (
                 <video
-                  src={viewingMedia.path}
+                  src={getMediaUrl(viewingMedia.path)}
                   controls
                   autoPlay
                   playsInline
@@ -1045,10 +1057,10 @@ export default function SuperAdminMediaPage() {
                 </video>
               ) : (
                 <img
-                  src={viewingMedia.path}
+                  src={getMediaUrl(viewingMedia.path)}
                   alt={viewingMedia.title}
                   className="max-w-full max-h-[70vh] object-contain rounded-lg cursor-pointer"
-                  onClick={() => window.open(viewingMedia.path, '_blank', 'noopener,noreferrer')}
+                  onClick={() => window.open(getMediaUrl(viewingMedia.path), '_blank', 'noopener,noreferrer')}
                   title="Clicca per aprire in una nuova finestra"
                 />
               )}

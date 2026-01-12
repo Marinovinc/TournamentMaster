@@ -492,4 +492,108 @@ router.delete(
   }
 );
 
+// ==============================================================================
+// TOURNAMENT-SPECIFIC MESSAGING
+// ==============================================================================
+
+/**
+ * GET /api/messages/templates
+ * Ottieni template messaggi predefiniti
+ */
+router.get("/templates", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const templates = MessageService.getMessageTemplates();
+    res.json({
+      success: true,
+      data: templates,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to get templates";
+    res.status(500).json({ success: false, message });
+  }
+});
+
+/**
+ * GET /api/messages/tournament/:tournamentId
+ * Ottieni storico messaggi di un torneo
+ */
+router.get(
+  "/tournament/:tournamentId",
+  param("tournamentId").isUUID(),
+  paginationValidation,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const result = await MessageService.getTournamentMessages(
+        req.params.tournamentId,
+        { page, limit }
+      );
+
+      res.json({
+        success: true,
+        data: result.messages,
+        pagination: result.pagination,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to get tournament messages";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+/**
+ * POST /api/messages/tournament/:tournamentId/broadcast
+ * Invia messaggio broadcast ai partecipanti di un torneo
+ */
+router.post(
+  "/tournament/:tournamentId/broadcast",
+  isAdminOrPresident(),
+  param("tournamentId").isUUID(),
+  sendMessageValidation,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const tenantId = getTenantId(req);
+      if (!tenantId) {
+        return res.status(403).json({
+          success: false,
+          message: "No tenant associated",
+        });
+      }
+
+      const { subject, body, priority, targetGroup } = req.body;
+
+      const result = await MessageService.sendTournamentBroadcast({
+        senderId: req.user!.userId,
+        tournamentId: req.params.tournamentId,
+        tenantId,
+        subject,
+        body,
+        priority,
+        targetGroup: targetGroup || "all",
+      });
+
+      res.status(201).json({
+        success: true,
+        message: `Broadcast inviato a ${result.recipientCount} destinatari`,
+        data: result.message,
+        recipientCount: result.recipientCount,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to send tournament broadcast";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
 export default router;

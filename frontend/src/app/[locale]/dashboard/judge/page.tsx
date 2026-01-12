@@ -64,13 +64,34 @@ import {
   Video,
   Image,
   History,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+  Play,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getMediaUrl } from "@/lib/media";
 
 interface Tournament {
   id: string;
   name: string;
   status: string;
+}
+
+interface CatchMedia {
+  id: string;
+  type: "PHOTO" | "VIDEO";
+  path: string;
+  filename: string;
+  mimeType?: string;
+  size?: number;
+  thumbnailPath?: string;
+  duration?: number;
+  isPrimary: boolean;
+  caption?: string;
+  displayOrder: number;
 }
 
 interface Catch {
@@ -87,7 +108,10 @@ interface Catch {
   isInsideZone: boolean;
   notes?: string;
   reviewNotes?: string;
+  reviewedAt?: string;
   points?: number;
+  // Multi-media support
+  media?: CatchMedia[];
   user: {
     id: string;
     firstName: string;
@@ -101,6 +125,11 @@ interface Catch {
   species?: {
     id: string;
     commonNameIt: string;
+  };
+  reviewer?: {
+    id: string;
+    firstName: string;
+    lastName: string;
   };
 }
 
@@ -124,6 +153,13 @@ export default function JudgeDashboardPage() {
   const [reviewNotes, setReviewNotes] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+
+  // Sorting state
+  type SortColumn = "user" | "tournament" | "species" | "weight" | "caughtAt" | "status";
+  type SortDirection = "asc" | "desc";
+  const [sortColumn, setSortColumn] = useState<SortColumn>("caughtAt");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -400,6 +436,7 @@ export default function JudgeDashboardPage() {
     setDialogMode(null);
     setReviewNotes("");
     setShowVideo(false);
+    setCurrentMediaIndex(0);
   };
 
   const getStatusBadge = (status: string) => {
@@ -425,17 +462,60 @@ export default function JudgeDashboardPage() {
     });
   };
 
-  // Filter catches by search
-  const filteredCatches = catches.filter(c => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      c.user.firstName.toLowerCase().includes(query) ||
-      c.user.lastName.toLowerCase().includes(query) ||
-      c.tournament.name.toLowerCase().includes(query) ||
-      c.species?.commonNameIt.toLowerCase().includes(query)
-    );
-  });
+  // Handle column sorting
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  // Sort icon component
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortColumn !== column) return <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />;
+    return sortDirection === "asc"
+      ? <ArrowUp className="ml-1 h-3 w-3" />
+      : <ArrowDown className="ml-1 h-3 w-3" />;
+  };
+
+  // Filter and sort catches
+  const filteredCatches = catches
+    .filter(c => {
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        c.user.firstName.toLowerCase().includes(query) ||
+        c.user.lastName.toLowerCase().includes(query) ||
+        c.tournament.name.toLowerCase().includes(query) ||
+        c.species?.commonNameIt.toLowerCase().includes(query)
+      );
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      switch (sortColumn) {
+        case "user":
+          comparison = `${a.user.lastName} ${a.user.firstName}`.localeCompare(`${b.user.lastName} ${b.user.firstName}`);
+          break;
+        case "tournament":
+          comparison = a.tournament.name.localeCompare(b.tournament.name);
+          break;
+        case "species":
+          comparison = (a.species?.commonNameIt || "").localeCompare(b.species?.commonNameIt || "");
+          break;
+        case "weight":
+          comparison = Number(a.weight) - Number(b.weight);
+          break;
+        case "caughtAt":
+          comparison = new Date(a.caughtAt).getTime() - new Date(b.caughtAt).getTime();
+          break;
+        case "status":
+          comparison = a.status.localeCompare(b.status);
+          break;
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
 
   const pendingCount = catches.filter(c => c.status === "PENDING").length;
 
@@ -555,13 +635,44 @@ export default function JudgeDashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Pescatore</TableHead>
-                  <TableHead>Torneo</TableHead>
-                  <TableHead>Specie</TableHead>
-                  <TableHead>Peso</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("user")}
+                  >
+                    <span className="flex items-center">Pescatore<SortIcon column="user" /></span>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("tournament")}
+                  >
+                    <span className="flex items-center">Torneo<SortIcon column="tournament" /></span>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("species")}
+                  >
+                    <span className="flex items-center">Specie<SortIcon column="species" /></span>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("weight")}
+                  >
+                    <span className="flex items-center">Peso<SortIcon column="weight" /></span>
+                  </TableHead>
                   <TableHead>GPS</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Stato</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("caughtAt")}
+                  >
+                    <span className="flex items-center">Data<SortIcon column="caughtAt" /></span>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("status")}
+                  >
+                    <span className="flex items-center">Stato<SortIcon column="status" /></span>
+                  </TableHead>
+                  <TableHead>Validato da</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
                 </TableRow>
               </TableHeader>
@@ -591,7 +702,17 @@ export default function JudgeDashboardPage() {
                         <span className="font-medium">
                           {catchItem.species?.commonNameIt || "N/A"}
                         </span>
-                        {catchItem.videoPath && (
+                        {/* Media count indicator */}
+                        {catchItem.media && catchItem.media.length > 0 ? (
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700 text-xs">
+                            {catchItem.media.filter(m => m.type === "PHOTO").length > 0 && (
+                              <><Image className="h-3 w-3 mr-0.5" />{catchItem.media.filter(m => m.type === "PHOTO").length}</>
+                            )}
+                            {catchItem.media.filter(m => m.type === "VIDEO").length > 0 && (
+                              <><Video className="h-3 w-3 ml-1 mr-0.5" />{catchItem.media.filter(m => m.type === "VIDEO").length}</>
+                            )}
+                          </Badge>
+                        ) : catchItem.videoPath && (
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs">
                             <Video className="h-3 w-3" />
                           </Badge>
@@ -629,6 +750,18 @@ export default function JudgeDashboardPage() {
                       <span className="text-sm">{formatDate(catchItem.caughtAt)}</span>
                     </TableCell>
                     <TableCell>{getStatusBadge(catchItem.status)}</TableCell>
+                    <TableCell>
+                      {catchItem.reviewer ? (
+                        <div className="flex items-center gap-2">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm">
+                            {catchItem.reviewer.firstName} {catchItem.reviewer.lastName}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button
@@ -686,59 +819,115 @@ export default function JudgeDashboardPage() {
 
           {selectedCatch && (
             <div className="space-y-4">
-              {/* Photo/Video Toggle */}
-              {selectedCatch.videoPath && (
-                <div className="flex gap-2 mb-2">
-                  <Button
-                    variant={!showVideo ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowVideo(false)}
-                  >
-                    <Image className="h-4 w-4 mr-1" />
-                    Foto
-                  </Button>
-                  <Button
-                    variant={showVideo ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowVideo(true)}
-                  >
-                    <Video className="h-4 w-4 mr-1" />
-                    Video
-                  </Button>
-                </div>
-              )}
+              {/* Multi-Media Gallery */}
+              {(() => {
+                // Build media list from either media[] or legacy photoPath/videoPath
+                const mediaList: CatchMedia[] = selectedCatch.media && selectedCatch.media.length > 0
+                  ? [...selectedCatch.media].sort((a, b) => a.displayOrder - b.displayOrder)
+                  : [
+                      // Legacy: single photo + optional video
+                      { id: "legacy-photo", type: "PHOTO" as const, path: selectedCatch.photoPath, filename: "photo.jpg", isPrimary: true, displayOrder: 0 },
+                      ...(selectedCatch.videoPath ? [{ id: "legacy-video", type: "VIDEO" as const, path: selectedCatch.videoPath, filename: "video.mp4", isPrimary: false, displayOrder: 1 }] : [])
+                    ];
 
-              {/* Photo or Video */}
-              <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                {showVideo && selectedCatch.videoPath ? (
-                  <video
-                    src={selectedCatch.videoPath}
-                    className="w-full h-full object-contain"
-                    controls
-                    autoPlay
-                    title="Video cattura"
-                  />
-                ) : (
+                const currentMedia = mediaList[currentMediaIndex] || mediaList[0];
+                const hasMultipleMedia = mediaList.length > 1;
+
+                return (
                   <>
-                    <img
-                      src={selectedCatch.photoPath}
-                      alt={`Cattura di ${selectedCatch.species?.commonNameIt || "pesce"}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute bottom-2 right-2 flex gap-2">
-                      {selectedCatch.videoPath && (
-                        <Badge className="bg-blue-600 text-white cursor-pointer" onClick={() => setShowVideo(true)}>
-                          <Video className="h-3 w-3 mr-1" />
-                          Video disponibile
-                        </Badge>
+                    {/* Media Thumbnails Strip */}
+                    {hasMultipleMedia && (
+                      <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
+                        {mediaList.map((media, index) => (
+                          <button
+                            key={media.id}
+                            onClick={() => setCurrentMediaIndex(index)}
+                            className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                              index === currentMediaIndex
+                                ? "border-primary ring-2 ring-primary/30"
+                                : "border-transparent hover:border-muted-foreground/30"
+                            }`}
+                          >
+                            {media.type === "VIDEO" ? (
+                              <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                                <Play className="h-6 w-6 text-white" />
+                              </div>
+                            ) : (
+                              <img
+                                src={getMediaUrl(media.path)}
+                                alt={`Media ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                            <div className="absolute bottom-0.5 right-0.5">
+                              <Badge className="h-4 px-1 text-[10px] bg-black/70 text-white">
+                                {media.type === "VIDEO" ? <Video className="h-2.5 w-2.5" /> : <Image className="h-2.5 w-2.5" />}
+                              </Badge>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Main Media Display */}
+                    <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
+                      {currentMedia.type === "VIDEO" ? (
+                        <video
+                          key={currentMedia.id}
+                          src={getMediaUrl(currentMedia.path)}
+                          className="w-full h-full object-contain bg-black"
+                          controls
+                          autoPlay
+                          title="Video cattura"
+                        />
+                      ) : (
+                        <img
+                          src={getMediaUrl(currentMedia.path)}
+                          alt={`Cattura di ${selectedCatch.species?.commonNameIt || "pesce"}`}
+                          className="w-full h-full object-cover"
+                        />
                       )}
-                      <Badge className="bg-black/70 text-white">
-                        {selectedCatch.weight} kg
-                      </Badge>
+
+                      {/* Navigation Arrows */}
+                      {hasMultipleMedia && (
+                        <>
+                          <button
+                            onClick={() => setCurrentMediaIndex(prev => prev > 0 ? prev - 1 : mediaList.length - 1)}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                          >
+                            <ChevronLeft className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => setCurrentMediaIndex(prev => prev < mediaList.length - 1 ? prev + 1 : 0)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                          >
+                            <ChevronRight className="h-5 w-5" />
+                          </button>
+                        </>
+                      )}
+
+                      {/* Info Badge */}
+                      <div className="absolute bottom-2 right-2 flex gap-2">
+                        {hasMultipleMedia && (
+                          <Badge className="bg-black/70 text-white">
+                            {currentMediaIndex + 1} / {mediaList.length}
+                          </Badge>
+                        )}
+                        <Badge className="bg-black/70 text-white">
+                          {selectedCatch.weight} kg
+                        </Badge>
+                      </div>
+
+                      {/* Media Type Label */}
+                      <div className="absolute top-2 left-2">
+                        <Badge className={currentMedia.type === "VIDEO" ? "bg-blue-600 text-white" : "bg-green-600 text-white"}>
+                          {currentMedia.type === "VIDEO" ? <><Video className="h-3 w-3 mr-1" />Video</> : <><Image className="h-3 w-3 mr-1" />Foto</>}
+                        </Badge>
+                      </div>
                     </div>
                   </>
-                )}
-              </div>
+                );
+              })()}
 
               {/* Catch Details */}
               <div className="grid grid-cols-2 gap-4">
@@ -771,7 +960,7 @@ export default function JudgeDashboardPage() {
                 <div className="space-y-1">
                   <label className="text-sm text-muted-foreground">Coordinate GPS</label>
                   <p className="font-mono text-sm">
-                    {selectedCatch.latitude.toFixed(4)}, {selectedCatch.longitude.toFixed(4)}
+                    {parseFloat(String(selectedCatch.latitude)).toFixed(4)}, {parseFloat(String(selectedCatch.longitude)).toFixed(4)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Precisione: ±{selectedCatch.gpsAccuracy || "N/A"}m
@@ -792,6 +981,26 @@ export default function JudgeDashboardPage() {
                 <div className="p-3 bg-muted rounded-lg">
                   <label className="text-sm text-muted-foreground">Note del pescatore</label>
                   <p className="mt-1">{selectedCatch.notes}</p>
+                </div>
+              )}
+
+              {/* Reviewer info (for approved/rejected catches) */}
+              {selectedCatch.reviewer && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <label className="text-sm text-blue-700 font-medium">Validato da</label>
+                  <p className="mt-1 font-medium">
+                    {selectedCatch.reviewer.firstName} {selectedCatch.reviewer.lastName}
+                  </p>
+                  {selectedCatch.reviewedAt && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      {formatDate(selectedCatch.reviewedAt)}
+                    </p>
+                  )}
+                  {selectedCatch.reviewNotes && (
+                    <p className="mt-2 text-sm text-blue-800">
+                      {selectedCatch.reviewNotes}
+                    </p>
+                  )}
                 </div>
               )}
 

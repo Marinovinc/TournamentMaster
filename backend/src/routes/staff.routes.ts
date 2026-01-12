@@ -33,9 +33,10 @@ const router = Router();
 const assignStaffValidation = [
   body("userId").isUUID().withMessage("Valid user ID is required"),
   body("role")
-    .isIn(["DIRECTOR", "JUDGE", "INSPECTOR", "SCORER"])
-    .withMessage("Role must be DIRECTOR, JUDGE, INSPECTOR, or SCORER"),
+    .isIn(["DIRECTOR", "JUDGE", "JUDGE_ASSISTANT", "INSPECTOR", "SCORER"])
+    .withMessage("Role must be DIRECTOR, JUDGE, JUDGE_ASSISTANT, INSPECTOR, or SCORER"),
   body("notes").optional().trim().isLength({ max: 500 }),
+  body("parentStaffId").optional().isUUID().withMessage("Valid parent staff ID required"),
 ];
 
 // =============================================================================
@@ -45,7 +46,7 @@ router.get(
   "/tournament/:tournamentId",
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
-  [param("tournamentId").isUUID().withMessage("Valid tournament ID required")],
+  [param("tournamentId").isString().notEmpty().withMessage("Tournament ID required")],
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
@@ -64,6 +65,7 @@ router.get(
       const grouped = {
         directors: staff.filter((s) => s.role === "DIRECTOR"),
         judges: staff.filter((s) => s.role === "JUDGE"),
+        judgeAssistants: staff.filter((s) => s.role === "JUDGE_ASSISTANT"),
         inspectors: staff.filter((s) => s.role === "INSPECTOR"),
         scorers: staff.filter((s) => s.role === "SCORER"),
       };
@@ -93,7 +95,7 @@ router.get(
   "/tournament/:tournamentId/available",
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
-  [param("tournamentId").isUUID().withMessage("Valid tournament ID required")],
+  [param("tournamentId").isString().notEmpty().withMessage("Tournament ID required")],
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
@@ -146,7 +148,7 @@ router.post(
   authenticate,
   authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
   [
-    param("tournamentId").isUUID().withMessage("Valid tournament ID required"),
+    param("tournamentId").isString().notEmpty().withMessage("Tournament ID required"),
     ...assignStaffValidation,
   ],
   async (req: AuthenticatedRequest, res: Response) => {
@@ -160,13 +162,14 @@ router.post(
       }
 
       const { tournamentId } = req.params;
-      const { userId, role, notes } = req.body;
+      const { userId, role, notes, parentStaffId } = req.body;
 
       const staff = await StaffService.assign({
         tournamentId,
         userId,
         role: role as TournamentStaffRole,
         notes,
+        parentStaffId,
       });
 
       return res.status(201).json({
@@ -330,7 +333,7 @@ router.get(
 router.get(
   "/check/:tournamentId",
   authenticate,
-  [param("tournamentId").isUUID().withMessage("Valid tournament ID required")],
+  [param("tournamentId").isString().notEmpty().withMessage("Tournament ID required")],
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
@@ -377,6 +380,233 @@ router.get(
       return res.status(500).json({
         success: false,
         message: error.message || "Failed to check staff status",
+      });
+    }
+  }
+);
+
+
+// =============================================================================
+// JUDGE ASSISTANTS ENDPOINTS
+// =============================================================================
+
+// GET /api/staff/tournament/:tournamentId/judges - Get judges with their assistants
+router.get(
+  "/tournament/:tournamentId/judges",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
+  [param("tournamentId").isString().notEmpty().withMessage("Tournament ID required")],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array(),
+        });
+      }
+
+      const { tournamentId } = req.params;
+      const judges = await StaffService.getJudges(tournamentId);
+
+      return res.json({
+        success: true,
+        data: judges,
+      });
+    } catch (error: any) {
+      console.error("[Staff] Error getting judges:", error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to get judges",
+      });
+    }
+  }
+);
+
+// POST /api/staff/judge/:judgeStaffId/assistant - Assign assistant to judge
+router.post(
+  "/judge/:judgeStaffId/assistant",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
+  [
+    param("judgeStaffId").isUUID().withMessage("Valid judge staff ID required"),
+    body("userId").isUUID().withMessage("Valid user ID is required"),
+    body("notes").optional().trim().isLength({ max: 500 }),
+  ],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array(),
+        });
+      }
+
+      const { judgeStaffId } = req.params;
+      const { userId, notes } = req.body;
+
+      // Get tournament ID from judge
+      const judge = await prisma.tournamentStaff.findUnique({
+        where: { id: judgeStaffId },
+        select: { tournamentId: true },
+      });
+
+      if (!judge) {
+        return res.status(404).json({
+          success: false,
+          message: "Judge not found",
+        });
+      }
+
+      const assistant = await StaffService.assignAssistant(
+        judge.tournamentId,
+        judgeStaffId,
+        userId,
+        notes
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: "Assistant assigned to judge",
+        data: assistant,
+      });
+    } catch (error: any) {
+      console.error("[Staff] Error assigning assistant:", error);
+
+      if (error.message.includes("already assigned")) {
+        return res.status(409).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to assign assistant",
+      });
+    }
+  }
+);
+
+// GET /api/staff/judge/:judgeStaffId/assistants - Get assistants of a judge
+router.get(
+  "/judge/:judgeStaffId/assistants",
+  authenticate,
+  [param("judgeStaffId").isUUID().withMessage("Valid judge staff ID required")],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array(),
+        });
+      }
+
+      const { judgeStaffId } = req.params;
+      const assistants = await StaffService.getAssistants(judgeStaffId);
+
+      return res.json({
+        success: true,
+        data: assistants,
+      });
+    } catch (error: any) {
+      console.error("[Staff] Error getting assistants:", error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to get assistants",
+      });
+    }
+  }
+);
+
+// DELETE /api/staff/assistant/:assistantStaffId - Remove assistant
+router.delete(
+  "/assistant/:assistantStaffId",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
+  [param("assistantStaffId").isUUID().withMessage("Valid assistant staff ID required")],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array(),
+        });
+      }
+
+      const { assistantStaffId } = req.params;
+      await StaffService.removeAssistant(assistantStaffId);
+
+      return res.json({
+        success: true,
+        message: "Assistant removed",
+      });
+    } catch (error: any) {
+      console.error("[Staff] Error removing assistant:", error);
+
+      if (error.message.includes("not found")) {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to remove assistant",
+      });
+    }
+  }
+);
+
+// PUT /api/staff/assistant/:assistantStaffId/reassign - Reassign assistant to different judge
+router.put(
+  "/assistant/:assistantStaffId/reassign",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER),
+  [
+    param("assistantStaffId").isUUID().withMessage("Valid assistant staff ID required"),
+    body("newJudgeStaffId").isUUID().withMessage("Valid new judge staff ID required"),
+  ],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array(),
+        });
+      }
+
+      const { assistantStaffId } = req.params;
+      const { newJudgeStaffId } = req.body;
+
+      const updated = await StaffService.reassignAssistant(
+        assistantStaffId,
+        newJudgeStaffId
+      );
+
+      return res.json({
+        success: true,
+        message: "Assistant reassigned",
+        data: updated,
+      });
+    } catch (error: any) {
+      console.error("[Staff] Error reassigning assistant:", error);
+
+      if (error.message.includes("not found")) {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to reassign assistant",
       });
     }
   }

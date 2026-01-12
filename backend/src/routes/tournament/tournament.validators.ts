@@ -18,7 +18,7 @@
  */
 
 import { body, param, query } from "express-validator";
-import { TournamentStatus, TournamentDiscipline } from "../../types";
+import { TournamentStatus, TournamentDiscipline, GameMode } from "../../types";
 
 /**
  * Validation for creating a new tournament
@@ -46,6 +46,19 @@ export const createTournamentValidation = [
   body("maxCatchesPerDay").optional().isInt({ min: 1 }),
   body("pointsPerKg").optional().isFloat({ min: 0 }),
   body("bonusPoints").optional().isInt({ min: 0 }),
+  // Catch & Release mode fields
+  body("gameMode")
+    .optional()
+    .isIn(Object.values(GameMode))
+    .withMessage(`Game mode must be one of: ${Object.values(GameMode).join(", ")}`),
+  body("followsFipsasRules")
+    .optional()
+    .isBoolean()
+    .withMessage("followsFipsasRules must be a boolean"),
+  body("fipsasRegulationUrl")
+    .optional()
+    .isURL()
+    .withMessage("fipsasRegulationUrl must be a valid URL"),
 ];
 
 /**
@@ -62,6 +75,16 @@ export const updateTournamentValidation = [
   body("registrationOpens").optional().isISO8601(),
   body("registrationCloses").optional().isISO8601(),
   body("location").optional().trim().notEmpty(),
+  // Catch & Release mode fields
+  body("gameMode")
+    .optional()
+    .isIn(Object.values(GameMode)),
+  body("followsFipsasRules")
+    .optional()
+    .isBoolean(),
+  body("fipsasRegulationUrl")
+    .optional()
+    .isURL(),
 ];
 
 /**

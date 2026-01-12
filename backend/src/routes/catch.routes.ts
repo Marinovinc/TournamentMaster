@@ -2,16 +2,22 @@ import { Router, Response } from "express";
 import { body, param, query, validationResult } from "express-validator";
 import { CatchService } from "../services/catch.service";
 import { authenticate, authorize } from "../middleware/auth.middleware";
-import { AuthenticatedRequest, UserRole, CatchStatus } from "../types";
+import { AuthenticatedRequest, UserRole, CatchStatus, SizeCategory } from "../types";
 
 const router = Router();
+
+// Valid size categories for Catch & Release mode
+const validSizeCategories = Object.values(SizeCategory);
 
 // Validation rules
 const submitCatchValidation = [
   body("tournamentId").notEmpty().withMessage("Tournament ID required"),
+  // Weight is optional for C&R mode (validated in service layer)
   body("weight")
+    .optional()
     .isFloat({ min: 0.001 })
     .withMessage("Weight must be positive"),
+  // Length (alla forca) - optional but useful for C&R
   body("length").optional().isFloat({ min: 0 }),
   body("latitude")
     .isFloat({ min: -90, max: 90 })
@@ -25,6 +31,15 @@ const submitCatchValidation = [
   body("videoPath").optional().isString().withMessage("Video path must be a string"),
   body("caughtAt").isISO8601().withMessage("Valid catch time required"),
   body("notes").optional().trim(),
+  // Catch & Release specific fields
+  body("sizeCategory")
+    .optional()
+    .isIn(validSizeCategories)
+    .withMessage(`Size category must be one of: ${validSizeCategories.join(", ")}`),
+  body("wasReleased")
+    .optional()
+    .isBoolean()
+    .withMessage("wasReleased must be a boolean"),
 ];
 
 const reviewValidation = [
@@ -72,7 +87,7 @@ router.get(
 
       res.json({
         success: true,
-        data: result.catches,
+        catches: result.catches,
         pagination: result.pagination,
       });
     } catch (error) {

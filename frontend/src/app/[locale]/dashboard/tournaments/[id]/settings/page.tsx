@@ -41,6 +41,8 @@ import {
   Table,
   Clock,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
+import { toast } from "sonner";
 
 interface Tournament {
   id: string;
@@ -144,13 +146,17 @@ export default function TournamentSettingsPage() {
       });
 
       if (res.ok) {
+        const newStatusLabel = statusConfig[newStatus]?.label || newStatus;
+        toast.success(`Stato aggiornato a "${newStatusLabel}"`, {
+          description: `Il torneo è ora in stato: ${newStatusLabel}`,
+        });
         fetchTournament();
       } else {
         const err = await res.json();
-        alert(err.message || "Errore nell'aggiornamento dello stato");
+        toast.error(err.message || "Errore nell'aggiornamento dello stato");
       }
     } catch (err) {
-      alert("Errore di rete");
+      toast.error("Errore di rete");
     } finally {
       setUpdating(false);
     }
@@ -216,10 +222,13 @@ export default function TournamentSettingsPage() {
           <ArrowLeft className="h-4 w-4" />
           Torna al torneo
         </Link>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Settings className="h-6 w-6" />
-          Impostazioni Torneo
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Settings className="h-6 w-6" />
+            Impostazioni Torneo
+          </h1>
+          <HelpGuide pageKey="tournamentSettings" position="inline" isAdmin={true} />
+        </div>
         <p className="text-muted-foreground">{tournament.name}</p>
       </div>
 

@@ -8,6 +8,9 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+// Export for direct usage when needed (e.g., file uploads)
+export const API_BASE_URL = API_URL;
+
 interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;

@@ -1,9 +1,35 @@
 # Manuale Amministratore Associazione
 ## TournamentMaster - Guida Operativa Completa
 
-**Versione:** 1.0.0
-**Data:** 2026-01-10
+**Versione:** 1.1.0
+**Data:** 2026-01-12
 **Destinatari:** Amministratori di Associazioni di Pesca Sportiva
+
+---
+
+## TODO - Funzionalita da Implementare
+
+- [ ] Dashboard Admin real-time con metriche live
+- [ ] Transizioni automatiche apertura/chiusura iscrizioni
+- [ ] Sistema penalita con impatto su classifiche
+- [ ] Validazione catture workflow avanzato
+- [ ] Centro comunicazioni broadcast
+- [ ] Template messaggi riutilizzabili
+- [ ] Omologazione FIPSAS tracciamento stato
+- [ ] Export multi-formato avanzato
+- [ ] Serie tornei con classifiche aggregate
+
+---
+
+## Documenti Tecnici Correlati
+
+| Documento | Descrizione | Data |
+|-----------|-------------|------|
+| [DOCUMENTAZIONE_TECNICA_ADMIN_VIEWAS_20260112.md](./DOCUMENTAZIONE_TECNICA_ADMIN_VIEWAS_20260112.md) | Visualizzazione profilo utente da admin (readOnly) | 2026-01-12 |
+| [HANDOVER_SESSIONE_ADMIN_VIEWAS_20260112.md](./HANDOVER_SESSIONE_ADMIN_VIEWAS_20260112.md) | Handover sessione con errori e soluzioni | 2026-01-12 |
+| [DOCUMENTAZIONE_TECNICA_ASSISTENTI_GIUDICI_20260111.md](./DOCUMENTAZIONE_TECNICA_ASSISTENTI_GIUDICI_20260111.md) | Sistema assistenti giudici | 2026-01-11 |
+| [GUIDA_AMMINISTRAZIONE_TORNEI.md](./GUIDA_AMMINISTRAZIONE_TORNEI.md) | Specifica funzionale completa tornei | 2026-01-10 |
+| [GUIDA_GESTIONE_STAFF_TORNEO.md](./GUIDA_GESTIONE_STAFF_TORNEO.md) | Gestione ruoli staff e giudici | 2026-01-10 |
 
 ---
 
@@ -478,6 +504,31 @@ Puoi:
 - Disattivare account
 - Resettare password
 
+### 10.5 Visualizzare Profilo di un Utente (Admin ViewAs)
+
+**Percorso:** Dashboard → **Utenti** → **Vedi Scheda**
+
+Come amministratore puoi visualizzare il profilo completo di qualsiasi utente:
+
+1. Vai nella sezione **Utenti** della dashboard
+2. Trova l'utente nella lista
+3. Clicca **"Vedi Scheda"**
+4. Verrai reindirizzato alla pagina dell'associazione con il profilo dell'utente
+
+**Cosa vedrai:**
+- Tab **Barca**: Barche registrate dall'utente (senza pulsanti modifica)
+- Tab **Attrezzatura**: Attrezzature dell'utente (senza pulsanti modifica)
+- Tab **Media**: Foto e video dell'utente (senza controlli upload)
+- Tab **Tornei**: Storico partecipazioni
+- Tab **Catture**: Catture registrate
+
+**Importante:** In modalita visualizzazione admin:
+- NON puoi modificare barche, attrezzature o media dell'utente
+- I pulsanti "Aggiungi", "Modifica" e "Elimina" sono nascosti
+- Puoi solo visualizzare i dati
+
+**Documentazione tecnica:** [DOCUMENTAZIONE_TECNICA_ADMIN_VIEWAS_20260112.md](./DOCUMENTAZIONE_TECNICA_ADMIN_VIEWAS_20260112.md)
+
 ---
 
 ## 11. Risoluzione Problemi
@@ -602,5 +653,5 @@ Per problemi urgenti durante una gara:
 
 ---
 
-*Documento aggiornato il 2026-01-10*
-*TournamentMaster v1.5.1*
+*Documento aggiornato il 2026-01-12*
+*TournamentMaster v1.5.2*

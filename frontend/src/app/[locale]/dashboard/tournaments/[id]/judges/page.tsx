@@ -34,7 +34,12 @@ import {
   Save,
   X,
   Download,
+  Wand2,
+  AlertTriangle,
+  CheckCircle,
+  Shuffle,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 
 interface Team {
   id: string;
@@ -45,7 +50,14 @@ interface Team {
   inspectorName: string | null;
   inspectorClub: string | null;
   captain: { id: string; firstName: string; lastName: string } | null;
+  clubName: string | null;
   _count: { members: number };
+}
+
+// Verifica se c'e conflitto club (ispettore stesso club dell'equipaggio)
+function hasClubConflict(team: Team): boolean {
+  if (!team.inspectorClub || !team.clubName) return false;
+  return team.inspectorClub.toLowerCase() === team.clubName.toLowerCase();
 }
 
 interface Tournament {
@@ -69,8 +81,118 @@ export default function JudgesManagementPage() {
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ inspectorName: "", inspectorClub: "" });
   const [saving, setSaving] = useState(false);
+  const [autoAssigning, setAutoAssigning] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+  // Genera assegnazioni automatiche evitando conflitti club
+  const handleAutoAssign = async () => {
+    if (!token) return;
+
+    // Ottieni lista club unici dai team (per randomizzare ispettori)
+    const clubs = [...new Set(teams.map(t => t.clubName).filter(Boolean))];
+    if (clubs.length < 2) {
+      alert("Servono almeno 2 club diversi per la generazione automatica");
+      return;
+    }
+
+    setAutoAssigning(true);
+    try {
+      // Per ogni team senza ispettore, assegna un ispettore da un club diverso
+      const teamsWithoutInspector = teams.filter(t => !t.inspectorName);
+      let updated = 0;
+
+      for (const team of teamsWithoutInspector) {
+        // Trova club diversi da quello del team
+        const otherClubs = clubs.filter(c => c?.toLowerCase() !== team.clubName?.toLowerCase());
+        if (otherClubs.length === 0) continue;
+
+        // Seleziona club random
+        const randomClub = otherClubs[Math.floor(Math.random() * otherClubs.length)];
+        const inspectorName = `Ispettore ${randomClub}`;
+
+        // Aggiorna via API
+        const res = await fetch(`${API_URL}/api/teams/${team.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            inspectorName,
+            inspectorClub: randomClub,
+          }),
+        });
+
+        if (res.ok) {
+          updated++;
+        }
+      }
+
+      // Ricarica i dati
+      const teamsRes = await fetch(`${API_URL}/api/teams?tournamentId=${tournamentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (teamsRes.ok) {
+        const teamsData = await teamsRes.json();
+        setTeams(teamsData.data || []);
+      }
+
+      alert(`Assegnati ${updated} ispettori automaticamente`);
+    } catch (err) {
+      alert("Errore durante l'assegnazione automatica");
+    } finally {
+      setAutoAssigning(false);
+    }
+  };
+
+  // Shuffle: riassegna tutti gli ispettori randomicamente
+  const handleShuffle = async () => {
+    if (!confirm("Vuoi riassegnare tutti gli ispettori casualmente?")) return;
+    if (!token) return;
+
+    const clubs = [...new Set(teams.map(t => t.clubName).filter(Boolean))];
+    if (clubs.length < 2) {
+      alert("Servono almeno 2 club diversi per la generazione automatica");
+      return;
+    }
+
+    setAutoAssigning(true);
+    try {
+      for (const team of teams) {
+        const otherClubs = clubs.filter(c => c?.toLowerCase() !== team.clubName?.toLowerCase());
+        if (otherClubs.length === 0) continue;
+
+        const randomClub = otherClubs[Math.floor(Math.random() * otherClubs.length)];
+        const inspectorName = `Ispettore ${randomClub}`;
+
+        await fetch(`${API_URL}/api/teams/${team.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            inspectorName,
+            inspectorClub: randomClub,
+          }),
+        });
+      }
+
+      // Ricarica
+      const teamsRes = await fetch(`${API_URL}/api/teams?tournamentId=${tournamentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (teamsRes.ok) {
+        const teamsData = await teamsRes.json();
+        setTeams(teamsData.data || []);
+      }
+    } catch (err) {
+      alert("Errore durante lo shuffle");
+    } finally {
+      setAutoAssigning(false);
+    }
+  };
 
   // Download file with auth token
   const downloadWithAuth = async (url: string, filename: string) => {
@@ -151,6 +273,19 @@ export default function JudgesManagementPage() {
   const handleEditSave = async (teamId: string) => {
     if (!token) return;
 
+    // Validazione: verifica conflitto club prima di salvare
+    const team = teams.find(t => t.id === teamId);
+    if (team && editForm.inspectorClub && team.clubName) {
+      if (editForm.inspectorClub.toLowerCase() === team.clubName.toLowerCase()) {
+        const proceed = confirm(
+          `Attenzione: stai assegnando un ispettore del club "${editForm.inspectorClub}" ` +
+          `all'equipaggio dello stesso club "${team.clubName}".\n\n` +
+          `Questo crea un conflitto di interesse. Vuoi procedere comunque?`
+        );
+        if (!proceed) return;
+      }
+    }
+
     try {
       setSaving(true);
       const res = await fetch(`${API_URL}/api/teams/${teamId}`, {
@@ -190,6 +325,7 @@ export default function JudgesManagementPage() {
   });
 
   const assignedCount = teams.filter(t => t.inspectorName).length;
+  const conflictCount = teams.filter(t => hasClubConflict(t)).length;
 
   if (loading) {
     return (
@@ -211,16 +347,35 @@ export default function JudgesManagementPage() {
             <ArrowLeft className="h-4 w-4" />
             Torna al torneo
           </Link>
+          <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <UserCheck className="h-6 w-6" />
             Ispettori di Bordo
           </h1>
-          <p className="text-muted-foreground">
+          <HelpGuide pageKey="tournamentJudges" position="inline" isAdmin={true} />
+        </div>
+        <p className="text-muted-foreground">
             {tournament?.name} - Assegna ispettori alle barche
           </p>
         </div>
 
         <div className="flex gap-2">
+          <Button
+            variant="default"
+            onClick={handleAutoAssign}
+            disabled={autoAssigning}
+          >
+            <Wand2 className="h-4 w-4 mr-2" />
+            {autoAssigning ? "Assegnando..." : "Auto-Assegna"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleShuffle}
+            disabled={autoAssigning}
+          >
+            <Shuffle className="h-4 w-4 mr-2" />
+            Shuffle
+          </Button>
           <Button variant="outline" asChild>
             <a
               href={`${API_URL}/api/reports/public/pdf/judge-assignments/${tournamentId}`}
@@ -228,19 +383,19 @@ export default function JudgesManagementPage() {
               rel="noopener noreferrer"
             >
               <Download className="h-4 w-4 mr-2" />
-              Visualizza PDF
+              PDF
             </a>
           </Button>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-3xl font-bold">{teams.length}</p>
-              <p className="text-sm text-muted-foreground">Equipaggi Totali</p>
+              <p className="text-sm text-muted-foreground">Equipaggi</p>
             </div>
           </CardContent>
         </Card>
@@ -248,7 +403,7 @@ export default function JudgesManagementPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-3xl font-bold text-green-600">{assignedCount}</p>
-              <p className="text-sm text-muted-foreground">Con Ispettore</p>
+              <p className="text-sm text-muted-foreground">Assegnati</p>
             </div>
           </CardContent>
         </Card>
@@ -256,7 +411,17 @@ export default function JudgesManagementPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-3xl font-bold text-amber-600">{teams.length - assignedCount}</p>
-              <p className="text-sm text-muted-foreground">Senza Ispettore</p>
+              <p className="text-sm text-muted-foreground">Mancanti</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className={conflictCount > 0 ? "border-red-300" : ""}>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className={`text-3xl font-bold ${conflictCount > 0 ? "text-red-600" : "text-green-600"}`}>
+                {conflictCount}
+              </p>
+              <p className="text-sm text-muted-foreground">Conflitti</p>
             </div>
           </CardContent>
         </Card>
@@ -271,6 +436,25 @@ export default function JudgesManagementPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Conflict Warning */}
+      {conflictCount > 0 && (
+        <Card className="border-red-300 bg-red-50">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              <div>
+                <p className="font-medium text-red-800">
+                  {conflictCount} conflitto/i rilevato/i
+                </p>
+                <p className="text-sm text-red-600">
+                  Ispettori assegnati allo stesso club dell'equipaggio. Usa "Shuffle" per riassegnare.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search */}
       <div className="relative">
@@ -294,7 +478,11 @@ export default function JudgesManagementPage() {
               {filteredTeams.map((team) => (
                 <div
                   key={team.id}
-                  className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
+                  className={`flex items-center justify-between p-4 rounded-lg ${
+                    hasClubConflict(team)
+                      ? "bg-red-50 border-2 border-red-300"
+                      : "bg-muted/50"
+                  }`}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -305,6 +493,7 @@ export default function JudgesManagementPage() {
                       <p className="text-sm text-muted-foreground">
                         {team.boatName || "Barca non specificata"}
                         {team.boatNumber && ` • #${team.boatNumber}`}
+                        {team.clubName && ` • ${team.clubName}`}
                       </p>
                     </div>
                   </div>
@@ -338,11 +527,23 @@ export default function JudgesManagementPage() {
                     ) : (
                       <>
                         {team.inspectorName ? (
-                          <div className="text-right">
-                            <p className="font-medium text-green-600">{team.inspectorName}</p>
-                            {team.inspectorClub && (
-                              <p className="text-xs text-muted-foreground">{team.inspectorClub}</p>
+                          <div className="flex items-center gap-2">
+                            {hasClubConflict(team) && (
+                              <div className="flex items-center gap-1 px-2 py-1 bg-red-100 rounded-md" title="Stesso club dell'equipaggio">
+                                <AlertTriangle className="h-4 w-4 text-red-600" />
+                              </div>
                             )}
+                            <div className="text-right">
+                              <p className={`font-medium ${hasClubConflict(team) ? "text-red-600" : "text-green-600"}`}>
+                                {team.inspectorName}
+                              </p>
+                              {team.inspectorClub && (
+                                <p className={`text-xs ${hasClubConflict(team) ? "text-red-500" : "text-muted-foreground"}`}>
+                                  {team.inspectorClub}
+                                  {hasClubConflict(team) && " (Conflitto!)"}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         ) : (
                           <Badge variant="outline" className="text-amber-600 border-amber-300">

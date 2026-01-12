@@ -21,7 +21,7 @@
  * =============================================================================
  */
 
-import { PrismaClient, UserRole, TournamentStatus, TournamentDiscipline, RegistrationStatus, CatchStatus } from '@prisma/client';
+import { PrismaClient, UserRole, TournamentStatus, TournamentDiscipline, RegistrationStatus, CatchStatus, GameMode, SizeCategory } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -118,15 +118,27 @@ async function main() {
   });
 
   // ================================
-  // 2. SPECIES - Traina d'Altura
+  // 2. SPECIES - Traina d'Altura + Pesca Sportiva FIPSAS
   // ================================
-  console.log('🐟 Creating species for Traina d\'Altura');
+  console.log('🐟 Creating species for Traina d\'Altura + FIPSAS');
   const speciesData = [
+    // Big Game - Traina d'altura
     { scientificName: 'Thunnus thynnus', commonNameIt: 'Tonno rosso', commonNameEn: 'Bluefin Tuna', pointsMultiplier: 1.0, minSizeCm: 115 },
     { scientificName: 'Xiphias gladius', commonNameIt: 'Pesce spada', commonNameEn: 'Swordfish', pointsMultiplier: 1.2, minSizeCm: 140 },
     { scientificName: 'Thunnus alalunga', commonNameIt: 'Alalunga', commonNameEn: 'Albacore', pointsMultiplier: 0.8, minSizeCm: 80 },
     { scientificName: 'Tetrapturus belone', commonNameIt: 'Aguglia imperiale', commonNameEn: 'Mediterranean Spearfish', pointsMultiplier: 0.9, minSizeCm: 120 },
     { scientificName: 'Coryphaena hippurus', commonNameIt: 'Lampuga', commonNameEn: 'Mahi-mahi', pointsMultiplier: 0.6, minSizeCm: 40 },
+    // Pesca sportiva FIPSAS - Altre specie comuni
+    { scientificName: 'Seriola dumerili', commonNameIt: 'Ricciola', commonNameEn: 'Greater Amberjack', pointsMultiplier: 1.1, minSizeCm: 45 },
+    { scientificName: 'Dentex dentex', commonNameIt: 'Dentice', commonNameEn: 'Common Dentex', pointsMultiplier: 0.9, minSizeCm: 35 },
+    { scientificName: 'Epinephelus marginatus', commonNameIt: 'Cernia bruna', commonNameEn: 'Dusky Grouper', pointsMultiplier: 1.3, minSizeCm: 45 },
+    { scientificName: 'Sphyraena sphyraena', commonNameIt: 'Barracuda', commonNameEn: 'European Barracuda', pointsMultiplier: 0.7, minSizeCm: 40 },
+    { scientificName: 'Lichia amia', commonNameIt: 'Leccia stella', commonNameEn: 'Leerfish', pointsMultiplier: 0.85, minSizeCm: 50 },
+    { scientificName: 'Pomatomus saltatrix', commonNameIt: 'Pesce serra', commonNameEn: 'Bluefish', pointsMultiplier: 0.75, minSizeCm: 35 },
+    { scientificName: 'Dicentrarchus labrax', commonNameIt: 'Spigola', commonNameEn: 'European Bass', pointsMultiplier: 0.8, minSizeCm: 36 },
+    { scientificName: 'Sparus aurata', commonNameIt: 'Orata', commonNameEn: 'Gilthead Seabream', pointsMultiplier: 0.75, minSizeCm: 25 },
+    { scientificName: 'Thunnus albacares', commonNameIt: 'Tonno pinna gialla', commonNameEn: 'Yellowfin Tuna', pointsMultiplier: 1.0, minSizeCm: 100 },
+    { scientificName: 'Istiophorus platypterus', commonNameIt: 'Pesce vela', commonNameEn: 'Atlantic Sailfish', pointsMultiplier: 1.5, minSizeCm: 200 },
   ];
 
   const species: Record<string, { id: string; pointsMultiplier: number }> = {};
@@ -630,6 +642,67 @@ async function main() {
     },
   });
 
+  // Torneo 9: CATCH & RELEASE - Modalità C&R FIPSAS (Maggio 2025)
+  const tournament9_cr = await prisma.tournament.upsert({
+    where: { id: 'demo-tournament-catch-release' },
+    update: {},
+    create: {
+      id: 'demo-tournament-catch-release',
+      name: 'Trofeo Catch & Release Ischia 2025',
+      description: 'Primo torneo ufficiale in modalità Catch & Release secondo regolamento FIPSAS. Video rilascio obbligatorio. Punteggio per taglia stimata.',
+      discipline: TournamentDiscipline.BIG_GAME,
+      status: TournamentStatus.PUBLISHED,
+      startDate: new Date('2025-05-10T06:00:00Z'),
+      endDate: new Date('2025-05-11T18:00:00Z'),
+      registrationOpens: new Date('2025-03-01T00:00:00Z'),
+      registrationCloses: new Date('2025-05-05T23:59:59Z'),
+      location: 'Porto di Ischia',
+      locationLat: 40.7420,
+      locationLng: 13.9420,
+      registrationFee: 200.00,
+      maxParticipants: 24,
+      minParticipants: 8,
+      maxCatchesPerDay: 10,
+      // Campi Catch & Release
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: 'https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/big-game/circolare-normativa-big-game',
+      bannerImage: bannerImages.spearfish,
+      tenantId: tenant.id,
+      organizerId: admin.id,
+    },
+  });
+
+  // Torneo 10: CATCH & RELEASE IN CORSO (per test live)
+  const tournament10_cr_live = await prisma.tournament.upsert({
+    where: { id: 'demo-tournament-cr-live' },
+    update: {},
+    create: {
+      id: 'demo-tournament-cr-live',
+      name: 'Coppa C&R Winter Challenge 2025',
+      description: 'Torneo invernale Catch & Release in corso. Rilascio filmato obbligatorio per validazione.',
+      discipline: TournamentDiscipline.DRIFTING,
+      status: TournamentStatus.ONGOING,
+      startDate: new Date(new Date().setHours(5, 0, 0, 0)),
+      endDate: new Date(new Date().setDate(new Date().getDate() + 2)),
+      registrationOpens: new Date('2024-12-15T00:00:00Z'),
+      registrationCloses: new Date('2025-01-08T23:59:59Z'),
+      location: 'Marina di Forio',
+      locationLat: 40.7370,
+      locationLng: 13.8580,
+      registrationFee: 150.00,
+      maxParticipants: 20,
+      maxCatchesPerDay: 8,
+      // Campi Catch & Release
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: 'https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/big-game/circolare-normativa-big-game',
+      bannerImage: bannerImages.ocean,
+      tenantId: tenant.id,
+      organizerId: admin.id,
+    },
+  });
+
   // ================================
   // 4B. TOURNAMENTS per TENANT 2 (Mare Blu Club)
   // ================================
@@ -849,7 +922,7 @@ async function main() {
   });
 
   // All tournaments array (tutti i tenant)
-  const allTournaments = [tournament1, tournament2, tournament3, tournament4, tournament5, tournament6, tournament7, tournament8];
+  const allTournaments = [tournament1, tournament2, tournament3, tournament4, tournament5, tournament6, tournament7, tournament8, tournament9_cr, tournament10_cr_live];
   const allTournamentsTenant2 = [mb_tournament1, mb_tournament2, mb_tournament3];
   const allTournamentsTenant3 = [pn_tournament1, pn_tournament2, pn_tournament3, pn_tournament4, pn_tournament5];
 
@@ -883,6 +956,62 @@ async function main() {
       });
     }
   }
+
+  // ================================
+  // 4D. SPECIES SCORING per tornei CATCH & RELEASE
+  // ================================
+  console.log('🎯 Creating SpeciesScoring for Catch & Release tournaments');
+
+  // Punteggi FIPSAS per taglia (basati su regolamento 2026)
+  // Formato: { speciesName, pointsS, pointsM, pointsL, pointsXL, thresholdS, thresholdM, thresholdL, catchReleaseOnly }
+  const crScoringData = [
+    // Big Game - Pelagici maggiori
+    { speciesName: 'Tonno rosso', pointsS: 500, pointsM: 800, pointsL: 1200, pointsXL: 2000, thresholdS: 80, thresholdM: 115, thresholdL: 150, catchReleaseOnly: true, notes: 'Specie protetta - solo C&R' },
+    { speciesName: 'Pesce spada', pointsS: 600, pointsM: 900, pointsL: 1400, pointsXL: 2200, thresholdS: 100, thresholdM: 140, thresholdL: 180, catchReleaseOnly: false, notes: null },
+    { speciesName: 'Alalunga', pointsS: 300, pointsM: 500, pointsL: 800, pointsXL: 1200, thresholdS: 60, thresholdM: 80, thresholdL: 100, catchReleaseOnly: false, notes: null },
+    { speciesName: 'Aguglia imperiale', pointsS: 350, pointsM: 550, pointsL: 850, pointsXL: 1300, thresholdS: 80, thresholdM: 120, thresholdL: 160, catchReleaseOnly: false, notes: 'Video slamatura obbligatorio' },
+    { speciesName: 'Lampuga', pointsS: 150, pointsM: 250, pointsL: 400, pointsXL: 650, thresholdS: 40, thresholdM: 60, thresholdL: 80, catchReleaseOnly: false, notes: null },
+    // Pesca sportiva - Specie costiere
+    { speciesName: 'Ricciola', pointsS: 400, pointsM: 650, pointsL: 1000, pointsXL: 1600, thresholdS: 45, thresholdM: 70, thresholdL: 100, catchReleaseOnly: false, notes: null },
+    { speciesName: 'Dentice', pointsS: 250, pointsM: 400, pointsL: 600, pointsXL: 900, thresholdS: 35, thresholdM: 50, thresholdL: 70, catchReleaseOnly: false, notes: null },
+    { speciesName: 'Cernia bruna', pointsS: 500, pointsM: 800, pointsL: 1300, pointsXL: 2000, thresholdS: 45, thresholdM: 65, thresholdL: 90, catchReleaseOnly: true, notes: 'Specie protetta - solo C&R' },
+    { speciesName: 'Barracuda', pointsS: 200, pointsM: 350, pointsL: 550, pointsXL: 850, thresholdS: 40, thresholdM: 60, thresholdL: 85, catchReleaseOnly: false, notes: null },
+    { speciesName: 'Leccia stella', pointsS: 300, pointsM: 500, pointsL: 750, pointsXL: 1100, thresholdS: 50, thresholdM: 75, thresholdL: 100, catchReleaseOnly: false, notes: null },
+    { speciesName: 'Pesce serra', pointsS: 180, pointsM: 300, pointsL: 480, pointsXL: 750, thresholdS: 35, thresholdM: 55, thresholdL: 75, catchReleaseOnly: false, notes: null },
+    { speciesName: 'Spigola', pointsS: 200, pointsM: 350, pointsL: 550, pointsXL: 850, thresholdS: 36, thresholdM: 55, thresholdL: 75, catchReleaseOnly: false, notes: null },
+    { speciesName: 'Orata', pointsS: 150, pointsM: 250, pointsL: 400, pointsXL: 600, thresholdS: 25, thresholdM: 35, thresholdL: 50, catchReleaseOnly: false, notes: null },
+    { speciesName: 'Tonno pinna gialla', pointsS: 450, pointsM: 750, pointsL: 1100, pointsXL: 1800, thresholdS: 70, thresholdM: 100, thresholdL: 140, catchReleaseOnly: false, notes: null },
+    { speciesName: 'Pesce vela', pointsS: 800, pointsM: 1200, pointsL: 1800, pointsXL: 3000, thresholdS: 150, thresholdM: 200, thresholdL: 250, catchReleaseOnly: true, notes: 'Specie protetta - solo C&R. Video completo obbligatorio' },
+  ];
+
+  // Crea SpeciesScoring per entrambi i tornei C&R
+  const crTournaments = [tournament9_cr, tournament10_cr_live];
+  for (const tournament of crTournaments) {
+    for (const scoring of crScoringData) {
+      const sp = species[scoring.speciesName];
+      if (sp) {
+        await prisma.speciesScoring.upsert({
+          where: { tournamentId_speciesId: { tournamentId: tournament.id, speciesId: sp.id } },
+          update: {},
+          create: {
+            tournamentId: tournament.id,
+            speciesId: sp.id,
+            pointsSmall: scoring.pointsS,
+            pointsMedium: scoring.pointsM,
+            pointsLarge: scoring.pointsL,
+            pointsExtraLarge: scoring.pointsXL,
+            thresholdSmallCm: scoring.thresholdS,
+            thresholdMediumCm: scoring.thresholdM,
+            thresholdLargeCm: scoring.thresholdL,
+            catchReleaseBonus: 1.5, // +50% per rilascio verificato
+            catchReleaseOnly: scoring.catchReleaseOnly,
+            notes: scoring.notes,
+          },
+        });
+      }
+    }
+  }
+  console.log(`   ✓ SpeciesScoring created for ${crTournaments.length} C&R tournaments (${crScoringData.length} species each)`);
 
   // ================================
   // 5. REGISTRATIONS for completed tournament
@@ -1488,6 +1617,155 @@ async function main() {
         longitude: s.lng,
         result: s.result,
         reportedById: users['m.cuomo@pescanapolisport.it'],
+      },
+    });
+  }
+
+  // ================================
+  // 10B. CATCH & RELEASE - Registrazioni e Catture demo
+  // ================================
+  console.log('🎣 Creating Catch & Release registrations and catches');
+
+  // Registrazioni per torneo C&R live (tournament10_cr_live)
+  for (const p of [...teamTicketToRide, ...teamFischinDream]) {
+    await prisma.tournamentRegistration.upsert({
+      where: { userId_tournamentId: { userId: users[p.email], tournamentId: tournament10_cr_live.id } },
+      update: {},
+      create: {
+        userId: users[p.email],
+        tournamentId: tournament10_cr_live.id,
+        status: RegistrationStatus.CONFIRMED,
+        teamName: teamTicketToRide.some(m => m.email === p.email) ? 'C&R Hunters' : 'Release Masters',
+        boatName: teamTicketToRide.some(m => m.email === p.email) ? 'Catch Free' : 'No Kill Boat',
+        boatLength: 10.5,
+        amountPaid: 150.00,
+        confirmedAt: new Date('2025-01-05'),
+      },
+    });
+  }
+
+  // Team per torneo C&R live
+  const crTeam1 = await prisma.team.upsert({
+    where: { id: 'team-cr-hunters' },
+    update: {},
+    create: {
+      id: 'team-cr-hunters',
+      name: 'C&R Hunters',
+      boatName: 'Catch Free',
+      boatNumber: 1,
+      captainId: users['g.marino@demo.it'],
+      clubName: 'IschiaFishing',
+      clubCode: 'IF-CR1',
+      tournamentId: tournament10_cr_live.id,
+    },
+  });
+
+  const crTeam2 = await prisma.team.upsert({
+    where: { id: 'team-release-masters' },
+    update: {},
+    create: {
+      id: 'team-release-masters',
+      name: 'Release Masters',
+      boatName: 'No Kill Boat',
+      boatNumber: 2,
+      captainId: users['m.deluca@demo.it'],
+      clubName: 'IschiaFishing',
+      clubCode: 'IF-CR2',
+      tournamentId: tournament10_cr_live.id,
+    },
+  });
+
+  // Catture C&R con sizeCategory invece di weight
+  // Punti basati su SpeciesScoring: S=500, M=800, L=1200, XL=2000 per tonno, etc.
+  const crCatchesData = [
+    // Team C&R Hunters
+    { email: 'g.marino@demo.it', speciesName: 'Tonno rosso', sizeCategory: SizeCategory.LARGE, wasReleased: true, status: CatchStatus.APPROVED, hoursAgo: 1, length: 125 },
+    { email: 'g.marino@demo.it', speciesName: 'Ricciola', sizeCategory: SizeCategory.EXTRA_LARGE, wasReleased: true, status: CatchStatus.APPROVED, hoursAgo: 3, length: 110 },
+    { email: 'a.ferrara@demo.it', speciesName: 'Alalunga', sizeCategory: SizeCategory.MEDIUM, wasReleased: true, status: CatchStatus.APPROVED, hoursAgo: 2, length: 75 },
+    { email: 's.esposito@demo.it', speciesName: 'Lampuga', sizeCategory: SizeCategory.LARGE, wasReleased: true, status: CatchStatus.PENDING, hoursAgo: 0.5, length: 70 },
+    { email: 'f.romano@demo.it', speciesName: 'Dentice', sizeCategory: SizeCategory.MEDIUM, wasReleased: true, status: CatchStatus.APPROVED, hoursAgo: 4, length: 48 },
+    // Team Release Masters
+    { email: 'm.deluca@demo.it', speciesName: 'Pesce spada', sizeCategory: SizeCategory.EXTRA_LARGE, wasReleased: true, status: CatchStatus.APPROVED, hoursAgo: 1.5, length: 195 },
+    { email: 'm.deluca@demo.it', speciesName: 'Ricciola', sizeCategory: SizeCategory.LARGE, wasReleased: true, status: CatchStatus.APPROVED, hoursAgo: 4, length: 85 },
+    { email: 'g.conte@demo.it', speciesName: 'Tonno rosso', sizeCategory: SizeCategory.MEDIUM, wasReleased: true, status: CatchStatus.APPROVED, hoursAgo: 2.5, length: 95 },
+    { email: 'p.ricci@demo.it', speciesName: 'Barracuda', sizeCategory: SizeCategory.LARGE, wasReleased: true, status: CatchStatus.PENDING, hoursAgo: 0.25, length: 72 },
+    { email: 'a.galli@demo.it', speciesName: 'Leccia stella', sizeCategory: SizeCategory.SMALL, wasReleased: true, status: CatchStatus.APPROVED, hoursAgo: 3.5, length: 48 },
+    // Cattura senza rilascio (non dovrebbe avere bonus)
+    { email: 'g.conte@demo.it', speciesName: 'Lampuga', sizeCategory: SizeCategory.MEDIUM, wasReleased: false, status: CatchStatus.APPROVED, hoursAgo: 5, length: 55 },
+    // Cattura rifiutata (video non valido)
+    { email: 'p.ricci@demo.it', speciesName: 'Spigola', sizeCategory: SizeCategory.LARGE, wasReleased: true, status: CatchStatus.REJECTED, hoursAgo: 6, length: 68, reviewNotes: 'Video rilascio non visibile' },
+  ];
+
+  // Lookup punti da crScoringData
+  const getPointsForSizeCategory = (speciesName: string, size: SizeCategory): number => {
+    const scoring = crScoringData.find(s => s.speciesName === speciesName);
+    if (!scoring) return 100;
+    switch (size) {
+      case SizeCategory.SMALL: return scoring.pointsS;
+      case SizeCategory.MEDIUM: return scoring.pointsM;
+      case SizeCategory.LARGE: return scoring.pointsL;
+      case SizeCategory.EXTRA_LARGE: return scoring.pointsXL;
+      default: return 100;
+    }
+  };
+
+  for (const c of crCatchesData) {
+    const sp = species[c.speciesName];
+    if (!sp) continue;
+
+    const caughtAt = new Date(new Date().getTime() - c.hoursAgo * 3600000);
+    const basePoints = getPointsForSizeCategory(c.speciesName, c.sizeCategory);
+    const releaseBonus = c.wasReleased ? 1.5 : 1.0;
+    const finalPoints = c.status === CatchStatus.APPROVED ? Math.round(basePoints * releaseBonus) : null;
+
+    await prisma.catch.create({
+      data: {
+        userId: users[c.email],
+        tournamentId: tournament10_cr_live.id,
+        speciesId: sp.id,
+        // C&R: weight è opzionale, sizeCategory è obbligatorio
+        weight: null, // Non pesato in C&R
+        length: c.length,
+        sizeCategory: c.sizeCategory,
+        wasReleased: c.wasReleased,
+        latitude: 40.73 + (Math.random() - 0.5) * 0.04,
+        longitude: 13.86 + (Math.random() - 0.5) * 0.04,
+        gpsAccuracy: 4.0,
+        photoPath: `/demo/catches/cr_${c.email.split('@')[0]}_${Date.now()}.jpg`,
+        videoPath: `/demo/videos/release_${c.email.split('@')[0]}_${Date.now()}.mp4`, // Video obbligatorio C&R
+        caughtAt: caughtAt,
+        status: c.status,
+        points: finalPoints,
+        isInsideZone: true,
+        reviewNotes: c.reviewNotes || null,
+        reviewedAt: c.status !== CatchStatus.PENDING ? new Date(caughtAt.getTime() + 1800000) : null,
+        reviewerId: c.status !== CatchStatus.PENDING ? judge.id : null,
+      },
+    });
+  }
+  console.log(`   ✓ ${crCatchesData.length} C&R catches created (sizeCategory based, with video)`);
+
+  // Strikes per torneo C&R live
+  const crStrikesData = [
+    { teamId: crTeam1.id, lat: 40.73, lng: 13.87, rodCount: 1, notes: 'Tonno avvistato - prepararsi per rilascio', result: 'RELEASED' },
+    { teamId: crTeam1.id, lat: 40.735, lng: 13.865, rodCount: 2, notes: 'Doppio strike - ricciole!', result: 'RELEASED' },
+    { teamId: crTeam2.id, lat: 40.725, lng: 13.875, rodCount: 1, notes: 'Pesce spada XL - video rilascio registrato', result: 'RELEASED' },
+    { teamId: crTeam2.id, lat: 40.728, lng: 13.858, rodCount: 1, notes: 'Strike - pesce perso', result: 'LOST' },
+    { teamId: crTeam1.id, lat: 40.732, lng: 13.862, rodCount: 1, notes: 'Lampuga - rilascio veloce', result: 'RELEASED' },
+  ];
+
+  for (const s of crStrikesData) {
+    await prisma.strike.create({
+      data: {
+        tournamentId: tournament10_cr_live.id,
+        teamId: s.teamId,
+        strikeAt: new Date(new Date().getTime() - Math.random() * 3600000 * 4),
+        rodCount: s.rodCount,
+        notes: s.notes,
+        latitude: s.lat,
+        longitude: s.lng,
+        result: s.result,
+        reportedById: users['g.marino@demo.it'],
       },
     });
   }

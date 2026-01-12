@@ -50,10 +50,18 @@ export default function LoginPage() {
   }, [authLoading, isAuthenticated, user]);
 
   const redirectToDashboard = (role: string, tenantSlug?: string | null) => {
+    // Admins with a tenant go to their association page (with Gestione mode ON)
+    const adminRoles = ["SUPER_ADMIN", "TENANT_ADMIN", "ORGANIZER"];
+    if (adminRoles.includes(role) && tenantSlug) {
+      router.push(`/${locale}/associazioni/${tenantSlug}`);
+      return;
+    }
+
     switch (role) {
       case "SUPER_ADMIN":
       case "TENANT_ADMIN":
       case "ORGANIZER":
+        // Admin without tenant goes to admin dashboard
         router.push(`/${locale}/dashboard/admin`);
         break;
       case "JUDGE":

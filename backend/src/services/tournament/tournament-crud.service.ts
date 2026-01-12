@@ -70,6 +70,10 @@ export class TournamentCrudService {
         tenantId: data.tenantId,
         organizerId: data.organizerId,
         status: TournamentStatus.DRAFT,
+        // Catch & Release mode
+        gameMode: data.gameMode || "TRADITIONAL",
+        followsFipsasRules: data.followsFipsasRules || false,
+        fipsasRegulationUrl: data.fipsasRegulationUrl,
       },
       include: {
         organizer: {
@@ -321,6 +325,10 @@ export class TournamentCrudService {
         pointsPerKg: data.pointsPerKg,
         bonusPoints: data.bonusPoints,
         bannerImage: data.bannerImage,
+        // Catch & Release mode
+        gameMode: data.gameMode,
+        followsFipsasRules: data.followsFipsasRules,
+        fipsasRegulationUrl: data.fipsasRegulationUrl,
       },
       include: {
         organizer: {

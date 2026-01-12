@@ -62,6 +62,7 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 
 interface Registration {
   id: string;
@@ -342,11 +343,14 @@ export default function PaymentsPage() {
             <ArrowLeft className="h-4 w-4" />
             Torna a {tournament?.name || "Torneo"}
           </Link>
+          <div className="flex items-center gap-3">
           <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
             <CreditCard className="h-7 w-7" />
             Pagamenti
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <HelpGuide pageKey="tournamentPayments" position="inline" isAdmin={true} />
+        </div>
+        <p className="text-muted-foreground mt-1">
             Gestisci i pagamenti delle quote di iscrizione per equipaggio
           </p>
         </div>

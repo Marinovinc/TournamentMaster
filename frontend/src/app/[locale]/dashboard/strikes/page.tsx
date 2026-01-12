@@ -55,6 +55,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { HelpGuide } from "@/components/HelpGuide";
+import { BackButton } from "@/components/BackButton";
 
 // Types
 interface Strike {
@@ -350,8 +351,20 @@ export default function StrikesPage() {
     );
   }
 
+  // Get tournamentId from URL if present for fallback navigation
+  const urlTournamentId = searchParams.get("tournamentId");
+
   return (
     <div className="space-y-6">
+      {/* Back Button */}
+      <BackButton
+        label="Torna indietro"
+        fallbackHref={urlTournamentId
+          ? `/${locale}/dashboard/tournaments/${urlTournamentId}`
+          : `/${locale}/dashboard/tournaments`
+        }
+      />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-start gap-3">

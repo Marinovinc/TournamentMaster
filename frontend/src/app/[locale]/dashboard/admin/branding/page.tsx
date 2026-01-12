@@ -43,7 +43,9 @@ import {
   Type,
   Share2,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 import Link from "next/link";
+import { getMediaUrl } from "@/lib/media";
 
 interface BrandingData {
   id: string;
@@ -226,7 +228,10 @@ export default function BrandingPage() {
     return (
       <div className="space-y-6">
         <div>
+          <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold">Personalizza Associazione</h1>
+          <HelpGuide pageKey="branding" position="inline" isAdmin={true} />
+        </div>
           <p className="text-muted-foreground mt-2">
             Seleziona l&apos;associazione da personalizzare
           </p>
@@ -564,7 +569,7 @@ export default function BrandingPage() {
                   {branding.logo && (
                     <div className="mt-2 p-4 bg-muted rounded-lg flex items-center justify-center">
                       <img
-                        src={branding.logo}
+                        src={getMediaUrl(branding.logo)}
                         alt="Logo preview"
                         className="max-h-20 max-w-full object-contain"
                         onError={(e) => {
@@ -586,7 +591,7 @@ export default function BrandingPage() {
                   {branding.bannerImage && (
                     <div className="mt-2 overflow-hidden rounded-lg">
                       <img
-                        src={branding.bannerImage}
+                        src={getMediaUrl(branding.bannerImage)}
                         alt="Banner preview"
                         className="w-full h-32 object-cover"
                         onError={(e) => {

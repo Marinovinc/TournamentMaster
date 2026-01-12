@@ -46,6 +46,7 @@ import {
   Navigation,
   Search,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 
 interface FishingZone {
   id: string;
@@ -234,11 +235,14 @@ export default function ZonesManagementPage() {
             <ArrowLeft className="h-4 w-4" />
             Torna al torneo
           </Link>
+          <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <MapPin className="h-6 w-6" />
             Zone di Pesca
           </h1>
-          <p className="text-muted-foreground">
+          <HelpGuide pageKey="tournamentZones" position="inline" isAdmin={true} />
+        </div>
+        <p className="text-muted-foreground">
             {tournament?.name} - Gestisci le zone di pesca consentite
           </p>
         </div>

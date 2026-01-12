@@ -11,10 +11,16 @@ export interface JWTPayload {
 export enum UserRole {
   SUPER_ADMIN = "SUPER_ADMIN",
   TENANT_ADMIN = "TENANT_ADMIN",
-  PRESIDENT = "PRESIDENT",       // Secondo admin della società (stessi permessi di TENANT_ADMIN)
+  PRESIDENT = "PRESIDENT",           // Presidente (stessi permessi di TENANT_ADMIN)
+  VICE_PRESIDENT = "VICE_PRESIDENT", // Vice Presidente
+  SECRETARY = "SECRETARY",           // Segretario
+  TREASURER = "TREASURER",           // Tesoriere
+  BOARD_MEMBER = "BOARD_MEMBER",     // Membro del Consiglio Direttivo
   ORGANIZER = "ORGANIZER",
   JUDGE = "JUDGE",
+  CAPTAIN = "CAPTAIN",               // Capitano squadra
   PARTICIPANT = "PARTICIPANT",
+  MEMBER = "MEMBER",                 // Alias legacy per PARTICIPANT
 }
 
 export enum DocumentType {
@@ -50,6 +56,94 @@ export enum TournamentDiscipline {
   VERTICAL_JIGGING = "VERTICAL_JIGGING",
   SHORE = "SHORE",
   SOCIAL = "SOCIAL",
+}
+
+// Modalità di gioco del torneo
+export enum GameMode {
+  TRADITIONAL = "TRADITIONAL",       // Punteggio basato sul peso (sistema classico)
+  CATCH_RELEASE = "CATCH_RELEASE",   // Punteggio per specie + fascia taglia (C&R)
+}
+
+// Fascia taglia per modalità Catch & Release
+export enum SizeCategory {
+  SMALL = "SMALL",             // S - Taglia piccola
+  MEDIUM = "MEDIUM",           // M - Taglia media
+  LARGE = "LARGE",             // L - Taglia grande
+  EXTRA_LARGE = "EXTRA_LARGE", // XL - Taglia extra large
+}
+
+
+// Livello torneo
+export enum TournamentLevel {
+  CLUB = "CLUB",
+  PROVINCIAL = "PROVINCIAL",
+  REGIONAL = "REGIONAL",
+  NATIONAL = "NATIONAL",
+  INTERNATIONAL = "INTERNATIONAL",
+}
+
+// Configurazione punteggi C&R per specie
+export interface SpeciesScoringConfigItem {
+  speciesId: string;
+  speciesName?: string;
+  pointsSmall: number;
+  pointsMedium: number;
+  pointsLarge: number;
+  pointsExtraLarge: number;
+  thresholdSmallCm?: number;
+  thresholdMediumCm?: number;
+  thresholdLargeCm?: number;
+  catchReleaseBonus?: number;
+  catchReleaseOnly?: boolean;
+}
+
+// Profilo torneo
+export interface TournamentProfile {
+  id: string;
+  name: string;
+  description?: string;
+  isSystemProfile: boolean;
+  basedOnId?: string;
+  tenantId?: string;
+  discipline: TournamentDiscipline;
+  level: TournamentLevel;
+  gameMode: GameMode;
+  followsFipsasRules: boolean;
+  fipsasRegulationUrl?: string;
+  defaultMinWeight?: number;
+  defaultMaxCatchesPerDay?: number;
+  defaultPointsPerKg: number;
+  defaultBonusPoints: number;
+  speciesScoringConfig?: SpeciesScoringConfigItem[];
+  allowedSpeciesIds?: string[];
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// DTO per creazione profilo
+export interface CreateTournamentProfileDTO {
+  name: string;
+  description?: string;
+  basedOnId?: string;
+  discipline: TournamentDiscipline;
+  level?: TournamentLevel;
+  gameMode?: GameMode;
+  followsFipsasRules?: boolean;
+  fipsasRegulationUrl?: string;
+  defaultMinWeight?: number;
+  defaultMaxCatchesPerDay?: number;
+  defaultPointsPerKg?: number;
+  defaultBonusPoints?: number;
+  speciesScoringConfig?: SpeciesScoringConfigItem[];
+  allowedSpeciesIds?: string[];
+}
+
+// DTO per update profilo
+export interface UpdateTournamentProfileDTO extends Partial<CreateTournamentProfileDTO> {
+  isActive?: boolean;
+  displayOrder?: number;
 }
 
 export enum CatchStatus {

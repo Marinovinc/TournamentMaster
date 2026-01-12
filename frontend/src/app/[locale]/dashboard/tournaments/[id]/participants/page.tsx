@@ -76,6 +76,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 
 interface Participant {
   id: string;
@@ -406,11 +407,14 @@ export default function ParticipantsPage() {
             <ArrowLeft className="h-4 w-4" />
             Torna a {tournament?.name || "Torneo"}
           </Link>
+          <div className="flex items-center gap-3">
           <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
             <Users className="h-7 w-7" />
             Partecipanti
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <HelpGuide pageKey="tournamentParticipants" position="inline" isAdmin={true} />
+        </div>
+        <p className="text-muted-foreground mt-1">
             Gestisci le iscrizioni al torneo
           </p>
         </div>

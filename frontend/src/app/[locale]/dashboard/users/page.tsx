@@ -68,6 +68,8 @@ import {
   ArrowDown,
   Building2,
   Eye,
+  EyeOff,
+  X,
 } from "lucide-react";
 import { HelpGuide } from "@/components/HelpGuide";
 
@@ -93,10 +95,14 @@ const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
   TENANT_ADMIN: "Admin Societa",
   PRESIDENT: "Presidente",
+  VICE_PRESIDENT: "Vice Presidente",
+  SECRETARY: "Segretario",
+  TREASURER: "Tesoriere",
+  BOARD_MEMBER: "Consigliere",
   ORGANIZER: "Organizzatore",
-  JUDGE: "Giudice",
+  JUDGE: "Associato",  // Giudice solo nei tornei, altrimenti Associato
   CAPTAIN: "Capitano",
-  PARTICIPANT: "Partecipante",
+  PARTICIPANT: "Associato",  // Partecipante solo nei tornei, altrimenti Associato
   MEMBER: "Associato",
 };
 
@@ -104,8 +110,12 @@ const ROLE_COLORS: Record<string, "default" | "secondary" | "destructive" | "out
   SUPER_ADMIN: "destructive",
   TENANT_ADMIN: "default",
   PRESIDENT: "default",
+  VICE_PRESIDENT: "default",   // Direttivo
+  SECRETARY: "default",        // Direttivo
+  TREASURER: "default",        // Direttivo
+  BOARD_MEMBER: "secondary",   // Consigliere
   ORGANIZER: "secondary",
-  JUDGE: "secondary",
+  JUDGE: "outline",            // Associato (come PARTICIPANT)
   CAPTAIN: "outline",
   PARTICIPANT: "outline",
   MEMBER: "outline",
@@ -116,23 +126,30 @@ const ROLE_PRIORITY: Record<string, number> = {
   SUPER_ADMIN: 1,
   TENANT_ADMIN: 2,
   PRESIDENT: 3,
-  ORGANIZER: 4,
-  JUDGE: 5,
-  CAPTAIN: 6,
+  VICE_PRESIDENT: 4,
+  SECRETARY: 5,
+  TREASURER: 6,
+  BOARD_MEMBER: 7,
+  ORGANIZER: 8,
+  JUDGE: 9,
+  CAPTAIN: 10,
   PARTICIPANT: 98,
   MEMBER: 99,
 };
 
 // Roles sorted alphabetically for filter dropdown
+// JUDGE rimosso perche fuori dai tornei e un Associato come PARTICIPANT
 const ROLES_ALPHABETICAL = [
   { value: "TENANT_ADMIN", label: "Admin Societa" },
-  { value: "MEMBER", label: "Associato" },
+  { value: "PARTICIPANT", label: "Associato" },
   { value: "CAPTAIN", label: "Capitano" },
-  { value: "JUDGE", label: "Giudice" },
+  { value: "BOARD_MEMBER", label: "Consigliere" },
   { value: "ORGANIZER", label: "Organizzatore" },
-  { value: "PARTICIPANT", label: "Partecipante" },
   { value: "PRESIDENT", label: "Presidente" },
+  { value: "SECRETARY", label: "Segretario" },
   { value: "SUPER_ADMIN", label: "Super Admin" },
+  { value: "TREASURER", label: "Tesoriere" },
+  { value: "VICE_PRESIDENT", label: "Vice Presidente" },
 ];
 
 // Sorting types
@@ -155,6 +172,7 @@ export default function UsersPage() {
   const [usersWithUnread, setUsersWithUnread] = useState<string[]>([]);
 
   // Dialog states
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
@@ -169,6 +187,18 @@ export default function UsersPage() {
     role: "PARTICIPANT",
     fipsasNumber: "",
   });
+
+  // Create form state (separate from edit)
+  const [createFormData, setCreateFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    phone: "",
+    role: "PARTICIPANT",
+    fipsasNumber: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -296,6 +326,69 @@ export default function UsersPage() {
       return sortDirection === "asc" ? comparison : -comparison;
     });
 
+  // Generate random password
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let password = "";
+    for (let i = 0; i < 10; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  // Handle create user
+  const handleCreateUser = async () => {
+    setFormLoading(true);
+    try {
+      // Generate password if not provided
+      const password = createFormData.password || generatePassword();
+      const wasPasswordGenerated = !createFormData.password;
+
+      const response = await fetch(`${API_URL}/api/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ...createFormData, password }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setUsers([data.data, ...users]);
+        setCreateDialogOpen(false);
+        setCreateFormData({
+          firstName: "",
+          lastName: "",
+          email: "",
+          password: "",
+          phone: "",
+          role: "PARTICIPANT",
+          fipsasNumber: "",
+        });
+        // Show generated password to admin
+        if (wasPasswordGenerated) {
+          alert(`Utente creato!\n\nPassword generata: ${password}\n\nComunicala all'utente.`);
+        }
+      } else {
+        // Show validation errors if present
+        if (data.errors && Array.isArray(data.errors)) {
+          const errorMessages = data.errors.map((e: { msg?: string; message?: string; path?: string }) =>
+            `${e.path || ""}: ${e.msg || e.message || "Errore"}`
+          ).join("\n");
+          alert(`Errori di validazione:\n${errorMessages}`);
+        } else {
+          alert(`Errore: ${data.message || "Creazione utente fallita"}`);
+        }
+      }
+    } catch (error) {
+      console.error("Error creating user:", error);
+      alert("Errore di rete");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
   // Handle update user
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
@@ -415,6 +508,10 @@ export default function UsersPage() {
       case "TENANT_ADMIN":
         return <Shield className="h-4 w-4" />;
       case "PRESIDENT":
+      case "VICE_PRESIDENT":
+      case "SECRETARY":
+      case "TREASURER":
+      case "BOARD_MEMBER":
         return <Crown className="h-4 w-4" />;
       default:
         return <User className="h-4 w-4" />;
@@ -445,6 +542,10 @@ export default function UsersPage() {
           </div>
           <HelpGuide pageKey="users" position="inline" isAdmin={true} />
         </div>
+        <Button onClick={() => setCreateDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nuovo Utente
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -469,21 +570,21 @@ export default function UsersPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Admin</CardTitle>
+            <CardTitle className="text-sm font-medium">Direttivo</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {users.filter((u) => ["SUPER_ADMIN", "TENANT_ADMIN", "PRESIDENT"].includes(u.role)).length}
+              {users.filter((u) => ["TENANT_ADMIN", "PRESIDENT", "VICE_PRESIDENT", "SECRETARY", "TREASURER", "BOARD_MEMBER"].includes(u.role)).length}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Partecipanti</CardTitle>
+            <CardTitle className="text-sm font-medium">Associati</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {users.filter((u) => u.role === "PARTICIPANT").length}
+              {users.filter((u) => u.role === "PARTICIPANT" || u.role === "JUDGE").length}
             </div>
           </CardContent>
         </Card>
@@ -506,8 +607,19 @@ export default function UsersPage() {
                   placeholder="Cerca utenti..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-full sm:w-[200px]"
+                  className={`pl-9 w-full sm:w-[200px] ${searchQuery ? "pr-8" : ""}`}
                 />
+                {searchQuery && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                  </Button>
+                )}
               </div>
               <Select value={tenantFilter} onValueChange={setTenantFilter}>
                 <SelectTrigger className="w-full sm:w-[200px]">
@@ -698,7 +810,16 @@ export default function UsersPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => router.push(`/${locale}/dashboard/users/${userItem.id}`)}>
+                            <DropdownMenuItem onClick={() => {
+                              // Navigate to association page with viewAs parameter to show user's dashboard
+                              const tenantSlug = user?.tenantSlug;
+                              if (tenantSlug) {
+                                router.push(`/${locale}/associazioni/${tenantSlug}?viewAs=${userItem.id}`);
+                              } else {
+                                // Fallback to old behavior if no tenant slug
+                                router.push(`/${locale}/dashboard/users/${userItem.id}`);
+                              }
+                            }}>
                               <Eye className="h-4 w-4 mr-2" />
                               Vedi Scheda
                             </DropdownMenuItem>
@@ -797,13 +918,15 @@ export default function UsersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="MEMBER">Associato</SelectItem>
-                  <SelectItem value="PARTICIPANT">Partecipante</SelectItem>
+                  <SelectItem value="TENANT_ADMIN">Admin Societa</SelectItem>
+                  <SelectItem value="PARTICIPANT">Associato</SelectItem>
                   <SelectItem value="CAPTAIN">Capitano</SelectItem>
-                  <SelectItem value="JUDGE">Giudice</SelectItem>
+                  <SelectItem value="BOARD_MEMBER">Consigliere</SelectItem>
                   <SelectItem value="ORGANIZER">Organizzatore</SelectItem>
                   <SelectItem value="PRESIDENT">Presidente</SelectItem>
-                  <SelectItem value="TENANT_ADMIN">Admin Societa</SelectItem>
+                  <SelectItem value="SECRETARY">Segretario</SelectItem>
+                  <SelectItem value="TREASURER">Tesoriere</SelectItem>
+                  <SelectItem value="VICE_PRESIDENT">Vice Presidente</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -828,6 +951,132 @@ export default function UsersPage() {
                 <Edit className="h-4 w-4 mr-2" />
               )}
               Salva
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create User Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuovo Utente</DialogTitle>
+            <DialogDescription>
+              Crea un nuovo utente per l&apos;associazione
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="createFirstName">Nome *</Label>
+                <Input
+                  id="createFirstName"
+                  value={createFormData.firstName}
+                  onChange={(e) => setCreateFormData({ ...createFormData, firstName: e.target.value })}
+                  placeholder="Mario"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="createLastName">Cognome *</Label>
+                <Input
+                  id="createLastName"
+                  value={createFormData.lastName}
+                  onChange={(e) => setCreateFormData({ ...createFormData, lastName: e.target.value })}
+                  placeholder="Rossi"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="createEmail">Email *</Label>
+              <Input
+                id="createEmail"
+                type="email"
+                value={createFormData.email}
+                onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
+                placeholder="mario.rossi@email.it"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="createPassword">Password</Label>
+              <div className="relative">
+                <Input
+                  id="createPassword"
+                  type={showPassword ? "text" : "password"}
+                  value={createFormData.password}
+                  onChange={(e) => setCreateFormData({ ...createFormData, password: e.target.value })}
+                  placeholder="Lascia vuoto per generare automaticamente"
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="createPhone">Telefono</Label>
+              <Input
+                id="createPhone"
+                value={createFormData.phone}
+                onChange={(e) => setCreateFormData({ ...createFormData, phone: e.target.value })}
+                placeholder="+39 333 1234567"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="createRole">Ruolo</Label>
+              <Select
+                value={createFormData.role}
+                onValueChange={(value) => setCreateFormData({ ...createFormData, role: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PARTICIPANT">Associato</SelectItem>
+                  <SelectItem value="CAPTAIN">Capitano</SelectItem>
+                  <SelectItem value="BOARD_MEMBER">Consigliere</SelectItem>
+                  <SelectItem value="ORGANIZER">Organizzatore</SelectItem>
+                  <SelectItem value="PRESIDENT">Presidente</SelectItem>
+                  <SelectItem value="SECRETARY">Segretario</SelectItem>
+                  <SelectItem value="TREASURER">Tesoriere</SelectItem>
+                  <SelectItem value="VICE_PRESIDENT">Vice Presidente</SelectItem>
+                  <SelectItem value="TENANT_ADMIN">Admin Societa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="createFipsasNumber">Numero FIPSAS</Label>
+              <Input
+                id="createFipsasNumber"
+                value={createFormData.fipsasNumber}
+                onChange={(e) => setCreateFormData({ ...createFormData, fipsasNumber: e.target.value })}
+                placeholder="Es. ABC123456"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button
+              onClick={handleCreateUser}
+              disabled={formLoading || !createFormData.firstName || !createFormData.lastName || !createFormData.email}
+            >
+              {formLoading ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              Crea Utente
             </Button>
           </DialogFooter>
         </DialogContent>

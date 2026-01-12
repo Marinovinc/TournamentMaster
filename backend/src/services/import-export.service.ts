@@ -257,7 +257,7 @@ export class ImportExportService {
       Partecipante: `${c.user.firstName} ${c.user.lastName}`,
       Email: c.user.email,
       Specie: c.species?.commonNameIt || "N/D",
-      "Peso (kg)": c.weight.toNumber(),
+      "Peso (kg)": c.weight ? c.weight.toNumber() : "",
       "Lunghezza (cm)": c.length ? c.length.toNumber() : "",
       Punti: c.points ? c.points.toNumber() : 0,
       "Data/Ora": c.caughtAt.toISOString().replace("T", " ").slice(0, 19),
@@ -306,7 +306,7 @@ export class ImportExportService {
         biggestCatch: 0,
       };
 
-      const weight = c.weight.toNumber();
+      const weight = c.weight ? c.weight.toNumber() : 0;
       const points = c.points ? c.points.toNumber() : 0;
 
       existing.totalWeight += weight;
@@ -397,7 +397,7 @@ export class ImportExportService {
       Cognome: c.user.lastName,
       Nome: c.user.firstName,
       Specie: c.species?.commonNameIt || "N/D",
-      "Peso (kg)": c.weight.toNumber(),
+      "Peso (kg)": c.weight ? c.weight.toNumber() : "",
       "Lunghezza (cm)": c.length ? c.length.toNumber() : "",
       Moltiplicatore: c.species?.pointsMultiplier ? c.species.pointsMultiplier.toNumber() : 1,
       Punti: c.points ? c.points.toNumber() : 0,

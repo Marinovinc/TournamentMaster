@@ -34,6 +34,7 @@ import {
   Ban,
   ChevronRight,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 import {
   Card,
   CardContent,
@@ -647,10 +648,13 @@ export default function AdminPaymentsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
+            <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Wallet className="h-6 w-6" />
               Pagamenti
             </h1>
+            <HelpGuide pageKey="adminPayments" position="inline" isAdmin={true} />
+          </div>
             <p className="text-muted-foreground">
               Gestisci i pagamenti della tua associazione
             </p>

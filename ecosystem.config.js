@@ -19,14 +19,16 @@ module.exports = {
     {
       name: 'tm-backend',
       cwd: 'D:/Dev/TournamentMaster/backend',
-      script: 'node_modules/nodemon/bin/nodemon.js',
-      args: '--exec node_modules/.bin/ts-node src/index.ts',
+      script: 'src/index.ts',
+      interpreter: 'node',
+      interpreter_args: '-r ts-node/register',
       env: {
         NODE_ENV: 'development'
       },
       watch: false,
       autorestart: true,
-      max_restarts: 5
+      max_restarts: 5,
+      windowsHide: true
     },
     {
       name: 'tm-frontend',
@@ -38,7 +40,8 @@ module.exports = {
       },
       watch: false,
       autorestart: true,
-      max_restarts: 5
+      max_restarts: 5,
+      windowsHide: true
     }
   ]
 };

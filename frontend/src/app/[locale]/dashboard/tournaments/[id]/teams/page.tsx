@@ -86,6 +86,7 @@ import {
   Check,
   ChevronsUpDown,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 
 interface TeamMember {
   id: string;
@@ -604,11 +605,14 @@ export default function TeamsPage() {
             <ArrowLeft className="h-4 w-4" />
             Torna a {tournament?.name || "Torneo"}
           </Link>
+          <div className="flex items-center gap-3">
           <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
             <Ship className="h-7 w-7" />
             Barche ed Equipaggi
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <HelpGuide pageKey="tournamentTeams" position="inline" isAdmin={true} />
+        </div>
+        <p className="text-muted-foreground mt-1">
             Gestisci le barche iscritte e i loro equipaggi
           </p>
         </div>

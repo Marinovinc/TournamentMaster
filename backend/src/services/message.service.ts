@@ -573,6 +573,237 @@ export class MessageService {
 
     return members;
   }
+
+  /**
+   * Invia messaggio broadcast ai partecipanti di un torneo specifico
+   */
+  static async sendTournamentBroadcast(input: {
+    senderId: string;
+    tournamentId: string;
+    tenantId: string;
+    subject: string;
+    body: string;
+    priority?: MessagePriority;
+    targetGroup?: "all" | "teams" | "staff";
+  }) {
+    // Verifica che il mittente sia autorizzato
+    const sender = await prisma.user.findUnique({
+      where: { id: input.senderId },
+    });
+
+    if (!sender) {
+      throw new Error("Sender not found");
+    }
+
+    const adminRoles = [UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.PRESIDENT, UserRole.ORGANIZER];
+    if (!adminRoles.includes(sender.role as UserRole)) {
+      throw new Error("Only administrators can send tournament broadcasts");
+    }
+
+    // Verifica il torneo
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: input.tournamentId },
+      include: {
+        registrations: {
+          where: { status: "CONFIRMED" },
+          include: { user: { select: { id: true } } },
+        },
+        staff: {
+          include: { user: { select: { id: true } } },
+        },
+      },
+    });
+
+    if (!tournament) {
+      throw new Error("Tournament not found");
+    }
+
+    // Determina i destinatari in base al targetGroup
+    let recipientIds: string[] = [];
+
+    if (input.targetGroup === "staff") {
+      recipientIds = tournament.staff.map((s) => s.user.id);
+    } else if (input.targetGroup === "teams") {
+      recipientIds = tournament.registrations.map((r) => r.user.id);
+    } else {
+      // "all" - sia partecipanti che staff
+      const teamIds = tournament.registrations.map((r) => r.user.id);
+      const staffIds = tournament.staff.map((s) => s.user.id);
+      recipientIds = [...new Set([...teamIds, ...staffIds])];
+    }
+
+    // Rimuovi il mittente dalla lista
+    recipientIds = recipientIds.filter((id) => id !== input.senderId);
+
+    if (recipientIds.length === 0) {
+      throw new Error("No recipients found for this tournament");
+    }
+
+    // Crea il messaggio broadcast con riferimento al torneo
+    const message = await prisma.message.create({
+      data: {
+        type: MessageType.BROADCAST,
+        priority: input.priority || MessagePriority.NORMAL,
+        subject: input.subject,
+        body: input.body,
+        senderId: input.senderId,
+        recipientId: null,
+        tenantId: input.tenantId,
+        tournamentId: input.tournamentId,
+      },
+      include: {
+        sender: {
+          select: { id: true, firstName: true, lastName: true, email: true, avatar: true },
+        },
+        tournament: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    return {
+      message,
+      recipientCount: recipientIds.length,
+    };
+  }
+
+  /**
+   * Ottieni storico messaggi di un torneo
+   */
+  static async getTournamentMessages(
+    tournamentId: string,
+    options: { page?: number; limit?: number } = {}
+  ) {
+    const { page = 1, limit = 20 } = options;
+    const skip = (page - 1) * limit;
+
+    const [messages, total] = await Promise.all([
+      prisma.message.findMany({
+        where: {
+          tournamentId,
+          isDeleted: false,
+        },
+        include: {
+          sender: {
+            select: { id: true, firstName: true, lastName: true, email: true, avatar: true },
+          },
+          _count: { select: { readReceipts: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.message.count({
+        where: {
+          tournamentId,
+          isDeleted: false,
+        },
+      }),
+    ]);
+
+    return {
+      messages,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Template messaggi predefiniti per tornei
+   */
+  static getMessageTemplates() {
+    return [
+      {
+        id: "registration_confirmed",
+        name: "Conferma Iscrizione",
+        subject: "Iscrizione confermata - {{tournamentName}}",
+        body: `Gentile {{participantName}},
+
+La tua iscrizione al torneo "{{tournamentName}}" è stata confermata.
+
+Data: {{startDate}}
+Luogo: {{location}}
+
+Ti aspettiamo!
+
+Cordiali saluti,
+L'organizzazione`,
+      },
+      {
+        id: "tournament_reminder",
+        name: "Promemoria Torneo",
+        subject: "Promemoria: {{tournamentName}} inizia tra {{days}} giorni",
+        body: `Gentile partecipante,
+
+Ti ricordiamo che il torneo "{{tournamentName}}" inizierà tra {{days}} giorni.
+
+Data inizio: {{startDate}}
+Briefing: {{briefingTime}}
+Luogo ritrovo: {{meetingPoint}}
+
+Non dimenticare di portare:
+- Documento d'identità
+- Tessera FIPSAS (se richiesta)
+- Attrezzatura conforme al regolamento
+
+A presto!`,
+      },
+      {
+        id: "tournament_started",
+        name: "Torneo Iniziato",
+        subject: "Il torneo {{tournamentName}} è iniziato!",
+        body: `Il torneo "{{tournamentName}}" è ufficialmente iniziato!
+
+Buona pesca a tutti i partecipanti.
+
+Ricordate:
+- Rispettate le zone di pesca autorizzate
+- Seguite le indicazioni degli ispettori
+- In caso di emergenza contattate la direzione gara
+
+In bocca al lupo!`,
+      },
+      {
+        id: "tournament_completed",
+        name: "Torneo Concluso",
+        subject: "Risultati finali - {{tournamentName}}",
+        body: `Gentili partecipanti,
+
+Il torneo "{{tournamentName}}" si è concluso.
+
+Complimenti a tutti i partecipanti!
+
+I risultati ufficiali sono disponibili nella sezione classifiche dell'app.
+
+Grazie per aver partecipato e arrivederci al prossimo torneo!`,
+      },
+      {
+        id: "inspector_assignment",
+        name: "Assegnazione Ispettore",
+        subject: "Assegnazione ispettore - {{tournamentName}}",
+        body: `Gentile {{inspectorName}},
+
+Sei stato assegnato come ispettore di bordo per il torneo "{{tournamentName}}".
+
+Barca assegnata: {{boatName}}
+Equipaggio: {{teamName}}
+
+Ti preghiamo di presentarti al briefing pre-gara alle ore {{briefingTime}}.
+
+Per qualsiasi domanda contatta la direzione gara.`,
+      },
+      {
+        id: "custom",
+        name: "Messaggio Personalizzato",
+        subject: "",
+        body: "",
+      },
+    ];
+  }
 }
 
 export default MessageService;

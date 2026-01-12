@@ -16,7 +16,7 @@
  * =============================================================================
  */
 
-import { TournamentStatus, TournamentDiscipline } from "../../types";
+import { TournamentStatus, TournamentDiscipline, GameMode } from "../../types";
 
 /**
  * Data per creare un nuovo torneo
@@ -42,6 +42,10 @@ export interface CreateTournamentData {
   bannerImage?: string;
   tenantId: string;
   organizerId: string;
+  // Catch & Release mode
+  gameMode?: GameMode;
+  followsFipsasRules?: boolean;
+  fipsasRegulationUrl?: string;
 }
 
 /**

@@ -35,12 +35,16 @@ import {
   LayoutDashboard,
   AlertCircle,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 import Link from "next/link";
 
 // User sections - will pass userId to them
 import { BoatsSection } from "@/components/user";
 import { EquipmentSection } from "@/components/user";
 import { MediaSection } from "@/components/user";
+import { TournamentsSection } from "@/components/user";
+import { CatchesSection } from "@/components/user";
+import { ResultsSection } from "@/components/user";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -229,7 +233,10 @@ export default function AdminUserProfilePage() {
           </Link>
         </Button>
         <div>
+          <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Scheda Utente</h1>
+          <HelpGuide pageKey="userDetail" position="inline" isAdmin={true} />
+        </div>
           <p className="text-muted-foreground">Visualizzazione amministratore</p>
         </div>
       </div>
@@ -328,20 +335,32 @@ export default function AdminUserProfilePage() {
 
       {/* Tabs for different sections */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="overview" className="flex items-center gap-1.5">
+        <TabsList className="flex flex-wrap w-full gap-1 h-auto p-1 mb-6">
+          <TabsTrigger value="overview" className="flex items-center gap-1.5 flex-1 min-w-[80px]">
             <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">Panoramica</span>
           </TabsTrigger>
-          <TabsTrigger value="boats" className="flex items-center gap-1.5">
+          <TabsTrigger value="boats" className="flex items-center gap-1.5 flex-1 min-w-[80px]">
             <Anchor className="h-4 w-4" />
             <span className="hidden sm:inline">Barche</span>
           </TabsTrigger>
-          <TabsTrigger value="equipment" className="flex items-center gap-1.5">
+          <TabsTrigger value="equipment" className="flex items-center gap-1.5 flex-1 min-w-[80px]">
             <Package className="h-4 w-4" />
             <span className="hidden sm:inline">Attrezzatura</span>
           </TabsTrigger>
-          <TabsTrigger value="media" className="flex items-center gap-1.5">
+          <TabsTrigger value="tournaments" className="flex items-center gap-1.5 flex-1 min-w-[80px]">
+            <Trophy className="h-4 w-4" />
+            <span className="hidden sm:inline">Tornei</span>
+          </TabsTrigger>
+          <TabsTrigger value="catches" className="flex items-center gap-1.5 flex-1 min-w-[80px]">
+            <Fish className="h-4 w-4" />
+            <span className="hidden sm:inline">Catture</span>
+          </TabsTrigger>
+          <TabsTrigger value="results" className="flex items-center gap-1.5 flex-1 min-w-[80px]">
+            <Medal className="h-4 w-4" />
+            <span className="hidden sm:inline">Risultati</span>
+          </TabsTrigger>
+          <TabsTrigger value="media" className="flex items-center gap-1.5 flex-1 min-w-[80px]">
             <Camera className="h-4 w-4" />
             <span className="hidden sm:inline">Media</span>
           </TabsTrigger>
@@ -460,6 +479,21 @@ export default function AdminUserProfilePage() {
         {/* Equipment Tab */}
         <TabsContent value="equipment">
           <EquipmentSection primaryColor="#0066CC" viewUserId={userId} readOnly />
+        </TabsContent>
+
+        {/* Tournaments Tab */}
+        <TabsContent value="tournaments">
+          <TournamentsSection primaryColor="#0066CC" viewUserId={userId} readOnly />
+        </TabsContent>
+
+        {/* Catches Tab */}
+        <TabsContent value="catches">
+          <CatchesSection primaryColor="#0066CC" viewUserId={userId} readOnly />
+        </TabsContent>
+
+        {/* Results Tab */}
+        <TabsContent value="results">
+          <ResultsSection primaryColor="#0066CC" viewUserId={userId} readOnly />
         </TabsContent>
 
         {/* Media Tab */}

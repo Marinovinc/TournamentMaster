@@ -1,14 +1,18 @@
 /**
  * =============================================================================
- * NEW CATCH PAGE
+ * NEW CATCH PAGE - WITH CATCH & RELEASE SUPPORT
  * =============================================================================
  * Pagina per registrare una nuova cattura durante un torneo
  *
  * Flusso:
  * 1. Selezione torneo attivo (se multipli)
  * 2. Scatto foto con CatchCamera + upload Cloudinary
- * 3. Inserimento peso, specie, note
+ * 3. Inserimento peso/taglia, specie, note
  * 4. Submit al backend
+ *
+ * Modalita supportate:
+ * - TRADITIONAL: Peso obbligatorio, video opzionale
+ * - CATCH_RELEASE: Taglia obbligatoria, video obbligatorio, peso opzionale
  * =============================================================================
  */
 
@@ -28,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Fish,
   Camera,
@@ -40,9 +45,19 @@ import {
   MapPin,
   AlertCircle,
   CheckCircle,
+  Video,
+  Ruler,
 } from "lucide-react";
 import Link from "next/link";
 import { HelpGuide } from "@/components/HelpGuide";
+
+// Size categories for Catch & Release mode
+const SIZE_CATEGORIES = [
+  { value: "SMALL", label: "S", description: "Piccolo", color: "bg-blue-100 border-blue-300 text-blue-700" },
+  { value: "MEDIUM", label: "M", description: "Medio", color: "bg-green-100 border-green-300 text-green-700" },
+  { value: "LARGE", label: "L", description: "Grande", color: "bg-orange-100 border-orange-300 text-orange-700" },
+  { value: "EXTRA_LARGE", label: "XL", description: "Extra Grande", color: "bg-red-100 border-red-300 text-red-700" },
+];
 
 // Types
 interface Tournament {
@@ -53,6 +68,8 @@ interface Tournament {
   endDate: string;
   minWeight?: number;
   maxCatchesPerDay?: number;
+  gameMode?: "TRADITIONAL" | "CATCH_RELEASE";
+  followsFipsasRules?: boolean;
 }
 
 interface Species {
@@ -100,6 +117,14 @@ export default function NewCatchPage() {
   const [selectedSpecies, setSelectedSpecies] = useState<string>("");
   const [notes, setNotes] = useState("");
 
+  // Catch & Release specific state
+  const [sizeCategory, setSizeCategory] = useState<string>("");
+  const [wasReleased, setWasReleased] = useState(true);
+  const [videoUrl, setVideoUrl] = useState<string>("");
+
+  // Computed: is this a Catch & Release tournament?
+  const isCatchReleaseMode = selectedTournament?.gameMode === "CATCH_RELEASE";
+
   // Fetch active tournaments and species
   useEffect(() => {
     const fetchData = async () => {
@@ -129,6 +154,17 @@ export default function NewCatchPage() {
               endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
               minWeight: 0.5,
               maxCatchesPerDay: 10,
+              gameMode: "TRADITIONAL",
+            },
+            {
+              id: "demo-2",
+              name: "Torneo Catch & Release",
+              status: "ONGOING",
+              startDate: new Date().toISOString(),
+              endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+              maxCatchesPerDay: 20,
+              gameMode: "CATCH_RELEASE",
+              followsFipsasRules: true,
             },
           ]);
         }
@@ -166,31 +202,50 @@ export default function NewCatchPage() {
 
   // Handle form submission
   const handleSubmit = async () => {
-    if (!selectedTournament || !photo || !weight) {
+    if (!selectedTournament || !photo) {
       setSubmitError("Compila tutti i campi obbligatori");
       return;
     }
 
-    const weightNum = parseFloat(weight);
-    if (isNaN(weightNum) || weightNum <= 0) {
-      setSubmitError("Inserisci un peso valido");
-      return;
-    }
-
-    // Check minimum weight
-    if (selectedTournament.minWeight && weightNum < selectedTournament.minWeight) {
-      setSubmitError(`Il peso minimo per questo torneo e ${selectedTournament.minWeight} kg`);
-      return;
+    // Validation based on game mode
+    if (isCatchReleaseMode) {
+      // C&R mode: size category and video are required, weight optional
+      if (!sizeCategory) {
+        setSubmitError("Seleziona la taglia del pesce");
+        return;
+      }
+      if (!videoUrl) {
+        setSubmitError("Il video del rilascio e obbligatorio per la modalita Catch & Release");
+        return;
+      }
+      if (!selectedSpecies) {
+        setSubmitError("Seleziona la specie del pesce");
+        return;
+      }
+    } else {
+      // Traditional mode: weight is required
+      if (!weight) {
+        setSubmitError("Inserisci il peso del pesce");
+        return;
+      }
+      const weightNum = parseFloat(weight);
+      if (isNaN(weightNum) || weightNum <= 0) {
+        setSubmitError("Inserisci un peso valido");
+        return;
+      }
+      // Check minimum weight
+      if (selectedTournament.minWeight && weightNum < selectedTournament.minWeight) {
+        setSubmitError(`Il peso minimo per questo torneo e ${selectedTournament.minWeight} kg`);
+        return;
+      }
     }
 
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      const catchData = {
+      const catchData: Record<string, unknown> = {
         tournamentId: selectedTournament.id,
-        weight: weightNum,
-        length: length ? parseFloat(length) : undefined,
         latitude: photo.latitude,
         longitude: photo.longitude,
         speciesId: selectedSpecies || undefined,
@@ -198,6 +253,19 @@ export default function NewCatchPage() {
         caughtAt: photo.timestamp.toISOString(),
         notes: notes || undefined,
       };
+
+      // Add mode-specific fields
+      if (isCatchReleaseMode) {
+        catchData.sizeCategory = sizeCategory;
+        catchData.wasReleased = wasReleased;
+        catchData.videoPath = videoUrl;
+        if (length) catchData.length = parseFloat(length);
+        if (weight) catchData.weight = parseFloat(weight); // Optional for C&R
+      } else {
+        catchData.weight = parseFloat(weight);
+        if (length) catchData.length = parseFloat(length);
+        if (videoUrl) catchData.videoPath = videoUrl; // Optional for traditional
+      }
 
       const result = await api("/api/catches", {
         method: "POST",
@@ -227,7 +295,11 @@ export default function NewCatchPage() {
   };
 
   const canProceedFromTournament = selectedTournament !== null;
-  const canProceedFromDetails = weight !== "" && parseFloat(weight) > 0;
+
+  // Conditional validation for details step
+  const canProceedFromDetails = isCatchReleaseMode
+    ? sizeCategory !== "" && selectedSpecies !== "" && videoUrl !== ""
+    : weight !== "" && parseFloat(weight) > 0;
 
   // Auth check
   if (authLoading) {
@@ -403,13 +475,25 @@ export default function NewCatchPage() {
                         {new Date(tournament.startDate).toLocaleDateString()} - {new Date(tournament.endDate).toLocaleDateString()}
                       </p>
                     </div>
-                    <Badge variant="default">In Corso</Badge>
+                    <div className="flex gap-2">
+                      <Badge variant="default">In Corso</Badge>
+                      {tournament.gameMode === "CATCH_RELEASE" && (
+                        <Badge variant="secondary" className="bg-green-100 text-green-700">
+                          C&R
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  {tournament.minWeight && (
+                  {tournament.gameMode === "CATCH_RELEASE" ? (
+                    <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                      <Fish className="h-3 w-3" />
+                      Catch & Release - Video obbligatorio
+                    </p>
+                  ) : tournament.minWeight ? (
                     <p className="text-xs text-muted-foreground mt-2">
                       Peso minimo: {tournament.minWeight} kg
                     </p>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -453,9 +537,16 @@ export default function NewCatchPage() {
             <CardTitle className="flex items-center gap-2">
               <Scale className="h-5 w-5" />
               Dettagli Cattura
+              {isCatchReleaseMode && (
+                <Badge variant="secondary" className="bg-green-100 text-green-700 ml-2">
+                  Catch & Release
+                </Badge>
+              )}
             </CardTitle>
             <CardDescription>
-              Inserisci peso e informazioni aggiuntive
+              {isCatchReleaseMode
+                ? "Seleziona taglia, specie e carica il video del rilascio"
+                : "Inserisci peso e informazioni aggiuntive"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -479,10 +570,121 @@ export default function NewCatchPage() {
               )}
             </div>
 
-            {/* Weight - Required */}
+            {/* C&R Mode: Size Category Picker */}
+            {isCatchReleaseMode && (
+              <div className="space-y-3">
+                <Label>
+                  Taglia del Pesce <span className="text-destructive">*</span>
+                </Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {SIZE_CATEGORIES.map((size) => (
+                    <button
+                      key={size.value}
+                      type="button"
+                      onClick={() => setSizeCategory(size.value)}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        sizeCategory === size.value
+                          ? `${size.color} border-current`
+                          : "border-muted hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="text-2xl font-bold">{size.label}</div>
+                      <div className="text-xs">{size.description}</div>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Stima visiva della taglia basata sulla specie
+                </p>
+              </div>
+            )}
+
+            {/* C&R Mode: Video Upload (Required) */}
+            {isCatchReleaseMode && (
+              <div className="space-y-2">
+                <Label htmlFor="video">
+                  Video del Rilascio <span className="text-destructive">*</span>
+                </Label>
+                <div className="border-2 border-dashed rounded-lg p-4">
+                  {videoUrl ? (
+                    <div className="space-y-2">
+                      <video
+                        src={videoUrl}
+                        controls
+                        className="w-full rounded-lg max-h-48"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setVideoUrl("")}
+                      >
+                        Rimuovi video
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <Video className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Carica il video che mostra il rilascio del pesce
+                      </p>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        className="hidden"
+                        id="video-upload"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            // In produzione, upload a Cloudinary
+                            // Per ora, creiamo un URL locale
+                            setVideoUrl(URL.createObjectURL(file));
+                          }
+                        }}
+                      />
+                      <label htmlFor="video-upload">
+                        <Button variant="outline" asChild>
+                          <span>
+                            <Video className="h-4 w-4 mr-2" />
+                            Seleziona Video
+                          </span>
+                        </Button>
+                      </label>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Il video deve mostrare chiaramente il rilascio del pesce in acqua
+                </p>
+              </div>
+            )}
+
+            {/* C&R Mode: Was Released Checkbox */}
+            {isCatchReleaseMode && (
+              <div className="flex items-start space-x-3 p-3 rounded-lg bg-green-50 border border-green-200">
+                <Checkbox
+                  id="wasReleased"
+                  checked={wasReleased}
+                  onCheckedChange={(checked) => setWasReleased(checked === true)}
+                />
+                <div className="space-y-1">
+                  <label
+                    htmlFor="wasReleased"
+                    className="text-sm font-medium leading-none cursor-pointer"
+                  >
+                    Pesce rilasciato correttamente
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Conferma che il pesce e stato rilasciato vivo in acqua (bonus 1.5x punti)
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Weight - Required for Traditional, Optional for C&R */}
             <div className="space-y-2">
               <Label htmlFor="weight">
-                Peso (kg) <span className="text-destructive">*</span>
+                Peso (kg) {!isCatchReleaseMode && <span className="text-destructive">*</span>}
+                {isCatchReleaseMode && <span className="text-muted-foreground"> - opzionale</span>}
               </Label>
               <Input
                 id="weight"
@@ -493,7 +695,7 @@ export default function NewCatchPage() {
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
               />
-              {selectedTournament?.minWeight && (
+              {!isCatchReleaseMode && selectedTournament?.minWeight && (
                 <p className="text-xs text-muted-foreground">
                   Peso minimo richiesto: {selectedTournament.minWeight} kg
                 </p>
@@ -514,9 +716,11 @@ export default function NewCatchPage() {
               />
             </div>
 
-            {/* Species - Optional */}
+            {/* Species - Optional for Traditional, Required for C&R */}
             <div className="space-y-2">
-              <Label htmlFor="species">Specie - opzionale</Label>
+              <Label htmlFor="species">
+                Specie {isCatchReleaseMode ? <span className="text-destructive">*</span> : "- opzionale"}
+              </Label>
               <Select value={selectedSpecies} onValueChange={setSelectedSpecies}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona specie..." />
@@ -530,6 +734,54 @@ export default function NewCatchPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Video for Traditional Mode - Optional */}
+            {!isCatchReleaseMode && (
+              <div className="space-y-2">
+                <Label htmlFor="video-traditional">Video - opzionale</Label>
+                <div className="border-2 border-dashed rounded-lg p-4">
+                  {videoUrl ? (
+                    <div className="space-y-2">
+                      <video
+                        src={videoUrl}
+                        controls
+                        className="w-full rounded-lg max-h-32"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setVideoUrl("")}
+                      >
+                        Rimuovi video
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <input
+                        type="file"
+                        accept="video/*"
+                        className="hidden"
+                        id="video-upload-traditional"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setVideoUrl(URL.createObjectURL(file));
+                          }
+                        }}
+                      />
+                      <label htmlFor="video-upload-traditional">
+                        <Button variant="outline" size="sm" asChild>
+                          <span>
+                            <Video className="h-4 w-4 mr-2" />
+                            Aggiungi Video
+                          </span>
+                        </Button>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Notes - Optional */}
             <div className="space-y-2">
@@ -599,10 +851,25 @@ export default function NewCatchPage() {
                   <p className="text-muted-foreground">Torneo</p>
                   <p className="font-medium">{selectedTournament.name}</p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Peso</p>
-                  <p className="font-medium">{weight} kg</p>
-                </div>
+
+                {/* C&R specific: Size Category */}
+                {isCatchReleaseMode && sizeCategory && (
+                  <div>
+                    <p className="text-muted-foreground">Taglia</p>
+                    <p className="font-medium">
+                      {SIZE_CATEGORIES.find(s => s.value === sizeCategory)?.description || sizeCategory}
+                    </p>
+                  </div>
+                )}
+
+                {/* Weight (shown for traditional, optional for C&R) */}
+                {weight && (
+                  <div>
+                    <p className="text-muted-foreground">Peso</p>
+                    <p className="font-medium">{weight} kg</p>
+                  </div>
+                )}
+
                 {length && (
                   <div>
                     <p className="text-muted-foreground">Lunghezza</p>
@@ -631,7 +898,29 @@ export default function NewCatchPage() {
                     </p>
                   </div>
                 )}
+
+                {/* C&R: Released status */}
+                {isCatchReleaseMode && (
+                  <div>
+                    <p className="text-muted-foreground">Rilasciato</p>
+                    <p className={`font-medium ${wasReleased ? "text-green-600" : "text-yellow-600"}`}>
+                      {wasReleased ? "Si (bonus 1.5x)" : "No"}
+                    </p>
+                  </div>
+                )}
               </div>
+
+              {/* Video preview for C&R */}
+              {isCatchReleaseMode && videoUrl && (
+                <div>
+                  <p className="text-muted-foreground text-sm mb-2">Video Rilascio</p>
+                  <video
+                    src={videoUrl}
+                    controls
+                    className="w-full rounded-lg max-h-32"
+                  />
+                </div>
+              )}
 
               {notes && (
                 <div>

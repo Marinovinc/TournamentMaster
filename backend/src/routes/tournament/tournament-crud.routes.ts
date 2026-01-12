@@ -22,6 +22,7 @@
 import { Router, Response } from "express";
 import { validationResult } from "express-validator";
 import { TournamentService } from "../../services/tournament.service";
+import { TournamentStatsService } from "../../services/tournament";
 import {
   authenticate,
   authorize,
@@ -116,6 +117,42 @@ router.get(
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to get tournament";
+      res.status(500).json({
+        success: false,
+        message,
+      });
+    }
+  }
+);
+
+/**
+ * GET /:id/stats - Get tournament statistics (authenticated)
+ */
+router.get(
+  "/:id/stats",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.ORGANIZER, UserRole.JUDGE),
+  tournamentIdParam,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const stats = await TournamentStatsService.getStats(req.params.id);
+
+      res.json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to get tournament stats";
       res.status(500).json({
         success: false,
         message,

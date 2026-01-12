@@ -14,7 +14,8 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import type { LucideIcon } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,12 +59,15 @@ import {
   UserCheck,
   AlertCircle,
   CheckCircle,
+  Users,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface StaffMember {
   id: string;
-  role: "DIRECTOR" | "JUDGE" | "INSPECTOR" | "SCORER";
+  role: "DIRECTOR" | "JUDGE" | "JUDGE_ASSISTANT" | "INSPECTOR" | "SCORER";
   notes: string | null;
   createdAt: string;
   user: {
@@ -74,6 +78,23 @@ interface StaffMember {
     role: string;
     avatar: string | null;
   };
+  parentStaff?: {
+    id: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+    };
+  } | null;
+  assistants?: {
+    id: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      avatar: string | null;
+    };
+  }[];
 }
 
 interface AvailableUser {
@@ -91,9 +112,10 @@ interface Tournament {
   status: string;
 }
 
-const roleLabels: Record<string, { label: string; icon: any; color: string }> = {
+const roleLabels: Record<string, { label: string; icon: LucideIcon; color: string }> = {
   DIRECTOR: { label: "Direttore di Gara", icon: Crown, color: "bg-purple-100 text-purple-700 border-purple-200" },
   JUDGE: { label: "Giudice di Gara", icon: Gavel, color: "bg-blue-100 text-blue-700 border-blue-200" },
+  JUDGE_ASSISTANT: { label: "Assistente Giudice", icon: UserCheck, color: "bg-cyan-100 text-cyan-700 border-cyan-200" },
   INSPECTOR: { label: "Ispettore", icon: Shield, color: "bg-green-100 text-green-700 border-green-200" },
   SCORER: { label: "Addetto Punteggi", icon: Calculator, color: "bg-orange-100 text-orange-700 border-orange-200" },
 };
@@ -113,14 +135,13 @@ export default function TournamentStaffPage() {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [assistantDialogOpen, setAssistantDialogOpen] = useState(false);
+  const [selectedJudgeId, setSelectedJudgeId] = useState<string | null>(null);
+  const [expandedJudges, setExpandedJudges] = useState<Set<string>>(new Set());
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-  useEffect(() => {
-    fetchData();
-  }, [tournamentId, token]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!token) return;
 
     setLoading(true);
@@ -151,13 +172,16 @@ export default function TournamentStaffPage() {
         const data = await availableRes.json();
         setAvailableUsers(data.data || []);
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
+    } catch {
       toast.error("Errore nel caricamento dei dati");
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL, tournamentId, token]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleAssign = async () => {
     if (!selectedUserId || !selectedRole) {
@@ -191,7 +215,7 @@ export default function TournamentStaffPage() {
       } else {
         toast.error(data.message || "Errore nell'assegnazione");
       }
-    } catch (error) {
+    } catch {
       toast.error("Errore nell'assegnazione");
     } finally {
       setAssigning(false);
@@ -215,7 +239,87 @@ export default function TournamentStaffPage() {
       } else {
         toast.error(data.message || "Errore nella rimozione");
       }
-    } catch (error) {
+    } catch {
+      toast.error("Errore nella rimozione");
+    }
+  };
+
+  const toggleJudgeExpanded = (judgeId: string) => {
+    setExpandedJudges(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(judgeId)) {
+        newSet.delete(judgeId);
+      } else {
+        newSet.add(judgeId);
+      }
+      return newSet;
+    });
+  };
+
+  const openAssistantDialog = (judgeId: string) => {
+    setSelectedJudgeId(judgeId);
+    setSelectedUserId("");
+    setNotes("");
+    setAssistantDialogOpen(true);
+  };
+
+  const handleAssignAssistant = async () => {
+    if (!selectedUserId || !selectedJudgeId) {
+      toast.error("Seleziona un utente");
+      return;
+    }
+
+    setAssigning(true);
+    try {
+      const res = await fetch(`${API_URL}/api/staff/judge/${selectedJudgeId}/assistant`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          notes,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Assistente assegnato con successo");
+        setAssistantDialogOpen(false);
+        setSelectedUserId("");
+        setSelectedJudgeId(null);
+        setNotes("");
+        fetchData();
+      } else {
+        toast.error(data.message || "Errore nell'assegnazione");
+      }
+    } catch {
+      toast.error("Errore nell'assegnazione");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleRemoveAssistant = async (assistantId: string, assistantName: string) => {
+    if (!confirm(`Rimuovere ${assistantName} come assistente?`)) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/staff/assistant/${assistantId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Assistente rimosso");
+        fetchData();
+      } else {
+        toast.error(data.message || "Errore nella rimozione");
+      }
+    } catch {
       toast.error("Errore nella rimozione");
     }
   };
@@ -469,7 +573,8 @@ export default function TournamentStaffPage() {
             </Badge>
           </div>
           <CardDescription>
-            I giudici validano le catture, verificano foto e dati GPS, e approvano o rifiutano le dichiarazioni.
+            I giudici validano le catture e approvano o rifiutano le dichiarazioni.
+            Ogni giudice puo avere uno o piu assistenti.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -490,37 +595,45 @@ export default function TournamentStaffPage() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Ruolo Sistema</TableHead>
-                  <TableHead>Note</TableHead>
-                  <TableHead className="text-right">Azioni</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {judges.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-xs">
-                          {member.user.firstName[0]}{member.user.lastName[0]}
-                        </div>
-                        {member.user.firstName} {member.user.lastName}
+            <div className="space-y-4">
+              {judges.map((member) => (
+                <div key={member.id} className="border rounded-lg">
+                  {/* Judge Row */}
+                  <div className="flex items-center justify-between p-4 bg-blue-50/50">
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 h-auto"
+                        onClick={() => toggleJudgeExpanded(member.id)}
+                      >
+                        {expandedJudges.has(member.id) ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
+                        {member.user.firstName[0]}{member.user.lastName[0]}
                       </div>
-                    </TableCell>
-                    <TableCell>{member.user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {member.user.role}
+                      <div>
+                        <p className="font-medium">{member.user.firstName} {member.user.lastName}</p>
+                        <p className="text-sm text-muted-foreground">{member.user.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-cyan-50 text-cyan-700">
+                        <Users className="w-3 h-3 mr-1" />
+                        {member.assistants?.length || 0} assistenti
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {member.notes || "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openAssistantDialog(member.id)}
+                      >
+                        <UserPlus className="w-4 h-4 mr-1" />
+                        Aggiungi
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -534,14 +647,125 @@ export default function TournamentStaffPage() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  </div>
+
+                  {/* Assistants Section (Expandable) */}
+                  {expandedJudges.has(member.id) && (
+                    <div className="p-4 border-t bg-white">
+                      {member.assistants && member.assistants.length > 0 ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-muted-foreground mb-3">Assistenti:</p>
+                          {member.assistants.map((assistant) => (
+                            <div
+                              key={assistant.id}
+                              className="flex items-center justify-between p-3 bg-cyan-50/50 rounded-md"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-700 font-semibold text-xs">
+                                  {assistant.user.firstName[0]}{assistant.user.lastName[0]}
+                                </div>
+                                <span>{assistant.user.firstName} {assistant.user.lastName}</span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() =>
+                                  handleRemoveAssistant(
+                                    assistant.id,
+                                    `${assistant.user.firstName} ${assistant.user.lastName}`
+                                  )
+                                }
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-muted-foreground">
+                          <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                          <p className="text-sm">Nessun assistente assegnato</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => openAssistantDialog(member.id)}
+                          >
+                            <UserPlus className="w-4 h-4 mr-1" />
+                            Aggiungi Assistente
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Assistant Assignment Dialog */}
+      <Dialog open={assistantDialogOpen} onOpenChange={setAssistantDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assegna Assistente al Giudice</DialogTitle>
+            <DialogDescription>
+              Seleziona un utente da assegnare come assistente del giudice selezionato.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Utente</label>
+              {availableUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">
+                  Nessun utente disponibile.
+                </p>
+              ) : (
+                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona utente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableUsers.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <span className="flex items-center gap-2">
+                          {user.firstName} {user.lastName}
+                          <span className="text-xs text-muted-foreground">
+                            ({user.email})
+                          </span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Note (opzionale)</label>
+              <Textarea
+                placeholder="Aggiungi note..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssistantDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button
+              onClick={handleAssignAssistant}
+              disabled={assigning || !selectedUserId}
+            >
+              {assigning ? "Assegnazione..." : "Assegna Assistente"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Scorers Section */}
       <Card>

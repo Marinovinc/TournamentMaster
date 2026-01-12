@@ -373,9 +373,10 @@ model TournamentProfile {
   gameMode        GameMode            @default(TRADITIONAL)
 
   // Regolamento FIPSAS
-  followsFipsasRules  Boolean         @default(false)
-  fipsasRegulationUrl String?         @db.VarChar(500)
-  cipsRegulationUrl   String?         @db.VarChar(500)  // Link al regolamento CIPS internazionale
+  followsFipsasRules    Boolean         @default(false)
+  fipsasRegulationUrl   String?         @db.VarChar(500)  // Link esterno al sito FIPSAS
+  localRegulationPath   String?         @db.VarChar(255)  // Path locale al PDF /documents/regulations/...
+  cipsRegulationUrl     String?         @db.VarChar(500)  // Link al regolamento CIPS internazionale
 
   // Regole default
   defaultMinWeight       Decimal?     @db.Decimal(8, 3)  // Peso minimo cattura kg
@@ -440,7 +441,8 @@ model Tournament {
   // Game Mode & Regulations
   gameMode            GameMode             @default(TRADITIONAL)
   followsFipsasRules  Boolean              @default(false)
-  fipsasRegulationUrl String?              @db.VarChar(500) // Link al regolamento FIPSAS specifico
+  fipsasRegulationUrl String?              @db.VarChar(500) // Link esterno al sito FIPSAS
+  localRegulationPath String?              @db.VarChar(255) // Path locale al PDF /documents/regulations/...
   cipsRegulationUrl   String?              @db.VarChar(500) // Link al regolamento CIPS internazionale
 
   // Media

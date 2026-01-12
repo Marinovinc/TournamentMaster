@@ -168,8 +168,79 @@ const trainaCostieraSpeciesScoring = [
   },
 ];
 
-// URL regolamento FIPSAS
-const FIPSAS_REGULATION_URL = "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/big-game/circolare-normativa-big-game";
+// URL e path locali regolamenti FIPSAS
+const REGULATIONS = {
+  // MARE
+  BIG_GAME: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/big-game/circolare-normativa-big-game",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_big_game.pdf"
+  },
+  SURF_CASTING: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/surf-casting/circolare-normativa-surf-casting",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_surf_casting.pdf"
+  },
+  BOLENTINO: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/bolentino/circolare-normativa-bolentino",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_bolentino.pdf"
+  },
+  DRIFTING: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/big-game/circolare-normativa-big-game",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_big_game.pdf" // usa Big Game
+  },
+  TRAINA_COSTIERA: {
+    url: "https://www.fipsas.it/pesca-di-superficie/documenti",
+    localPath: "/documents/regulations/fipsas/cartellino_traina_costiera.pdf"
+  },
+  // ACQUE INTERNE
+  PESCA_COLPO: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/acque-interne/pesca-al-colpo/circolare-normativa-pesca-al-colpo",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_pesca_al_colpo.pdf"
+  },
+  FEEDER: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/acque-interne/feeder/circolare-normativa-feeder",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_feeder.pdf"
+  },
+  FLY_FISHING: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/acque-interne/pesca-con-la-mosca/circolare-normativa-pesca-con-la-mosca",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_pesca_mosca.pdf"
+  },
+  CARPFISHING: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/acque-interne/carp-fishing/circolare-normativa-carp-fishing",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_carpfishing.pdf"
+  },
+  TROUT_AREA: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/acque-interne/trout-area/circolare-normativa-trout-area",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_trout_area.pdf"
+  },
+  BASS_FISHING: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/acque-interne/bass-fishing/circolare-normativa-bass-fishing",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_bass_fishing.pdf"
+  },
+  // CASTING
+  LONG_CASTING: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/casting/long-casting/circolare-normativa-long-casting",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_long_casting.pdf"
+  },
+  FLY_CASTING: {
+    url: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/casting/fly-casting/circolare-normativa-fly-casting",
+    localPath: "/documents/regulations/fipsas/circolare_normativa_2025_fly_casting.pdf"
+  },
+  // Documenti generici
+  TABELLA_PUNTEGGIO: {
+    url: "https://www.fipsas.it/pesca-di-superficie/documenti",
+    localPath: "/documents/regulations/fipsas/tabella_punteggio_cm_peso_a4.pdf"
+  },
+  SQUADRE_NAZIONALI: {
+    url: "https://www.fipsas.it/pesca-di-superficie/documenti",
+    localPath: "/documents/regulations/fipsas/regolamento_squadre_nazionali.pdf"
+  },
+};
+
+// Helper per ottenere URL/path
+const getRegulation = (discipline: string) => {
+  const reg = REGULATIONS[discipline as keyof typeof REGULATIONS];
+  return reg || { url: null, localPath: null };
+};
 
 async function seedTournamentProfiles() {
   console.log('🎯 Seeding Tournament Profiles FIPSAS...\n');
@@ -184,7 +255,8 @@ async function seedTournamentProfiles() {
       level: TournamentLevel.NATIONAL,
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
-      fipsasRegulationUrl: FIPSAS_REGULATION_URL,
+      fipsasRegulationUrl: getRegulation("BIG_GAME").url,
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: 30, // kg minimo per big game
       defaultMaxCatchesPerDay: 3,
       defaultPointsPerKg: 1,
@@ -199,7 +271,8 @@ async function seedTournamentProfiles() {
       level: TournamentLevel.NATIONAL,
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
-      fipsasRegulationUrl: FIPSAS_REGULATION_URL,
+      fipsasRegulationUrl: getRegulation("BIG_GAME").url,
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 5,
       defaultPointsPerKg: 0,
@@ -217,7 +290,8 @@ async function seedTournamentProfiles() {
       level: TournamentLevel.NATIONAL,
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
-      fipsasRegulationUrl: FIPSAS_REGULATION_URL,
+      fipsasRegulationUrl: getRegulation("BIG_GAME").url,
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: 5, // kg minimo
       defaultMaxCatchesPerDay: 5,
       defaultPointsPerKg: 1,
@@ -232,7 +306,8 @@ async function seedTournamentProfiles() {
       level: TournamentLevel.NATIONAL,
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
-      fipsasRegulationUrl: FIPSAS_REGULATION_URL,
+      fipsasRegulationUrl: getRegulation("BIG_GAME").url,
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 8,
       defaultPointsPerKg: 0,
@@ -250,7 +325,8 @@ async function seedTournamentProfiles() {
       level: TournamentLevel.REGIONAL,
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
-      fipsasRegulationUrl: FIPSAS_REGULATION_URL,
+      fipsasRegulationUrl: getRegulation("BIG_GAME").url,
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: 1, // kg minimo
       defaultMaxCatchesPerDay: 10,
       defaultPointsPerKg: 1,
@@ -265,7 +341,8 @@ async function seedTournamentProfiles() {
       level: TournamentLevel.REGIONAL,
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
-      fipsasRegulationUrl: FIPSAS_REGULATION_URL,
+      fipsasRegulationUrl: getRegulation("BIG_GAME").url,
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 15,
       defaultPointsPerKg: 0,
@@ -283,7 +360,8 @@ async function seedTournamentProfiles() {
       level: TournamentLevel.REGIONAL,
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
-      fipsasRegulationUrl: FIPSAS_REGULATION_URL,
+      fipsasRegulationUrl: getRegulation("BIG_GAME").url,
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: 0.2, // 200g minimo
       defaultMaxCatchesPerDay: 20,
       defaultPointsPerKg: 1,
@@ -300,7 +378,8 @@ async function seedTournamentProfiles() {
       level: TournamentLevel.REGIONAL,
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
-      fipsasRegulationUrl: FIPSAS_REGULATION_URL,
+      fipsasRegulationUrl: getRegulation("BIG_GAME").url,
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: 0.5, // 500g minimo
       defaultMaxCatchesPerDay: 10,
       defaultPointsPerKg: 1,
@@ -317,7 +396,8 @@ async function seedTournamentProfiles() {
       level: TournamentLevel.REGIONAL,
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
-      fipsasRegulationUrl: FIPSAS_REGULATION_URL,
+      fipsasRegulationUrl: getRegulation("BIG_GAME").url,
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: 0.1, // 100g minimo
       defaultMaxCatchesPerDay: 15,
       defaultPointsPerKg: 1,
@@ -334,7 +414,8 @@ async function seedTournamentProfiles() {
       level: TournamentLevel.REGIONAL,
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
-      fipsasRegulationUrl: FIPSAS_REGULATION_URL,
+      fipsasRegulationUrl: getRegulation("BIG_GAME").url,
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: 0.15, // 150g minimo
       defaultMaxCatchesPerDay: 20,
       defaultPointsPerKg: 1,
@@ -356,6 +437,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne",
+      localRegulationPath: getRegulation("PESCA_COLPO").localPath,
       defaultMinWeight: 0.2, // 200g minimo
       defaultMaxCatchesPerDay: 10,
       defaultPointsPerKg: 1,
@@ -371,6 +453,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne",
+      localRegulationPath: getRegulation("PESCA_COLPO").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 15,
       defaultPointsPerKg: 0,
@@ -388,6 +471,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/carpfishing",
+      localRegulationPath: getRegulation("CARPFISHING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: null, // illimitato
       defaultPointsPerKg: 0,
@@ -405,6 +489,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/feeder",
+      localRegulationPath: getRegulation("FEEDER").localPath,
       defaultMinWeight: 0.05, // 50g minimo
       defaultMaxCatchesPerDay: null, // illimitato
       defaultPointsPerKg: 1,
@@ -422,6 +507,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/colpo",
+      localRegulationPath: getRegulation("PESCA_COLPO").localPath,
       defaultMinWeight: 0.02, // 20g minimo
       defaultMaxCatchesPerDay: null, // illimitato
       defaultPointsPerKg: 1,
@@ -439,6 +525,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/mosca",
+      localRegulationPath: getRegulation("FLY_FISHING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 20,
       defaultPointsPerKg: 0,
@@ -456,6 +543,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/trota-lago",
+      localRegulationPath: getRegulation("FLY_FISHING").localPath,
       defaultMinWeight: 0.2, // 200g minimo
       defaultMaxCatchesPerDay: 10,
       defaultPointsPerKg: 1,
@@ -473,6 +561,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/trota-torrente",
+      localRegulationPath: getRegulation("FLY_FISHING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 15,
       defaultPointsPerKg: 0,
@@ -490,6 +579,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/bass",
+      localRegulationPath: getRegulation("BASS_FISHING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 5, // limite 5 pesci
       defaultPointsPerKg: 0,
@@ -507,6 +597,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/predatori",
+      localRegulationPath: getRegulation("BASS_FISHING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 10,
       defaultPointsPerKg: 0,
@@ -529,6 +620,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/surf-casting",
+      localRegulationPath: getRegulation("SURF_CASTING").localPath,
       defaultMinWeight: 0.1, // 100g minimo
       defaultMaxCatchesPerDay: null, // illimitato
       defaultPointsPerKg: 1,
@@ -546,6 +638,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/canna-natante",
+      localRegulationPath: getRegulation("BOLENTINO").localPath,
       defaultMinWeight: 0.1,
       defaultMaxCatchesPerDay: null,
       defaultPointsPerKg: 1,
@@ -563,6 +656,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/canna-riva",
+      localRegulationPath: getRegulation("SURF_CASTING").localPath,
       defaultMinWeight: 0.05,
       defaultMaxCatchesPerDay: null,
       defaultPointsPerKg: 1,
@@ -580,6 +674,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/kayak-fishing",
+      localRegulationPath: getRegulation("BIG_GAME").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 10,
       defaultPointsPerKg: 0,
@@ -601,6 +696,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/colpo",
+      localRegulationPath: getRegulation("PESCA_COLPO").localPath,
       defaultMinWeight: 0.02,
       defaultMaxCatchesPerDay: null,
       defaultPointsPerKg: 1,
@@ -618,6 +714,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/predatori-barca",
+      localRegulationPath: getRegulation("BASS_FISHING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 10,
       defaultPointsPerKg: 0,
@@ -635,6 +732,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/belly-boat",
+      localRegulationPath: getRegulation("FLY_FISHING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 15,
       defaultPointsPerKg: 0,
@@ -652,6 +750,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/street-fishing",
+      localRegulationPath: getRegulation("PESCA_COLPO").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 20,
       defaultPointsPerKg: 0,
@@ -669,6 +768,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/trout-area",
+      localRegulationPath: getRegulation("TROUT_AREA").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: null, // illimitato
       defaultPointsPerKg: 0,
@@ -686,6 +786,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/fiume",
+      localRegulationPath: getRegulation("FEEDER").localPath,
       defaultMinWeight: 0.05,
       defaultMaxCatchesPerDay: null,
       defaultPointsPerKg: 1,
@@ -703,6 +804,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/bilancella",
+      localRegulationPath: getRegulation("PESCA_COLPO").localPath,
       defaultMinWeight: 0.01,
       defaultMaxCatchesPerDay: null,
       defaultPointsPerKg: 1,
@@ -720,6 +822,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/storione",
+      localRegulationPath: getRegulation("CARPFISHING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 5,
       defaultPointsPerKg: 0,
@@ -737,6 +840,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.CATCH_RELEASE,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/kayak-fishing",
+      localRegulationPath: getRegulation("BASS_FISHING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: 10,
       defaultPointsPerKg: 0,
@@ -758,6 +862,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/casting/discipline/long-casting",
+      localRegulationPath: getRegulation("LONG_CASTING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: null,
       defaultPointsPerKg: 0,
@@ -775,6 +880,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/casting/discipline/fly-casting",
+      localRegulationPath: getRegulation("FLY_CASTING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: null,
       defaultPointsPerKg: 0,
@@ -792,6 +898,7 @@ async function seedTournamentProfiles() {
       gameMode: GameMode.TRADITIONAL,
       followsFipsasRules: true,
       fipsasRegulationUrl: "https://www.fipsas.it/casting/discipline/casting",
+      localRegulationPath: getRegulation("LONG_CASTING").localPath,
       defaultMinWeight: null,
       defaultMaxCatchesPerDay: null,
       defaultPointsPerKg: 0,

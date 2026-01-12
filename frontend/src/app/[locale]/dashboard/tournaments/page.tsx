@@ -1202,6 +1202,7 @@ export default function TournamentsPage() {
             {/* Species Scoring Config for C&R mode */}
             {formData.gameMode === "CATCH_RELEASE" && (
               <SpeciesScoringConfig
+                discipline={formData.discipline}
                 onChange={(scoring) => setSpeciesScoring(scoring)}
                 initialScoring={speciesScoring}
               />

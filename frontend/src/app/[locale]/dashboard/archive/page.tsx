@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import api from "@/lib/api";
+import { getMediaUrl } from "@/lib/media";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -724,7 +725,7 @@ export default function ArchivePage() {
                     {prize.media && prize.media.length > 0 ? (
                       <div className="relative h-48 bg-muted">
                         <img
-                          src={prize.media[0].thumbnailUrl || prize.media[0].url}
+                          src={getMediaUrl(prize.media[0].thumbnailUrl || prize.media[0].url)}
                           alt={prize.media[0].caption || prize.name}
                           className="w-full h-full object-cover"
                         />

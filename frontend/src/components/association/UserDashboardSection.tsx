@@ -71,6 +71,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
 import { getMediaUrl } from "@/lib/media";
+import { disciplineLabels } from '@/lib/disciplines';
 
 // Types
 interface Tournament {
@@ -129,16 +130,7 @@ interface UserDashboardSectionProps {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 // Discipline labels
-const disciplineLabels: Record<string, string> = {
-  BIG_GAME: "Big Game",
-  DRIFTING: "Drifting",
-  TRAINA_COSTIERA: "Traina Costiera",
-  BOLENTINO: "Bolentino",
-  EGING: "Eging",
-  VERTICAL_JIGGING: "Vertical Jigging",
-  SHORE: "Shore",
-  SOCIAL: "Social",
-};
+// disciplineLabels importato da lib/disciplines
 
 // Status configuration
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -192,7 +184,15 @@ export default function UserDashboardSection({
   const [targetUser, setTargetUser] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
 
   // Admin mode switch state - when enabled, shows management tab
+  // Default to true for admins
   const [adminModeEnabled, setAdminModeEnabled] = useState(false);
+
+  // Set admin mode ON by default for admins
+  useEffect(() => {
+    if (isAdmin && !isViewingOtherUser) {
+      setAdminModeEnabled(true);
+    }
+  }, [isAdmin, isViewingOtherUser]);
 
   // Profile edit state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);

@@ -28,6 +28,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import UserDashboardSection from "@/components/association/UserDashboardSection";
+import { getMediaUrl } from "@/lib/media";
+import { disciplineLabels } from '@/lib/disciplines';
 
 // API URL - for server-side rendering, prefer localhost or internal URL
 // NEXT_PUBLIC_API_URL may point to external IP not reachable from server
@@ -85,23 +87,17 @@ function getStatusBadge(status: string) {
 }
 
 // Discipline labels
-const disciplineLabels: Record<string, string> = {
-  BIG_GAME: "Big Game",
-  DRIFTING: "Drifting",
-  TRAINA_COSTIERA: "Traina Costiera",
-  BOLENTINO: "Bolentino",
-  EGING: "Eging",
-  VERTICAL_JIGGING: "Vertical Jigging",
-  SHORE: "Shore",
-  SOCIAL: "Social",
-};
+// disciplineLabels importato da lib/disciplines
 
 export default async function AssociationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams: Promise<{ viewAs?: string }>;
 }) {
   const { locale, slug } = await params;
+  const { viewAs } = await searchParams;
   const tenant = await getTenantData(slug);
 
   if (!tenant) {
@@ -141,7 +137,7 @@ export default async function AssociationPage({
       <div
         className="relative h-64 md:h-80 bg-gradient-to-r from-blue-600 to-cyan-600"
         style={{
-          backgroundImage: tenant.bannerImage ? `url(${tenant.bannerImage})` : undefined,
+          backgroundImage: tenant.bannerImage ? `url(${getMediaUrl(tenant.bannerImage)})` : undefined,
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundColor: !tenant.bannerImage ? primaryColor : undefined,
@@ -154,7 +150,7 @@ export default async function AssociationPage({
             <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-xl shadow-lg flex items-center justify-center overflow-hidden -mb-12">
               {tenant.logo ? (
                 <img
-                  src={tenant.logo}
+                  src={getMediaUrl(tenant.logo)}
                   alt={tenant.name}
                   className="w-full h-full object-contain p-2"
                 />
@@ -180,10 +176,12 @@ export default async function AssociationPage({
       <div className="container mx-auto px-4 py-8 max-w-6xl">
 
         {/* User Dashboard Section - FIRST for authenticated users */}
+        {/* viewAs parameter allows admins to see another user's profile */}
         <UserDashboardSection
           locale={locale}
           primaryColor={primaryColor}
           secondaryColor={secondaryColor}
+          viewUserId={viewAs}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -266,7 +264,7 @@ export default async function AssociationPage({
                         <div className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors">
                           {tournament.bannerImage ? (
                             <img
-                              src={tournament.bannerImage}
+                              src={getMediaUrl(tournament.bannerImage)}
                               alt={tournament.name}
                               className="w-20 h-14 object-cover rounded-md"
                             />

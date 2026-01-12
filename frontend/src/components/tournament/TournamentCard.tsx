@@ -35,6 +35,8 @@ import {
   Image as ImageIcon
 } from "lucide-react";
 import Link from "next/link";
+import { getMediaUrl } from "@/lib/media";
+import { disciplineLabels } from '@/lib/disciplines';
 
 export interface Tournament {
   id: string;
@@ -78,16 +80,7 @@ const statusConfig: Record<Tournament["status"], { label: string; variant: "defa
   CANCELLED: { label: "Annullato", variant: "secondary" },
 };
 
-const disciplineLabels: Record<string, string> = {
-  BIG_GAME: "Big Game",
-  DRIFTING: "Drifting",
-  TRAINA_COSTIERA: "Traina Costiera",
-  BOLENTINO: "Bolentino",
-  EGING: "Eging",
-  VERTICAL_JIGGING: "Vertical Jigging",
-  SHORE: "Pesca da Riva",
-  SOCIAL: "Evento Sociale",
-};
+// disciplineLabels importato da lib/disciplines
 
 export function TournamentCard({ tournament, locale = "it" }: TournamentCardProps) {
   const status = statusConfig[tournament.status] || { label: tournament.status || "N/A", variant: "secondary" as const };
@@ -122,7 +115,7 @@ export function TournamentCard({ tournament, locale = "it" }: TournamentCardProp
       <div className="relative h-40 bg-gradient-to-br from-blue-600 to-cyan-500 overflow-hidden">
         {tournament.bannerImage ? (
           <img
-            src={tournament.bannerImage}
+            src={getMediaUrl(tournament.bannerImage)}
             alt={tournament.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />

@@ -27,9 +27,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Calendar, MapPin, Users, Trophy, Fish, Euro, Clock,
-  ArrowLeft, Award, Anchor, User, Scale, Target, Download, BarChart3
+  Award, Anchor, User, Scale, Target, Download, BarChart3
 } from "lucide-react";
 import { HelpGuide } from "@/components/HelpGuide";
+import { BackButton } from "@/components/BackButton";
+import { disciplineLabels } from '@/lib/disciplines';
 
 interface TournamentDetail {
   id: string;
@@ -66,16 +68,7 @@ interface TournamentDetail {
   }>;
 }
 
-const disciplineLabels: Record<string, string> = {
-  BIG_GAME: "Big Game",
-  DRIFTING: "Drifting",
-  TRAINA_COSTIERA: "Traina Costiera",
-  BOLENTINO: "Bolentino",
-  EGING: "Eging",
-  VERTICAL_JIGGING: "Vertical Jigging",
-  SHORE: "Pesca da Riva",
-  SOCIAL: "Evento Sociale",
-};
+// disciplineLabels importato da lib/disciplines
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   DRAFT: { label: "Bozza", variant: "secondary" },
@@ -139,14 +132,8 @@ export default async function TournamentDetailPage({
 
   return (
     <main className="container mx-auto px-4 py-8">
-      {/* Back Link */}
-      <Link
-        href={`/${locale}/tournaments`}
-        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Torna ai tornei
-      </Link>
+      {/* Back Button - uses browser history to return to previous page */}
+      <BackButton label="Torna ai tornei" fallbackHref={`/${locale}/tournaments`} />
 
       {/* Header */}
       <div className="mb-8">

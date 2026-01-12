@@ -41,6 +41,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { disciplineLabels } from '@/lib/disciplines';
 
 // ============================================================================
 // TYPES
@@ -101,16 +102,7 @@ const TM_FEE = 5; // Fee fisso TournamentMaster
 // DISCIPLINE LABELS
 // ============================================================================
 
-const disciplineLabels: Record<string, string> = {
-  BIG_GAME: "Big Game",
-  DRIFTING: "Drifting",
-  TRAINA_COSTIERA: "Traina Costiera",
-  BOLENTINO: "Bolentino",
-  EGING: "Eging",
-  VERTICAL_JIGGING: "Vertical Jigging",
-  SHORE: "Pesca da Riva",
-  SOCIAL: "Evento Sociale",
-};
+// disciplineLabels importato da lib/disciplines
 
 // ============================================================================
 // MAIN COMPONENT

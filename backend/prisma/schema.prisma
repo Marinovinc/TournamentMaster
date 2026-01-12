@@ -285,14 +285,49 @@ enum TournamentLevel {
 }
 
 enum TournamentDiscipline {
-  BIG_GAME
-  DRIFTING
-  TRAINA_COSTIERA
-  BOLENTINO
-  EGING
-  VERTICAL_JIGGING
-  SHORE
-  SOCIAL
+  // ========== MARE (Pesca di Superficie) ==========
+  SURF_CASTING            // Surf Casting
+  BIG_GAME                // Big Game
+  CANNA_NATANTE           // Pesca con Canna da Natante
+  CANNA_RIVA              // Pesca con Canna da Riva
+  BOLENTINO               // Bolentino
+  DRIFTING                // Drifting (sottocategoria Big Game)
+  TRAINA_COSTIERA         // Traina Costiera
+  EGING                   // Eging (pesca ai cefalopodi)
+  VERTICAL_JIGGING        // Vertical Jigging
+  SHORE                   // Shore Jigging
+  KAYAK_FISHING_MARE      // Kayak Fishing Mare
+
+  // ========== ACQUE INTERNE ==========
+  PESCA_COLPO             // Pesca al Colpo
+  FEEDER                  // Feeder
+  FLY_FISHING             // Pesca con la Mosca
+  TROTA_TORRENTE          // Pesca alla trota con esche naturali in torrente
+  TROTA_LAGO              // Pesca alla trota con esche naturali in lago
+  SPINNING_FRESHWATER     // Pesca con esche artificiali da riva
+  PREDATORI_BARCA         // Predatori con esche artificiali da barca
+  BASS_FISHING            // Bass Fishing
+  BELLY_BOAT              // Pesca da Belly Boat
+  CARPFISHING             // Carp Fishing
+  STREET_FISHING          // Street Fishing
+  TROUT_AREA              // Trout Area
+  PESCA_FIUME             // Pesca in Fiume
+  BILANCELLA              // Pesca con Bilancella
+  STORIONE                // Pesca allo Storione
+  KAYAK_FISHING_INTERNO   // Kayak Fishing Acque Interne
+
+  // ========== CASTING (Discipline Tecniche) ==========
+  LONG_CASTING            // Long Casting
+  FLY_CASTING             // Fly Casting
+  CASTING                 // Casting
+
+  // ========== DEPRECATI (manteniamo per backward compatibility) ==========
+  MATCH_FISHING           // @deprecated - usa PESCA_COLPO
+  PREDATORI               // @deprecated - usa PREDATORI_BARCA
+
+  // ========== GENERALE ==========
+  SOCIAL                  // Eventi sociali/ricreativi
+  OTHER                   // Altre discipline
 }
 
 // Modalità di gioco del torneo
@@ -340,6 +375,7 @@ model TournamentProfile {
   // Regolamento FIPSAS
   followsFipsasRules  Boolean         @default(false)
   fipsasRegulationUrl String?         @db.VarChar(500)
+  cipsRegulationUrl   String?         @db.VarChar(500)  // Link al regolamento CIPS internazionale
 
   // Regole default
   defaultMinWeight       Decimal?     @db.Decimal(8, 3)  // Peso minimo cattura kg
@@ -405,6 +441,7 @@ model Tournament {
   gameMode            GameMode             @default(TRADITIONAL)
   followsFipsasRules  Boolean              @default(false)
   fipsasRegulationUrl String?              @db.VarChar(500) // Link al regolamento FIPSAS specifico
+  cipsRegulationUrl   String?              @db.VarChar(500) // Link al regolamento CIPS internazionale
 
   // Media
   bannerImage         String?              @db.VarChar(500)

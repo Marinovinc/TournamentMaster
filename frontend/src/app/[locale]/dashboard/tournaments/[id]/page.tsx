@@ -53,6 +53,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { HelpGuide } from "@/components/HelpGuide";
 import { toast } from "sonner";
+import { disciplineLabels } from '@/lib/disciplines';
 
 interface Tournament {
   id: string;
@@ -114,16 +115,7 @@ interface TournamentStats {
   };
 }
 
-const disciplineLabels: Record<string, string> = {
-  BIG_GAME: "Big Game",
-  DRIFTING: "Drifting",
-  TRAINA_COSTIERA: "Traina Costiera",
-  BOLENTINO: "Bolentino",
-  EGING: "Eging",
-  VERTICAL_JIGGING: "Vertical Jigging",
-  SHORE: "Pesca da Riva",
-  SOCIAL: "Evento Sociale",
-};
+// disciplineLabels importato da lib/disciplines
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
   DRAFT: { label: "Bozza", color: "text-gray-700", bgColor: "bg-gray-100" },
@@ -907,7 +899,16 @@ export default function TournamentManagementPage() {
               <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
                 <Link href={`/${locale}/dashboard/judge?tournamentId=${tournament.id}`}>
                   <CheckCircle className="h-5 w-5" />
-                  <span className="text-xs">Catture</span>
+                  <span className="text-xs">Valida Catture</span>
+                </Link>
+              </Button>
+            )}
+
+            {(isOngoing || isCompleted) && (
+              <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+                <Link href={`/${locale}/dashboard/tournaments/${tournament.id}/catches`}>
+                  <Fish className="h-5 w-5" />
+                  <span className="text-xs">Tutte le Catture</span>
                 </Link>
               </Button>
             )}

@@ -79,6 +79,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { HelpGuide } from "@/components/HelpGuide";
 import { getMediaUrl } from "@/lib/media";
+import { disciplineLabels } from '@/lib/disciplines';
 
 // Types
 interface Tournament {
@@ -622,18 +623,7 @@ export default function TournamentsPage() {
   };
 
   // Discipline labels
-  const disciplineLabels: Record<string, string> = {
-    BIG_GAME: "Big Game",
-    DRIFTING: "Drifting",
-    TRAINA_COSTIERA: "Traina Costiera",
-    BOLENTINO: "Bolentino",
-    EGING: "Eging",
-    VERTICAL_JIGGING: "Vertical Jigging",
-    SHORE: "Shore",
-    SOCIAL: "Sociale",
-    FLY_FISHING: "Pesca a Mosca",
-    BOTTOM_FISHING: "Pesca a Fondo",
-  };
+  // disciplineLabels importato da lib/disciplines
 
   if (loading) {
     return (

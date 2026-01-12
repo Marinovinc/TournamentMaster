@@ -342,6 +342,463 @@ async function seedTournamentProfiles() {
       displayOrder: 10,
     },
 
+    // =========================================================================
+    // ACQUE INTERNE
+    // =========================================================================
+
+    // SPINNING ACQUE INTERNE
+    {
+      name: "FIPSAS Spinning Acque Interne",
+      description: "Profilo ufficiale FIPSAS per tornei Spinning in acque interne. Pesca a spinning in laghi e fiumi.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.SPINNING_FRESHWATER,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne",
+      defaultMinWeight: 0.2, // 200g minimo
+      defaultMaxCatchesPerDay: 10,
+      defaultPointsPerKg: 1,
+      defaultBonusPoints: 0,
+      displayOrder: 11,
+    },
+    {
+      name: "FIPSAS Spinning Acque Interne C&R",
+      description: "Profilo FIPSAS per tornei Spinning in acque interne con Catch & Release obbligatorio.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.SPINNING_FRESHWATER,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 15,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 12,
+    },
+
+    // CARPFISHING
+    {
+      name: "FIPSAS Carpfishing",
+      description: "Profilo ufficiale FIPSAS per tornei Carpfishing. Sessioni di 24-48h con Catch & Release.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.CARPFISHING,
+      level: TournamentLevel.NATIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/carpfishing",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: null, // illimitato
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 13,
+    },
+
+    // FEEDER
+    {
+      name: "FIPSAS Feeder",
+      description: "Profilo ufficiale FIPSAS per tornei Feeder. Pesca a fondo con pasturatore in acque interne.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.FEEDER,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/feeder",
+      defaultMinWeight: 0.05, // 50g minimo
+      defaultMaxCatchesPerDay: null, // illimitato
+      defaultPointsPerKg: 1,
+      defaultBonusPoints: 0,
+      displayOrder: 14,
+    },
+
+    // MATCH FISHING (Pesca al colpo)
+    {
+      name: "FIPSAS Pesca al Colpo",
+      description: "Profilo ufficiale FIPSAS per tornei Pesca al Colpo (Match Fishing). Tecnica classica con canna fissa o bolognese.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.MATCH_FISHING,
+      level: TournamentLevel.NATIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/colpo",
+      defaultMinWeight: 0.02, // 20g minimo
+      defaultMaxCatchesPerDay: null, // illimitato
+      defaultPointsPerKg: 1,
+      defaultBonusPoints: 0,
+      displayOrder: 15,
+    },
+
+    // FLY FISHING (Pesca a mosca)
+    {
+      name: "FIPSAS Pesca a Mosca",
+      description: "Profilo ufficiale FIPSAS per tornei Pesca a Mosca (Fly Fishing). Tecnica con coda di topo e mosche artificiali.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.FLY_FISHING,
+      level: TournamentLevel.NATIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/mosca",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 20,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 16,
+    },
+
+    // TROTA LAGO
+    {
+      name: "FIPSAS Trota Lago",
+      description: "Profilo ufficiale FIPSAS per tornei Trota Lago. Pesca alla trota in laghi e laghetti.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.TROTA_LAGO,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/trota-lago",
+      defaultMinWeight: 0.2, // 200g minimo
+      defaultMaxCatchesPerDay: 10,
+      defaultPointsPerKg: 1,
+      defaultBonusPoints: 0,
+      displayOrder: 17,
+    },
+
+    // TROTA TORRENTE
+    {
+      name: "FIPSAS Trota Torrente",
+      description: "Profilo ufficiale FIPSAS per tornei Trota Torrente. Pesca alla trota in torrenti e fiumi montani.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.TROTA_TORRENTE,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/trota-torrente",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 15,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 18,
+    },
+
+    // BASS FISHING
+    {
+      name: "FIPSAS Bass Fishing",
+      description: "Profilo ufficiale FIPSAS per tornei Bass Fishing. Pesca al persico trota (black bass) con tecniche americane.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.BASS_FISHING,
+      level: TournamentLevel.NATIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/bass",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 5, // limite 5 pesci
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 19,
+    },
+
+    // PREDATORI
+    {
+      name: "FIPSAS Predatori Acque Interne",
+      description: "Profilo ufficiale FIPSAS per tornei Predatori. Pesca a luccio, lucioperca, siluro e altri predatori.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.PREDATORI,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/predatori",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 10,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 20,
+    },
+
+
+    // =========================================================================
+    // MARE - DISCIPLINE AGGIUNTIVE FIPSAS
+    // =========================================================================
+
+    // SURF CASTING
+    {
+      name: "FIPSAS Surf Casting",
+      description: "Profilo ufficiale FIPSAS per tornei Surf Casting. Pesca dalla spiaggia con lancio lungo.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.SURF_CASTING,
+      level: TournamentLevel.NATIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/surf-casting",
+      defaultMinWeight: 0.1, // 100g minimo
+      defaultMaxCatchesPerDay: null, // illimitato
+      defaultPointsPerKg: 1,
+      defaultBonusPoints: 0,
+      displayOrder: 21,
+    },
+
+    // CANNA DA NATANTE
+    {
+      name: "FIPSAS Pesca con Canna da Natante",
+      description: "Profilo ufficiale FIPSAS per tornei Pesca con Canna da Natante. Pesca a bordo con tecniche varie.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.CANNA_NATANTE,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/canna-natante",
+      defaultMinWeight: 0.1,
+      defaultMaxCatchesPerDay: null,
+      defaultPointsPerKg: 1,
+      defaultBonusPoints: 0,
+      displayOrder: 22,
+    },
+
+    // CANNA DA RIVA
+    {
+      name: "FIPSAS Pesca con Canna da Riva",
+      description: "Profilo ufficiale FIPSAS per tornei Pesca con Canna da Riva. Pesca dalla costa con diverse tecniche.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.CANNA_RIVA,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/canna-riva",
+      defaultMinWeight: 0.05,
+      defaultMaxCatchesPerDay: null,
+      defaultPointsPerKg: 1,
+      defaultBonusPoints: 0,
+      displayOrder: 23,
+    },
+
+    // KAYAK FISHING MARE
+    {
+      name: "FIPSAS Kayak Fishing Mare",
+      description: "Profilo ufficiale FIPSAS per tornei Kayak Fishing in mare. Pesca da kayak in acque salate.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.KAYAK_FISHING_MARE,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/kayak-fishing",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 10,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 24,
+    },
+
+    // =========================================================================
+    // ACQUE INTERNE - DISCIPLINE AGGIUNTIVE FIPSAS
+    // =========================================================================
+
+    // PESCA AL COLPO (nuova enum)
+    {
+      name: "FIPSAS Pesca al Colpo (nuova)",
+      description: "Profilo ufficiale FIPSAS per tornei Pesca al Colpo. Tecnica classica con canna fissa o bolognese.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.PESCA_COLPO,
+      level: TournamentLevel.NATIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/colpo",
+      defaultMinWeight: 0.02,
+      defaultMaxCatchesPerDay: null,
+      defaultPointsPerKg: 1,
+      defaultBonusPoints: 0,
+      displayOrder: 25,
+    },
+
+    // PREDATORI DA BARCA
+    {
+      name: "FIPSAS Predatori da Barca",
+      description: "Profilo ufficiale FIPSAS per tornei Predatori con esche artificiali da barca.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.PREDATORI_BARCA,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/predatori-barca",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 10,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 26,
+    },
+
+    // BELLY BOAT
+    {
+      name: "FIPSAS Pesca da Belly Boat",
+      description: "Profilo ufficiale FIPSAS per tornei Pesca da Belly Boat. Pesca in galleggiante individuale.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.BELLY_BOAT,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/belly-boat",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 15,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 27,
+    },
+
+    // STREET FISHING
+    {
+      name: "FIPSAS Street Fishing",
+      description: "Profilo ufficiale FIPSAS per tornei Street Fishing. Pesca urbana in canali e fiumi cittadini.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.STREET_FISHING,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/street-fishing",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 20,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 28,
+    },
+
+    // TROUT AREA
+    {
+      name: "FIPSAS Trout Area",
+      description: "Profilo ufficiale FIPSAS per tornei Trout Area. Pesca alla trota in laghetti sportivi con esche artificiali.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.TROUT_AREA,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/trout-area",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: null, // illimitato
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 29,
+    },
+
+    // PESCA IN FIUME
+    {
+      name: "FIPSAS Pesca in Fiume",
+      description: "Profilo ufficiale FIPSAS per tornei Pesca in Fiume. Tecniche varie in ambienti fluviali.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.PESCA_FIUME,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/fiume",
+      defaultMinWeight: 0.05,
+      defaultMaxCatchesPerDay: null,
+      defaultPointsPerKg: 1,
+      defaultBonusPoints: 0,
+      displayOrder: 30,
+    },
+
+    // BILANCELLA
+    {
+      name: "FIPSAS Pesca con Bilancella",
+      description: "Profilo ufficiale FIPSAS per tornei Pesca con Bilancella. Tecnica tradizionale con rete a bilanciere.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.BILANCELLA,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/bilancella",
+      defaultMinWeight: 0.01,
+      defaultMaxCatchesPerDay: null,
+      defaultPointsPerKg: 1,
+      defaultBonusPoints: 0,
+      displayOrder: 31,
+    },
+
+    // STORIONE
+    {
+      name: "FIPSAS Pesca allo Storione",
+      description: "Profilo ufficiale FIPSAS per tornei Pesca allo Storione. Pesca al grande pesce in laghetti dedicati.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.STORIONE,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/storione",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 5,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 32,
+    },
+
+    // KAYAK FISHING ACQUE INTERNE
+    {
+      name: "FIPSAS Kayak Fishing Acque Interne",
+      description: "Profilo ufficiale FIPSAS per tornei Kayak Fishing in acque interne. Pesca da kayak in laghi e fiumi.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.KAYAK_FISHING_INTERNO,
+      level: TournamentLevel.REGIONAL,
+      gameMode: GameMode.CATCH_RELEASE,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/pesca-in-acque-interne/discipline/kayak-fishing",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: 10,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 33,
+    },
+
+    // =========================================================================
+    // CASTING - DISCIPLINE TECNICHE
+    // =========================================================================
+
+    // LONG CASTING
+    {
+      name: "FIPSAS Long Casting",
+      description: "Profilo ufficiale FIPSAS per tornei Long Casting. Gare di lancio a distanza.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.LONG_CASTING,
+      level: TournamentLevel.NATIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/casting/discipline/long-casting",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: null,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 34,
+    },
+
+    // FLY CASTING
+    {
+      name: "FIPSAS Fly Casting",
+      description: "Profilo ufficiale FIPSAS per tornei Fly Casting. Gare di lancio con coda di topo.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.FLY_CASTING,
+      level: TournamentLevel.NATIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/casting/discipline/fly-casting",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: null,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 35,
+    },
+
+    // CASTING
+    {
+      name: "FIPSAS Casting",
+      description: "Profilo ufficiale FIPSAS per tornei Casting. Gare di precisione e distanza nel lancio.",
+      isSystemProfile: true,
+      discipline: TournamentDiscipline.CASTING,
+      level: TournamentLevel.NATIONAL,
+      gameMode: GameMode.TRADITIONAL,
+      followsFipsasRules: true,
+      fipsasRegulationUrl: "https://www.fipsas.it/casting/discipline/casting",
+      defaultMinWeight: null,
+      defaultMaxCatchesPerDay: null,
+      defaultPointsPerKg: 0,
+      defaultBonusPoints: 0,
+      displayOrder: 36,
+    },
+
     // SOCIAL
     {
       name: "Torneo Sociale / Amatoriale",
@@ -356,7 +813,7 @@ async function seedTournamentProfiles() {
       defaultMaxCatchesPerDay: null, // illimitato
       defaultPointsPerKg: 1,
       defaultBonusPoints: 10, // bonus partecipazione
-      displayOrder: 11,
+      displayOrder: 99, // sempre ultimo
     },
   ];
 

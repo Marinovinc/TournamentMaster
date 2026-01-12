@@ -52,6 +52,8 @@ import {
   Lock,
   Play,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
+import { getMediaUrl } from "@/lib/media";
 
 interface MediaItem {
   id: string;
@@ -373,9 +375,10 @@ export default function TenantAdminMediaPage() {
       {items.map((item) => {
         const isVideo = isVideoFile(item.filename);
         // Thumbnails are served from frontend public folder, not backend API
+        // Use getMediaUrl to add basePath /tm
         const previewSrc = isVideo && item.thumbnailPath
-          ? item.thumbnailPath
-          : item.path;
+          ? getMediaUrl(item.thumbnailPath)
+          : getMediaUrl(item.path);
 
         return (
         <div
@@ -439,8 +442,8 @@ export default function TenantAdminMediaPage() {
         const isVideo = isVideoFile(item.filename);
         // Thumbnails are served from frontend public folder, not backend API
         const previewSrc = isVideo && item.thumbnailPath
-          ? item.thumbnailPath
-          : item.path;
+          ? getMediaUrl(item.thumbnailPath)
+          : getMediaUrl(item.path);
 
         return (
         <div
@@ -501,7 +504,10 @@ export default function TenantAdminMediaPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
+          <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold tracking-tight">Media Associazione</h1>
+          <HelpGuide pageKey="adminMedia" position="inline" isAdmin={true} />
+        </div>
           <p className="text-muted-foreground">
             Gestisci le foto e i video della tua associazione
           </p>
@@ -855,7 +861,7 @@ export default function TenantAdminMediaPage() {
           {editingMedia && (
             <div className="grid gap-4 py-4">
               <img
-                src={editingMedia.path}
+                src={getMediaUrl(editingMedia.path)}
                 alt={editingMedia.title}
                 className="w-full h-32 object-cover rounded-lg"
               />
@@ -948,7 +954,7 @@ export default function TenantAdminMediaPage() {
           <div className="flex items-center justify-center bg-black rounded-lg overflow-hidden">
             {viewingMedia && isVideoFile(viewingMedia.filename) ? (
               <video
-                src={viewingMedia.path}
+                src={getMediaUrl(viewingMedia.path)}
                 controls
                 autoPlay
                 className="max-w-full max-h-[70vh]"
@@ -957,7 +963,7 @@ export default function TenantAdminMediaPage() {
               </video>
             ) : viewingMedia ? (
               <img
-                src={viewingMedia.path}
+                src={getMediaUrl(viewingMedia.path)}
                 alt={viewingMedia.title}
                 className="max-w-full max-h-[70vh] object-contain"
               />

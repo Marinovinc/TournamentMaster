@@ -60,8 +60,17 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
+  ArrowLeft,
+  Shield,
+  Users,
+  Cog,
+  Plus,
+  Eye,
+  BarChart3,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
+import { getMediaUrl } from "@/lib/media";
 
 // Types
 interface Tournament {
@@ -113,6 +122,8 @@ interface UserDashboardSectionProps {
   locale: string;
   primaryColor?: string;
   secondaryColor?: string;
+  /** ID utente da visualizzare (per admin che vede profilo di un altro utente) */
+  viewUserId?: string;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -163,15 +174,25 @@ function getRelativeDate(dateStr: string) {
 export default function UserDashboardSection({
   locale,
   primaryColor = "#0066CC",
-  secondaryColor = "#004499"
+  secondaryColor = "#004499",
+  viewUserId
 }: UserDashboardSectionProps) {
-  const { user, token, isAuthenticated, isLoading: authLoading, logout } = useAuth();
+  const { user, token, isAuthenticated, isLoading: authLoading, logout, isAdmin } = useAuth();
+
+  // Determine if we're viewing another user's profile (admin mode)
+  const isViewingOtherUser = !!viewUserId;
 
   // State
   const [registrations, setRegistrations] = useState<{ upcoming: Registration[]; past: Registration[] } | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Target user info when viewing another user
+  const [targetUser, setTargetUser] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+
+  // Admin mode switch state - when enabled, shows management tab
+  const [adminModeEnabled, setAdminModeEnabled] = useState(false);
 
   // Profile edit state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -194,11 +215,14 @@ export default function UserDashboardSection({
       setError(null);
 
       try {
+        // Determine which endpoints to use based on whether viewing another user
+        const userIdPath = isViewingOtherUser ? viewUserId : "me";
+
         const [regRes, statsRes] = await Promise.all([
-          fetch(`${API_URL}/api/users/me/registrations`, {
+          fetch(`${API_URL}/api/users/${userIdPath}/registrations`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${API_URL}/api/users/me/stats`, {
+          fetch(`${API_URL}/api/users/${userIdPath}/stats`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -212,6 +236,11 @@ export default function UserDashboardSection({
 
         setRegistrations(regData.data);
         setStats(statsData.data);
+
+        // If viewing another user, extract user info from stats response
+        if (isViewingOtherUser && statsData.data?.user) {
+          setTargetUser(statsData.data.user);
+        }
       } catch (err) {
         console.error("Error fetching user data:", err);
         setError("Impossibile caricare i dati");
@@ -225,7 +254,7 @@ export default function UserDashboardSection({
     } else {
       setLoading(false);
     }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, isViewingOtherUser, viewUserId]);
 
   // Initialize edit form
   useEffect(() => {
@@ -299,8 +328,24 @@ export default function UserDashboardSection({
     return null;
   }
 
+  // Determine which user to display
+  const displayUser = isViewingOtherUser && targetUser ? targetUser : user;
+
   return (
     <div className="mt-12 mb-8">
+      {/* Back button for admin viewing another user's profile */}
+      {isViewingOtherUser && (
+        <div className="mb-4">
+          <Link
+            href={`/${locale}/dashboard/users`}
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Torna alla lista utenti
+          </Link>
+        </div>
+      )}
+
       {/* ================================================================
           HERO WELCOME SECTION
           Modern gradient card with user info + key stats
@@ -315,12 +360,14 @@ export default function UserDashboardSection({
           {/* User Welcome */}
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl md:text-3xl font-bold">
-              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+              {displayUser.firstName.charAt(0)}{displayUser.lastName.charAt(0)}
             </div>
             <div>
-              <p className="text-white/80 text-sm">Bentornato</p>
+              <p className="text-white/80 text-sm">
+                {isViewingOtherUser ? "Profilo Utente" : "Bentornato"}
+              </p>
               <h2 className="text-2xl md:text-3xl font-bold">
-                {user.firstName} {user.lastName}
+                {displayUser.firstName} {displayUser.lastName}
               </h2>
               <div className="flex items-center gap-2 mt-1">
                 {/* Dynamic Badge: PARTICIPANT if participated in tournaments, else Iscritto */}
@@ -336,24 +383,41 @@ export default function UserDashboardSection({
                     ? "ISCRITTO"
                     : "Iscritto"}
                 </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-white/80 hover:text-white hover:bg-white/10 h-7 px-2"
-                  onClick={() => setIsEditDialogOpen(true)}
-                >
-                  <Edit2 className="h-3 w-3 mr-1" />
-                  Modifica
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-white/80 hover:text-white hover:bg-red-500/20 h-7 px-2"
-                  onClick={() => logout()}
-                >
-                  <LogOut className="h-3 w-3 mr-1" />
-                  Esci
-                </Button>
+                {/* Hide edit/logout buttons when viewing another user */}
+                {!isViewingOtherUser && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-white/80 hover:text-white hover:bg-white/10 h-7 px-2"
+                      onClick={() => setIsEditDialogOpen(true)}
+                    >
+                      <Edit2 className="h-3 w-3 mr-1" />
+                      Modifica
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-white/80 hover:text-white hover:bg-red-500/20 h-7 px-2"
+                      onClick={() => logout()}
+                    >
+                      <LogOut className="h-3 w-3 mr-1" />
+                      Esci
+                    </Button>
+                  </>
+                )}
+                {/* Admin Mode Switch - only visible for admins viewing their own profile */}
+                {isAdmin && !isViewingOtherUser && (
+                  <div className="flex items-center gap-2 ml-2 bg-white/10 backdrop-blur rounded-full px-3 py-1">
+                    <Shield className="h-3.5 w-3.5 text-yellow-300" />
+                    <span className="text-xs text-white/80">Gestione</span>
+                    <Switch
+                      checked={adminModeEnabled}
+                      onCheckedChange={setAdminModeEnabled}
+                      className="data-[state=checked]:bg-yellow-400 scale-75"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -387,8 +451,15 @@ export default function UserDashboardSection({
       </div>
 
       {/* Tabs Navigation */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6">
+      <Tabs defaultValue={adminModeEnabled ? "management" : "overview"} className="w-full">
+        <TabsList className={`grid w-full mb-6 ${adminModeEnabled ? "grid-cols-4 md:grid-cols-8" : "grid-cols-4 md:grid-cols-7"}`}>
+          {/* Management Tab - First position when admin mode enabled */}
+          {adminModeEnabled && (
+            <TabsTrigger value="management" className="flex items-center gap-1.5 bg-yellow-100 data-[state=active]:bg-yellow-200 text-yellow-800">
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Gestione</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="overview" className="flex items-center gap-1.5">
             <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">Panoramica</span>
@@ -478,7 +549,7 @@ export default function UserDashboardSection({
                         className="sm:w-48 h-32 sm:h-auto bg-cover bg-center flex-shrink-0"
                         style={{
                           backgroundImage: reg.tournament.bannerImage
-                            ? `url(${reg.tournament.bannerImage})`
+                            ? `url(${getMediaUrl(reg.tournament.bannerImage)})`
                             : `linear-gradient(135deg, ${primaryColor}40, ${secondaryColor}40)`,
                         }}
                       >
@@ -707,35 +778,236 @@ export default function UserDashboardSection({
       )}
         </TabsContent>
 
-        {/* Messages Tab */}
+        {/* Messages Tab - Not available when viewing another user */}
         <TabsContent value="messages">
-          <MessagesSection primaryColor={primaryColor} />
+          {isViewingOtherUser ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                I messaggi sono privati e non visibili in modalità visualizzazione.
+              </CardContent>
+            </Card>
+          ) : (
+            <MessagesSection primaryColor={primaryColor} />
+          )}
         </TabsContent>
 
         {/* Boats Tab */}
         <TabsContent value="boats">
-          <BoatsSection primaryColor={primaryColor} />
+          <BoatsSection
+            primaryColor={primaryColor}
+            viewUserId={viewUserId}
+            readOnly={isViewingOtherUser}
+          />
         </TabsContent>
 
         {/* Equipment Tab */}
         <TabsContent value="equipment">
-          <EquipmentSection primaryColor={primaryColor} />
+          <EquipmentSection
+            primaryColor={primaryColor}
+            viewUserId={viewUserId}
+            readOnly={isViewingOtherUser}
+          />
         </TabsContent>
 
-        {/* Skipper Tab */}
+        {/* Skipper Tab - Not available when viewing another user */}
         <TabsContent value="skipper">
-          <SkipperSection primaryColor={primaryColor} />
+          {isViewingOtherUser ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                Le certificazioni skipper sono private e non visibili in modalità visualizzazione.
+              </CardContent>
+            </Card>
+          ) : (
+            <SkipperSection primaryColor={primaryColor} />
+          )}
         </TabsContent>
 
         {/* Media Tab */}
         <TabsContent value="media">
-          <MediaSection primaryColor={primaryColor} />
+          <MediaSection
+            primaryColor={primaryColor}
+            viewUserId={viewUserId}
+            readOnly={isViewingOtherUser}
+          />
         </TabsContent>
 
-        {/* Settings Tab */}
+        {/* Settings Tab - Not available when viewing another user */}
         <TabsContent value="settings">
-          <SettingsSection primaryColor={primaryColor} />
+          {isViewingOtherUser ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                Le impostazioni sono private e non visibili in modalità visualizzazione.
+              </CardContent>
+            </Card>
+          ) : (
+            <SettingsSection primaryColor={primaryColor} />
+          )}
         </TabsContent>
+
+        {/* Management Tab - Only visible when admin mode is enabled */}
+        {adminModeEnabled && (
+          <TabsContent value="management">
+            <div className="space-y-6">
+              {/* Admin Banner */}
+              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-yellow-100 rounded-lg">
+                    <Shield className="h-6 w-6 text-yellow-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-yellow-800">Modalita Amministratore</h3>
+                    <p className="text-sm text-yellow-600">Gestisci la tua associazione da questa pagina</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Manage Tournaments */}
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+                  <CardContent className="p-6">
+                    <Link href={`/${locale}/dashboard/tournaments`} className="block">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-xl bg-blue-100 text-blue-600 group-hover:bg-blue-200 transition-colors">
+                          <Trophy className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-lg mb-1">Gestione Tornei</h4>
+                          <p className="text-sm text-muted-foreground">Crea, modifica e gestisci i tornei della tua associazione</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </Link>
+                  </CardContent>
+                </Card>
+
+                {/* Manage Users */}
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+                  <CardContent className="p-6">
+                    <Link href={`/${locale}/dashboard/users`} className="block">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-xl bg-green-100 text-green-600 group-hover:bg-green-200 transition-colors">
+                          <Users className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-lg mb-1">Gestione Iscritti</h4>
+                          <p className="text-sm text-muted-foreground">Visualizza e gestisci gli iscritti alla tua associazione</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </Link>
+                  </CardContent>
+                </Card>
+
+                {/* Association Settings */}
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+                  <CardContent className="p-6">
+                    <Link href={`/${locale}/dashboard/admin`} className="block">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-xl bg-purple-100 text-purple-600 group-hover:bg-purple-200 transition-colors">
+                          <Cog className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-lg mb-1">Impostazioni</h4>
+                          <p className="text-sm text-muted-foreground">Configura branding, colori e informazioni associazione</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </Link>
+                  </CardContent>
+                </Card>
+
+                {/* Reports & Statistics */}
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+                  <CardContent className="p-6">
+                    <Link href={`/${locale}/dashboard/reports`} className="block">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-xl bg-orange-100 text-orange-600 group-hover:bg-orange-200 transition-colors">
+                          <BarChart3 className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-lg mb-1">Report e Statistiche</h4>
+                          <p className="text-sm text-muted-foreground">Visualizza statistiche e genera report PDF</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </Link>
+                  </CardContent>
+                </Card>
+
+                {/* Media Management */}
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+                  <CardContent className="p-6">
+                    <Link href={`/${locale}/dashboard/admin/media`} className="block">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-xl bg-pink-100 text-pink-600 group-hover:bg-pink-200 transition-colors">
+                          <Camera className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-lg mb-1">Gestione Media</h4>
+                          <p className="text-sm text-muted-foreground">Gestisci logo, banner e galleria immagini</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </Link>
+                  </CardContent>
+                </Card>
+
+                {/* Create New Tournament */}
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer group border-dashed border-2">
+                  <CardContent className="p-6">
+                    <Link href={`/${locale}/dashboard/tournaments?action=new`} className="block">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-xl bg-gray-100 text-gray-600 group-hover:bg-gray-200 transition-colors">
+                          <Plus className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-lg mb-1">Nuovo Torneo</h4>
+                          <p className="text-sm text-muted-foreground">Crea rapidamente un nuovo torneo</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </Link>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quick Stats for Admin */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Riepilogo Associazione
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center p-4 bg-blue-50 rounded-xl">
+                      <Trophy className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+                      <p className="text-2xl font-bold text-blue-700">{stats?.tournamentsParticipated || 0}</p>
+                      <p className="text-sm text-blue-600">Tornei Organizzati</p>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-xl">
+                      <Users className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                      <p className="text-2xl font-bold text-green-700">--</p>
+                      <p className="text-sm text-green-600">Iscritti Totali</p>
+                    </div>
+                    <div className="text-center p-4 bg-purple-50 rounded-xl">
+                      <Fish className="h-8 w-8 mx-auto mb-2 text-purple-600" />
+                      <p className="text-2xl font-bold text-purple-700">{stats?.totalCatches || 0}</p>
+                      <p className="text-sm text-purple-600">Catture Registrate</p>
+                    </div>
+                    <div className="text-center p-4 bg-orange-50 rounded-xl">
+                      <Scale className="h-8 w-8 mx-auto mb-2 text-orange-600" />
+                      <p className="text-2xl font-bold text-orange-700">{stats?.totalWeight?.toFixed(1) || 0} kg</p>
+                      <p className="text-sm text-orange-600">Peso Totale</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* ================================================================

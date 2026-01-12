@@ -32,6 +32,8 @@ import sponsorRoutes from "./routes/sponsor.routes";
 import archiveRoutes from "./routes/archive.routes";
 import importExportRoutes from "./routes/import-export.routes";
 import staffRoutes from "./routes/staff.routes";
+import documentRoutes from "./routes/document.routes";
+import tournamentProfileRoutes from "./routes/tournament-profile.routes";
 
 // Create Express app
 const app: Application = express();
@@ -82,6 +84,31 @@ app.get("/api/health", (req: Request, res: Response) => {
   });
 });
 
+// Graceful shutdown endpoint (for server manager)
+// Only accepts requests from localhost with correct secret
+const SHUTDOWN_SECRET = process.env.SHUTDOWN_SECRET || "tm-local-shutdown-2024";
+app.post("/api/shutdown", (req: Request, res: Response) => {
+  const clientIp = req.ip || req.socket.remoteAddress || "";
+  const isLocalhost = clientIp === "127.0.0.1" || clientIp === "::1" || clientIp === "::ffff:127.0.0.1";
+  const secret = req.headers["x-shutdown-secret"] || req.body?.secret;
+
+  if (!isLocalhost) {
+    return res.status(403).json({ success: false, message: "Forbidden: not localhost" });
+  }
+
+  if (secret !== SHUTDOWN_SECRET) {
+    return res.status(401).json({ success: false, message: "Invalid shutdown secret" });
+  }
+
+  res.json({ success: true, message: "Server shutting down..." });
+
+  // Graceful shutdown after response is sent
+  setTimeout(() => {
+    console.log("Graceful shutdown initiated by server manager");
+    process.exit(0);
+  }, 500);
+});
+
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -109,6 +136,8 @@ app.use("/api/sponsors", sponsorRoutes);
 app.use("/api/archive", archiveRoutes);
 app.use("/api/import-export", importExportRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/documents", documentRoutes);
+app.use("/api/tournament-profiles", tournamentProfileRoutes);
 
 // Static files for prizes uploads
 app.use("/uploads/prizes", express.static(path.join(__dirname, "../uploads/prizes")));

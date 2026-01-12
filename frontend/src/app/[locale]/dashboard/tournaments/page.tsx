@@ -72,8 +72,13 @@ import {
   ArrowUp,
   ArrowDown,
   Settings,
+  Fish,
+  Scale,
+  ExternalLink,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { HelpGuide } from "@/components/HelpGuide";
+import { getMediaUrl } from "@/lib/media";
 
 // Types
 interface Tournament {
@@ -135,10 +140,15 @@ export default function TournamentsPage() {
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
+  // Tournament Profiles
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    profileId: "",
     discipline: "BIG_GAME",
     startDate: "",
     endDate: "",
@@ -148,9 +158,56 @@ export default function TournamentsPage() {
     maxParticipants: "",
     registrationFee: "",
     bannerImage: "",
+    // Catch & Release mode
+    gameMode: "TRADITIONAL",
+    followsFipsasRules: false,
+    fipsasRegulationUrl: "",
   });
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+  // Fetch available tournament profiles when dialog opens
+  const fetchProfiles = async () => {
+    if (!token) return;
+    setLoadingProfiles(true);
+    try {
+      const response = await fetch(`${API_URL}/api/tournament-profiles/available`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProfiles(data.data || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch profiles:", error);
+    } finally {
+      setLoadingProfiles(false);
+    }
+  };
+
+  // Fetch profiles when create dialog opens
+  useEffect(() => {
+    if (createDialogOpen) {
+      fetchProfiles();
+    }
+  }, [createDialogOpen, token]);
+
+  // Handle profile selection - auto-fill form fields
+  const handleProfileSelect = (profileId: string) => {
+    const profile = profiles.find((p) => p.id === profileId);
+    if (profile) {
+      setFormData({
+        ...formData,
+        profileId: profileId,
+        discipline: profile.discipline,
+        gameMode: profile.gameMode,
+        followsFipsasRules: profile.followsFipsasRules,
+        fipsasRegulationUrl: profile.fipsasRegulationUrl || "",
+      });
+    } else {
+      setFormData({ ...formData, profileId: "" });
+    }
+  };
 
   // Extract unique tenants for filter
   const tenants = useMemo(() => {
@@ -277,6 +334,13 @@ export default function TournamentsPage() {
     });
   }, [tournaments, searchQuery, statusFilter, tenantFilter, sortColumn, sortDirection]);
 
+  // Helper to convert date string to ISO8601
+  const toISO8601 = (dateStr: string, isEndOfDay = false) => {
+    if (!dateStr) return undefined;
+    const time = isEndOfDay ? "T23:59:59.000Z" : "T00:00:00.000Z";
+    return `${dateStr}${time}`;
+  };
+
   // Handle create tournament
   const handleCreateTournament = async () => {
     if (!formData.name || !formData.location || !formData.startDate || !formData.endDate) {
@@ -293,9 +357,22 @@ export default function TournamentsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          ...formData,
+          name: formData.name,
+          description: formData.description || undefined,
+          profileId: formData.profileId || undefined,
+          discipline: formData.discipline,
+          location: formData.location,
+          startDate: toISO8601(formData.startDate),
+          endDate: toISO8601(formData.endDate, true),
+          registrationOpens: toISO8601(formData.registrationOpens),
+          registrationCloses: toISO8601(formData.registrationCloses, true),
           maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : undefined,
           registrationFee: formData.registrationFee ? parseFloat(formData.registrationFee) : undefined,
+          gameMode: formData.gameMode,
+          followsFipsasRules: formData.followsFipsasRules,
+          fipsasRegulationUrl: formData.followsFipsasRules
+            ? "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/big-game/circolare-normativa-big-game"
+            : undefined,
         }),
       });
 
@@ -328,9 +405,22 @@ export default function TournamentsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          ...formData,
+          name: formData.name,
+          description: formData.description || undefined,
+          profileId: formData.profileId || undefined,
+          discipline: formData.discipline,
+          location: formData.location,
+          startDate: toISO8601(formData.startDate),
+          endDate: toISO8601(formData.endDate, true),
+          registrationOpens: toISO8601(formData.registrationOpens),
+          registrationCloses: toISO8601(formData.registrationCloses, true),
           maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : undefined,
           registrationFee: formData.registrationFee ? parseFloat(formData.registrationFee) : undefined,
+          gameMode: formData.gameMode,
+          followsFipsasRules: formData.followsFipsasRules,
+          fipsasRegulationUrl: formData.followsFipsasRules
+            ? "https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/big-game/circolare-normativa-big-game"
+            : undefined,
         }),
       });
 
@@ -434,11 +524,36 @@ export default function TournamentsPage() {
     }
   };
 
+  // Open authenticated PDF in new tab
+  const openAuthenticatedPDF = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+
+      // Cleanup blob URL after a delay
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch (error) {
+      console.error("Error opening PDF:", error);
+      alert(`Errore apertura PDF: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`);
+    }
+  };
+
   // Reset form
   const resetForm = () => {
     setFormData({
       name: "",
       description: "",
+      profileId: "",
       discipline: "BIG_GAME",
       startDate: "",
       endDate: "",
@@ -448,6 +563,9 @@ export default function TournamentsPage() {
       maxParticipants: "",
       registrationFee: "",
       bannerImage: "",
+      gameMode: "TRADITIONAL",
+      followsFipsasRules: false,
+      fipsasRegulationUrl: "",
     });
   };
 
@@ -457,6 +575,7 @@ export default function TournamentsPage() {
     setFormData({
       name: tournament.name,
       description: tournament.description || "",
+      profileId: (tournament as any).profileId || "",
       discipline: tournament.discipline,
       startDate: tournament.startDate?.split("T")[0] || "",
       endDate: tournament.endDate?.split("T")[0] || "",
@@ -466,6 +585,9 @@ export default function TournamentsPage() {
       maxParticipants: tournament.maxParticipants?.toString() || "",
       registrationFee: tournament.registrationFee?.toString() || "",
       bannerImage: tournament.bannerImage || "",
+      gameMode: (tournament as any).gameMode || "TRADITIONAL",
+      followsFipsasRules: (tournament as any).followsFipsasRules || false,
+      fipsasRegulationUrl: (tournament as any).fipsasRegulationUrl || "",
     });
     setEditDialogOpen(true);
   };
@@ -800,20 +922,19 @@ export default function TournamentsPage() {
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                  onClick={() => window.open(`${API_URL}/api/reports/export/pdf/leaderboard/${tournament.id}/preview`, '_blank')}
+                                  onClick={() => openAuthenticatedPDF(
+                                    `${API_URL}/api/reports/export/pdf/leaderboard/${tournament.id}/preview`,
+                                    `classifica_${tournament.name.replace(/\s+/g, '_')}.pdf`
+                                  )}
                                 >
                                   <FileText className="h-4 w-4 mr-2" />
                                   Anteprima Classifica PDF
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  onClick={() => {
-                                    const link = document.createElement('a');
-                                    link.href = `${API_URL}/api/reports/export/pdf/leaderboard/${tournament.id}`;
-                                    link.download = `classifica_${tournament.name.replace(/s+/g, '_')}.pdf`;
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                  }}
+                                  onClick={() => openAuthenticatedPDF(
+                                    `${API_URL}/api/reports/export/pdf/leaderboard/${tournament.id}`,
+                                    `classifica_${tournament.name.replace(/\s+/g, '_')}.pdf`
+                                  )}
                                 >
                                   <Download className="h-4 w-4 mr-2" />
                                   Scarica Classifica PDF
@@ -871,6 +992,38 @@ export default function TournamentsPage() {
                 placeholder="Descrizione del torneo..."
                 rows={3}
               />
+            </div>
+            {/* Profile Selector */}
+            <div className="grid gap-2">
+              <Label htmlFor="profile">Profilo Torneo (opzionale)</Label>
+              <Select
+                value={formData.profileId}
+                onValueChange={handleProfileSelect}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingProfiles ? "Caricamento..." : "Seleziona un profilo FIPSAS o personalizzato"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nessun profilo (configurazione manuale)</SelectItem>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{profile.name}</span>
+                        {profile.isSystemProfile ? (
+                          <Badge variant="secondary" className="text-xs">FIPSAS</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">Custom</Badge>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.profileId && (
+                <p className="text-xs text-muted-foreground">
+                  Il profilo precompila disciplina, modalita di gioco e regolamento FIPSAS
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -968,6 +1121,72 @@ export default function TournamentsPage() {
                   placeholder="Es. 150.00"
                 />
               </div>
+            </div>
+
+            {/* Game Mode Section */}
+            <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+              <div className="flex items-center gap-2">
+                <Fish className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Modalita di Gioco</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="gameMode">Tipo Punteggio</Label>
+                  <Select
+                    value={formData.gameMode}
+                    onValueChange={(value) => setFormData({ ...formData, gameMode: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TRADITIONAL">
+                        <div className="flex items-center gap-2">
+                          <Scale className="h-4 w-4" />
+                          Tradizionale (Peso)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="CATCH_RELEASE">
+                        <div className="flex items-center gap-2">
+                          <Fish className="h-4 w-4" />
+                          Catch & Release (Taglia)
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col justify-end gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="followsFipsasRules"
+                      checked={formData.followsFipsasRules}
+                      onCheckedChange={(checked) => setFormData({ ...formData, followsFipsasRules: checked })}
+                    />
+                    <Label htmlFor="followsFipsasRules" className="cursor-pointer">
+                      Segue regolamento FIPSAS
+                    </Label>
+                  </div>
+                </div>
+              </div>
+              {formData.followsFipsasRules && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950 p-2 rounded">
+                  <ExternalLink className="h-4 w-4" />
+                  <a
+                    href="https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/big-game/circolare-normativa-big-game"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Regolamento FIPSAS Big Game
+                  </a>
+                </div>
+              )}
+              {formData.gameMode === "CATCH_RELEASE" && (
+                <p className="text-sm text-muted-foreground">
+                  In modalita Catch & Release il punteggio si basa sulla specie e fascia taglia (S/M/L/XL).
+                  Video obbligatorio che mostri il rilascio del pesce.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -1109,6 +1328,72 @@ export default function TournamentsPage() {
                   onChange={(e) => setFormData({ ...formData, registrationFee: e.target.value })}
                 />
               </div>
+            </div>
+
+            {/* Game Mode Section */}
+            <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+              <div className="flex items-center gap-2">
+                <Fish className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Modalita di Gioco</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-gameMode">Tipo Punteggio</Label>
+                  <Select
+                    value={formData.gameMode}
+                    onValueChange={(value) => setFormData({ ...formData, gameMode: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TRADITIONAL">
+                        <div className="flex items-center gap-2">
+                          <Scale className="h-4 w-4" />
+                          Tradizionale (Peso)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="CATCH_RELEASE">
+                        <div className="flex items-center gap-2">
+                          <Fish className="h-4 w-4" />
+                          Catch & Release (Taglia)
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col justify-end gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="edit-followsFipsasRules"
+                      checked={formData.followsFipsasRules}
+                      onCheckedChange={(checked) => setFormData({ ...formData, followsFipsasRules: checked })}
+                    />
+                    <Label htmlFor="edit-followsFipsasRules" className="cursor-pointer">
+                      Segue regolamento FIPSAS
+                    </Label>
+                  </div>
+                </div>
+              </div>
+              {formData.followsFipsasRules && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950 p-2 rounded">
+                  <ExternalLink className="h-4 w-4" />
+                  <a
+                    href="https://www.fipsas.it/pesca-di-superficie/discipline-pesca-di-superficie/mare/big-game/circolare-normativa-big-game"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Regolamento FIPSAS Big Game
+                  </a>
+                </div>
+              )}
+              {formData.gameMode === "CATCH_RELEASE" && (
+                <p className="text-sm text-muted-foreground">
+                  In modalita Catch & Release il punteggio si basa sulla specie e fascia taglia (S/M/L/XL).
+                  Video obbligatorio che mostri il rilascio del pesce.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>

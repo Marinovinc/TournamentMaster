@@ -27,6 +27,9 @@ export { TournamentCrudService } from "./tournament-crud.service";
 export { TournamentLifecycleService } from "./tournament-lifecycle.service";
 export { TournamentZonesService } from "./tournament-zones.service";
 export { TournamentRegistrationService } from "./tournament-registration.service";
+export { TournamentStatsService } from "./tournament-stats.service";
+export { TournamentSchedulerService } from "./tournament-scheduler.service";
+export { TournamentProfileService } from "./tournament-profile.service";
 
 // Re-export combined service for backward compatibility
 export { TournamentService } from "./tournament.service";

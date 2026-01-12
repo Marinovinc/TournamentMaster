@@ -9,6 +9,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getMediaUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
 import { HelpGuide } from "@/components/HelpGuide";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,6 +70,7 @@ import {
   Send,
   PlayCircle,
   XCircle,
+  Settings,
 } from "lucide-react";
 
 // Types
@@ -583,10 +585,20 @@ export default function AdminDashboardPage() {
           </div>
           <HelpGuide pageKey="admin" position="inline" isAdmin={true} />
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nuovo Torneo
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/${locale}/dashboard/admin/profiles`)}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Profili Torneo
+          </Button>
+          <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nuovo Torneo
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}

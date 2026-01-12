@@ -52,7 +52,8 @@ model Tenant {
   tournaments   Tournament[]
   bannerImages  BannerImage[]
   memberships   Membership[]
-  sponsors      Sponsor[]
+  sponsors           Sponsor[]
+  tournamentProfiles TournamentProfile[]
 
   @@map("tenants")
 }
@@ -63,21 +64,27 @@ model Tenant {
 
 // Ruoli PERMANENTI dell'utente (a livello di associazione)
 enum UserRole {
-  SUPER_ADMIN    // Amministratore piattaforma
-  TENANT_ADMIN   // Amministratore associazione
-  PRESIDENT      // Presidente associazione (stessi permessi di TENANT_ADMIN)
-  ORGANIZER      // Può organizzare tornei
-  JUDGE          // Giudice
-  PARTICIPANT    // Partecipante (default)
-  MEMBER         // Alias per PARTICIPANT (legacy)
+  SUPER_ADMIN      // Amministratore piattaforma
+  TENANT_ADMIN     // Amministratore associazione
+  PRESIDENT        // Presidente associazione (stessi permessi di TENANT_ADMIN)
+  VICE_PRESIDENT   // Vice Presidente
+  SECRETARY        // Segretario
+  TREASURER        // Tesoriere
+  BOARD_MEMBER     // Membro del Consiglio Direttivo
+  ORGANIZER        // Può organizzare tornei
+  JUDGE            // Giudice (solo nei tornei, altrimenti Associato)
+  CAPTAIN          // Capitano squadra
+  PARTICIPANT      // Associato (default) - diventa Partecipante nei tornei
+  MEMBER           // Alias per PARTICIPANT (legacy)
 }
 
 // Ruoli TEMPORANEI assegnati per singolo torneo
 enum TournamentStaffRole {
-  DIRECTOR       // Direttore di gara
-  JUDGE          // Giudice di gara
-  INSPECTOR      // Ispettore (può essere assegnato anche a livello di barca)
-  SCORER         // Addetto punteggi
+  DIRECTOR         // Direttore di gara
+  JUDGE            // Giudice di gara
+  JUDGE_ASSISTANT  // Assistente del giudice di gara
+  INSPECTOR        // Ispettore (può essere assegnato anche a livello di barca)
+  SCORER           // Addetto punteggi
 }
 
 model User {
@@ -124,6 +131,9 @@ model User {
 
   // Prizes won
   prizesWon           Prize[]
+
+  // Catch reviews
+  reviewedCatches     Catch[] @relation("CatchReviewer")
 
   @@index([email])
   @@index([tenantId])
@@ -285,6 +295,82 @@ enum TournamentDiscipline {
   SOCIAL
 }
 
+// Modalità di gioco del torneo
+enum GameMode {
+  TRADITIONAL     // Punteggio basato sul peso (sistema classico)
+  CATCH_RELEASE   // Punteggio per specie + fascia taglia (C&R)
+}
+
+// Fascia taglia per modalità Catch & Release
+enum SizeCategory {
+  SMALL        // S - Taglia piccola
+  MEDIUM       // M - Taglia media
+  LARGE        // L - Taglia grande
+  EXTRA_LARGE  // XL - Taglia extra large
+}
+
+// ================================
+// TOURNAMENT PROFILE (Profili Standard/Custom)
+// ================================
+// Profili predefiniti FIPSAS o personalizzati dalle associazioni
+// Pattern "Copy on Write": profili standard read-only, modifiche creano copia
+
+model TournamentProfile {
+  id              String              @id @default(uuid())
+
+  // Identificazione
+  name            String              @db.VarChar(255)
+  description     String?             @db.Text
+
+  // Origine
+  isSystemProfile Boolean             @default(false)  // true = FIPSAS (read-only)
+  basedOnId       String?                               // "Basato su" profilo (tracciabilità)
+  basedOn         TournamentProfile?  @relation("ProfileFork", fields: [basedOnId], references: [id], onDelete: SetNull)
+  derivedProfiles TournamentProfile[] @relation("ProfileFork")
+
+  // Ownership (null = profilo sistema)
+  tenantId        String?
+  tenant          Tenant?             @relation(fields: [tenantId], references: [id])
+
+  // Configurazione Torneo
+  discipline      TournamentDiscipline
+  level           TournamentLevel     @default(CLUB)
+  gameMode        GameMode            @default(TRADITIONAL)
+
+  // Regolamento FIPSAS
+  followsFipsasRules  Boolean         @default(false)
+  fipsasRegulationUrl String?         @db.VarChar(500)
+
+  // Regole default
+  defaultMinWeight       Decimal?     @db.Decimal(8, 3)  // Peso minimo cattura kg
+  defaultMaxCatchesPerDay Int?                            // Max catture/giorno
+  defaultPointsPerKg     Decimal      @db.Decimal(6, 2)  @default(1)
+  defaultBonusPoints     Int          @default(0)
+
+  // Specie scoring per C&R (JSON per flessibilità)
+  speciesScoringConfig   String?      @db.LongText
+
+  // Specie ammesse (JSON array di speciesId)
+  allowedSpeciesIds      String?      @db.Text
+
+  // Stato
+  isActive        Boolean             @default(true)
+  displayOrder    Int                 @default(0)
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Tornei che usano questo profilo
+  tournaments     Tournament[]        @relation("TournamentProfile")
+
+  @@index([tenantId])
+  @@index([discipline])
+  @@index([isSystemProfile])
+  @@index([isActive])
+  @@map("tournament_profiles")
+}
+
+
 model Tournament {
   id                  String               @id @default(uuid())
   name                String               @db.VarChar(255)
@@ -315,8 +401,17 @@ model Tournament {
   pointsPerKg         Decimal              @db.Decimal(6, 2) @default(1)
   bonusPoints         Int                  @default(0) // Bonus for biggest catch
 
+  // Game Mode & Regulations
+  gameMode            GameMode             @default(TRADITIONAL)
+  followsFipsasRules  Boolean              @default(false)
+  fipsasRegulationUrl String?              @db.VarChar(500) // Link al regolamento FIPSAS specifico
+
   // Media
   bannerImage         String?              @db.VarChar(500)
+
+  // Profile (template)
+  profileId           String?
+  profile             TournamentProfile?   @relation("TournamentProfile", fields: [profileId], references: [id])
 
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -333,6 +428,7 @@ model Tournament {
   catches             Catch[]
   leaderboardEntries  LeaderboardEntry[]
   allowedSpecies      TournamentSpecies[]
+  speciesScoring      SpeciesScoring[]  // Punteggi C&R per specie/taglia
   teams               Team[]
   strikes             Strike[]
   staff               TournamentStaff[]
@@ -399,6 +495,7 @@ model Species {
 
   catches       Catch[]
   tournaments   TournamentSpecies[]
+  scoring       SpeciesScoring[]  // Punteggi C&R per torneo
 
   @@map("species")
 }
@@ -415,6 +512,52 @@ model TournamentSpecies {
 
   @@unique([tournamentId, speciesId])
   @@map("tournament_species")
+}
+
+// ================================
+// SPECIES SCORING (Catch & Release)
+// ================================
+// Punteggi per modalità Catch & Release
+// Definisce i punti per ogni combinazione specie/taglia per torneo
+
+model SpeciesScoring {
+  id            String     @id @default(uuid())
+
+  tournamentId  String
+  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  speciesId     String
+  species       Species    @relation(fields: [speciesId], references: [id])
+
+  // Punteggi per fascia taglia (basati su regolamento FIPSAS 2026)
+  pointsSmall      Int      @default(100)   // S - Taglia piccola
+  pointsMedium     Int      @default(200)   // M - Taglia media
+  pointsLarge      Int      @default(400)   // L - Taglia grande
+  pointsExtraLarge Int      @default(800)   // XL - Taglia extra large
+
+  // Soglie lunghezza in cm (alla forca) per determinare categoria
+  // Es: Alalunga <60=S, 60-80=M, 80-100=L, >100=XL
+  thresholdSmallCm    Int?    // Lunghezza massima per S (sotto = S)
+  thresholdMediumCm   Int?    // Lunghezza massima per M (sotto = M, sopra soglia S)
+  thresholdLargeCm    Int?    // Lunghezza massima per L (sotto = L, sopra soglia M)
+  // Sopra thresholdLargeCm = XL
+
+  // Bonus C&R (moltiplicatore per rilascio corretto)
+  catchReleaseBonus   Decimal  @db.Decimal(3, 2) @default(1.5) // Es: 1.5x
+
+  // Solo cattura e rilascio (non può essere tenuto)
+  catchReleaseOnly    Boolean  @default(false)
+
+  // Note specifiche (es. "Video slamatura obbligatorio")
+  notes         String?  @db.Text
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tournamentId, speciesId])
+  @@index([tournamentId])
+  @@index([speciesId])
+  @@map("species_scoring")
 }
 
 // ================================
@@ -575,11 +718,17 @@ model TournamentStaff {
   tournamentId  String
   tournament    Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
+  // Gerarchia: per JUDGE_ASSISTANT, riferimento al giudice principale
+  parentStaffId String?
+  parentStaff   TournamentStaff?    @relation("StaffHierarchy", fields: [parentStaffId], references: [id], onDelete: SetNull)
+  assistants    TournamentStaff[]   @relation("StaffHierarchy")
+
   createdAt     DateTime            @default(now())
 
   @@unique([tournamentId, userId, role])  // Un utente può avere un solo ruolo specifico per torneo
   @@index([tournamentId])
   @@index([userId])
+  @@index([parentStaffId])
   @@map("tournament_staff")
 }
 
@@ -639,9 +788,13 @@ model Catch {
   status        CatchStatus @default(PENDING)
 
   // Fish details
-  weight        Decimal     @db.Decimal(8, 3) // Weight in kg
-  length        Decimal?    @db.Decimal(6, 2) // Length in cm
+  weight        Decimal?    @db.Decimal(8, 3) // Weight in kg (opzionale per C&R)
+  length        Decimal?    @db.Decimal(6, 2) // Length in cm (alla forca per C&R)
+  sizeCategory  SizeCategory? // Fascia taglia per modalità C&R (S/M/L/XL)
   rodNumber     Int?        // Numero canna che ha pescato
+
+  // Catch & Release specific
+  wasReleased   Boolean     @default(false) // Pesce rilasciato
 
   // GPS Location (separate columns for performance)
   latitude      Decimal     @db.Decimal(10, 8)
@@ -662,7 +815,8 @@ model Catch {
 
   // Review
   reviewNotes   String?     @db.Text
-  reviewerId    String?     @db.VarChar(36)
+  reviewerId    String?
+  reviewer      User?       @relation("CatchReviewer", fields: [reviewerId], references: [id])
 
   // Points (calculated after approval)
   points        Decimal?    @db.Decimal(10, 2)
@@ -685,6 +839,9 @@ model Catch {
   speciesId     String?
   species       Species?    @relation(fields: [speciesId], references: [id])
 
+  // Multi-media support
+  media         CatchMedia[]
+
   @@index([tournamentId])
   @@index([userId])
   @@index([status])
@@ -692,6 +849,44 @@ model Catch {
   // Composite index for GPS queries
   @@index([latitude, longitude])
   @@map("catches")
+}
+
+// ================================
+// CATCH MEDIA (Multiple photos/videos per catch)
+// ================================
+
+enum CatchMediaType {
+  PHOTO
+  VIDEO
+}
+
+model CatchMedia {
+  id            String         @id @default(uuid())
+
+  type          CatchMediaType
+  path          String         @db.VarChar(500)
+  filename      String         @db.VarChar(255)
+  mimeType      String?        @db.VarChar(100)
+  size          Int?           // File size in bytes
+
+  // Video specific
+  thumbnailPath String?        @db.VarChar(500)
+  duration      Int?           // Duration in seconds
+
+  // Metadata
+  isPrimary     Boolean        @default(false) // Main photo for display
+  caption       String?        @db.VarChar(500)
+  displayOrder  Int            @default(0)
+
+  // Relation
+  catchId       String
+  catch         Catch          @relation(fields: [catchId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime       @default(now())
+
+  @@index([catchId])
+  @@index([type])
+  @@map("catch_media")
 }
 
 // ================================

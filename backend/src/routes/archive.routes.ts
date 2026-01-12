@@ -408,4 +408,84 @@ router.get(
   }
 );
 
+// ==============================================================================
+// PRIZES
+// ==============================================================================
+
+/**
+ * GET /api/archive/prizes
+ * Premi assegnati nei tornei del tenant
+ */
+router.get(
+  "/prizes",
+  optionalAuth,
+  query("tournamentId").optional().isString(),
+  query("year").optional().isInt({ min: 2000, max: 2100 }),
+  query("limit").optional().isInt({ min: 1, max: 100 }),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+      }
+
+      const tenantId = req.user?.tenantId || (req.query.tenantId as string);
+      if (!tenantId) {
+        return res.status(400).json({ success: false, message: "Tenant required" });
+      }
+
+      const tournamentId = req.query.tournamentId as string | undefined;
+      const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+
+      const prizes = await ArchiveService.getPrizes(tenantId, {
+        tournamentId,
+        year,
+        limit,
+      });
+
+      res.json({ success: true, data: prizes });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to get prizes";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+/**
+ * GET /api/archive/prizes/tenant/:tenantId
+ * Premi pubblici per tenant specifico
+ */
+router.get(
+  "/prizes/tenant/:tenantId",
+  param("tenantId").isUUID(),
+  query("tournamentId").optional().isString(),
+  query("year").optional().isInt({ min: 2000, max: 2100 }),
+  query("limit").optional().isInt({ min: 1, max: 100 }),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+      }
+
+      const { tenantId } = req.params;
+      const tournamentId = req.query.tournamentId as string | undefined;
+      const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+
+      const prizes = await ArchiveService.getPrizes(tenantId, {
+        tournamentId,
+        year,
+        limit,
+      });
+
+      res.json({ success: true, data: prizes });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to get prizes";
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
 export default router;

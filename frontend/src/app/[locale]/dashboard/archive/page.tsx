@@ -34,6 +34,7 @@ import {
   History,
   TrendingUp,
   MapPin,
+  Gift,
 } from "lucide-react";
 
 interface HallOfFameEntry {
@@ -126,6 +127,37 @@ interface MyHistory {
   teamName: string | null;
 }
 
+interface PrizeMedia {
+  id: string;
+  type: string;
+  url: string;
+  thumbnailUrl: string | null;
+  caption: string | null;
+}
+
+interface Prize {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  position: number | null;
+  value: number | null;
+  valueDescription: string | null;
+  tournament: {
+    id: string;
+    name: string;
+    date: string;
+    discipline: string;
+  };
+  winner: {
+    id: string;
+    name: string;
+    avatar: string | null;
+  } | null;
+  media: PrizeMedia[];
+  awardedAt: string | null;
+}
+
 const categoryConfig: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
   GENERAL: { label: "Classifica Generale", icon: Trophy, color: "bg-yellow-500" },
   BIGGEST_CATCH: { label: "Cattura Maggiore", icon: Scale, color: "bg-blue-500" },
@@ -148,6 +180,7 @@ export default function ArchivePage() {
   const [archive, setArchive] = useState<TournamentArchive[]>([]);
   const [myStats, setMyStats] = useState<MyStats | null>(null);
   const [myHistory, setMyHistory] = useState<MyHistory[]>([]);
+  const [prizes, setPrizes] = useState<Prize[]>([]);
   const [years, setYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>("all");
@@ -227,6 +260,20 @@ export default function ArchivePage() {
     setLoading(false);
   }, []);
 
+  // Fetch Prizes
+  const fetchPrizes = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (selectedYear !== "all") params.append("year", selectedYear);
+    params.append("limit", "50");
+
+    const res = await api<Prize[]>(`/api/archive/prizes?${params}`);
+    if (res.success && res.data) {
+      setPrizes(res.data);
+    }
+    setLoading(false);
+  }, [selectedYear]);
+
   // Load data based on active tab
   useEffect(() => {
     if (activeTab === "hall-of-fame") {
@@ -237,8 +284,10 @@ export default function ArchivePage() {
       fetchArchive(1);
     } else if (activeTab === "my-stats") {
       fetchMyData();
+    } else if (activeTab === "prizes") {
+      fetchPrizes();
     }
-  }, [activeTab, selectedYear, selectedDiscipline, fetchHallOfFame, fetchRecords, fetchArchive, fetchMyData]);
+  }, [activeTab, selectedYear, selectedDiscipline, fetchHallOfFame, fetchRecords, fetchArchive, fetchMyData, fetchPrizes]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString(locale, {
@@ -295,7 +344,7 @@ export default function ArchivePage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="hall-of-fame" className="gap-2">
             <Crown className="h-4 w-4" />
             <span className="hidden sm:inline">Hall of Fame</span>
@@ -307,6 +356,10 @@ export default function ArchivePage() {
           <TabsTrigger value="archive" className="gap-2">
             <History className="h-4 w-4" />
             <span className="hidden sm:inline">Archivio</span>
+          </TabsTrigger>
+          <TabsTrigger value="prizes" className="gap-2">
+            <Gift className="h-4 w-4" />
+            <span className="hidden sm:inline">Premi</span>
           </TabsTrigger>
           <TabsTrigger value="my-stats" className="gap-2">
             <TrendingUp className="h-4 w-4" />
@@ -624,6 +677,113 @@ export default function ArchivePage() {
                 </div>
               )}
             </>
+          )}
+        </TabsContent>
+
+        {/* Prizes Tab */}
+        <TabsContent value="prizes" className="space-y-4">
+          {loading ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-48" />
+              ))}
+            </div>
+          ) : prizes.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Gift className="h-16 w-16 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-semibold">Nessun premio</h3>
+                <p className="text-muted-foreground">Non ci sono premi assegnati</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {prizes.map((prize) => {
+                const categoryColors: Record<string, string> = {
+                  FIRST_PLACE: "bg-yellow-500",
+                  SECOND_PLACE: "bg-gray-400",
+                  THIRD_PLACE: "bg-amber-600",
+                  BIGGEST_CATCH: "bg-blue-500",
+                  MOST_CATCHES: "bg-green-500",
+                  SPECIAL: "bg-purple-500",
+                  PARTICIPATION: "bg-teal-500",
+                };
+                const categoryLabels: Record<string, string> = {
+                  FIRST_PLACE: "1° Classificato",
+                  SECOND_PLACE: "2° Classificato",
+                  THIRD_PLACE: "3° Classificato",
+                  BIGGEST_CATCH: "Cattura Maggiore",
+                  MOST_CATCHES: "Piu Catture",
+                  SPECIAL: "Premio Speciale",
+                  PARTICIPATION: "Partecipazione",
+                };
+
+                return (
+                  <Card key={prize.id} className="overflow-hidden">
+                    {/* Prize Image */}
+                    {prize.media && prize.media.length > 0 ? (
+                      <div className="relative h-48 bg-muted">
+                        <img
+                          src={prize.media[0].thumbnailUrl || prize.media[0].url}
+                          alt={prize.media[0].caption || prize.name}
+                          className="w-full h-full object-cover"
+                        />
+                        {prize.media.length > 1 && (
+                          <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                            +{prize.media.length - 1} foto
+                          </div>
+                        )}
+                        <div className={`absolute top-0 left-0 right-0 h-2 ${categoryColors[prize.category] || "bg-gray-500"}`} />
+                      </div>
+                    ) : (
+                      <div className={`h-2 ${categoryColors[prize.category] || "bg-gray-500"}`} />
+                    )}
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="text-xs">
+                          <Gift className="h-3 w-3 mr-1" />
+                          {categoryLabels[prize.category] || prize.category}
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-lg">{prize.name}</CardTitle>
+                      <CardDescription className="flex items-center gap-1">
+                        <Trophy className="h-3 w-3" />
+                        {prize.tournament.name}
+                      </CardDescription>
+                      <CardDescription className="flex items-center gap-1 text-xs">
+                        <Calendar className="h-3 w-3" />
+                        {formatDate(prize.tournament.date)}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {prize.winner ? (
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={prize.winner.avatar || undefined} />
+                            <AvatarFallback>
+                              {prize.winner.name.split(" ").map(n => n[0]).join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-semibold text-sm">{prize.winner.name}</p>
+                            {prize.valueDescription && (
+                              <p className="text-xs text-muted-foreground">{prize.valueDescription}</p>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Vincitore non assegnato</p>
+                      )}
+                      {prize.description && (
+                        <p className="mt-2 text-xs text-muted-foreground border-t pt-2">
+                          {prize.description}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </TabsContent>
 

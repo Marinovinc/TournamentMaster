@@ -187,7 +187,7 @@ export class ArchiveService {
         COALESCE(SUM(c.points), 0) as totalPoints,
         COUNT(c.id) as totalCatches
       FROM users u
-      JOIN registrations r ON r.userId = u.id AND r.tournamentId = ${tournamentId}
+      JOIN tournament_registrations r ON r.userId = u.id AND r.tournamentId = ${tournamentId}
       LEFT JOIN catches c ON c.userId = u.id AND c.tournamentId = ${tournamentId} AND c.status = 'APPROVED'
       GROUP BY u.id, u.firstName, u.lastName, u.avatar, r.teamName
       ORDER BY totalPoints DESC
@@ -615,6 +615,102 @@ export class ArchiveService {
     return Object.values(winCounts)
       .sort((a, b) => b.wins - a.wins)
       .slice(0, limit);
+  }
+
+  /**
+   * Ottiene i premi assegnati per i tornei di un tenant
+   */
+  static async getPrizes(
+    tenantId: string,
+    options?: {
+      tournamentId?: string;
+      year?: number;
+      limit?: number;
+    }
+  ) {
+    const { tournamentId, year, limit = 50 } = options || {};
+
+    const prizes = await prisma.prize.findMany({
+      where: {
+        tournament: {
+          tenantId,
+          status: "COMPLETED",
+          ...(year && {
+            startDate: {
+              gte: new Date(`${year}-01-01`),
+              lt: new Date(`${year + 1}-01-01`),
+            },
+          }),
+        },
+        ...(tournamentId && { tournamentId }),
+        isAwarded: true,
+      },
+      include: {
+        tournament: {
+          select: {
+            id: true,
+            name: true,
+            startDate: true,
+            discipline: true,
+          },
+        },
+        winner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+        media: {
+          select: {
+            id: true,
+            type: true,
+            url: true,
+            thumbnailUrl: true,
+            caption: true,
+            displayOrder: true,
+          },
+          orderBy: { displayOrder: "asc" },
+        },
+      },
+      orderBy: [
+        { tournament: { startDate: "desc" } },
+        { displayOrder: "asc" },
+      ],
+      take: limit,
+    });
+
+    return prizes.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      category: p.category,
+      position: p.position,
+      value: p.value ? Number(p.value) : null,
+      valueDescription: p.valueDescription,
+      tournament: {
+        id: p.tournament.id,
+        name: p.tournament.name,
+        date: p.tournament.startDate,
+        discipline: p.tournament.discipline,
+      },
+      winner: p.winner
+        ? {
+            id: p.winner.id,
+            name: `${p.winner.firstName} ${p.winner.lastName}`,
+            avatar: p.winner.avatar,
+          }
+        : null,
+      media: p.media.map((m) => ({
+        id: m.id,
+        type: m.type,
+        url: m.url,
+        thumbnailUrl: m.thumbnailUrl,
+        caption: m.caption,
+      })),
+      awardedAt: p.awardedAt,
+    }));
   }
 
   /**

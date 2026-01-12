@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,7 @@ import {
   Server,
   ExternalLink,
 } from "lucide-react";
+import { HelpGuide } from "@/components/HelpGuide";
 
 interface Tenant {
   id: string;
@@ -84,6 +85,8 @@ interface Tenant {
 export default function SuperAdminPage() {
   const { user, token } = useAuth();
   const router = useRouter();
+  const params = useParams();
+  const locale = (params.locale as string) || "it";
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -234,10 +237,12 @@ export default function SuperAdminPage() {
 
       if (data.success) {
         if (type === "impersonate" && data.data.token) {
-          // Store the impersonation token and redirect to dashboard
+          // Store the impersonation token and redirect to association page
           localStorage.setItem("impersonationToken", data.data.token);
           localStorage.setItem("impersonatingTenant", JSON.stringify(data.data.tenant));
-          router.push("/dashboard");
+          // Redirect to association page using tenant slug
+          const tenantSlug = data.data.tenant?.slug || tenant.slug;
+          router.push(`/${locale}/associazioni/${tenantSlug}`);
         } else {
           fetchTenants();
         }
@@ -269,7 +274,10 @@ export default function SuperAdminPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
+          <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold tracking-tight">Gestione Associazioni</h1>
+          <HelpGuide pageKey="superAdmin" position="inline" isAdmin={true} />
+        </div>
           <p className="text-muted-foreground">
             Amministra tutte le associazioni iscritte alla piattaforma
           </p>

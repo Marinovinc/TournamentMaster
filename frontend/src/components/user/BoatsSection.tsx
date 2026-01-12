@@ -13,6 +13,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { getMediaUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -459,10 +460,12 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
           <Anchor className="h-5 w-5" style={{ color: primaryColor }} />
           Le Mie Barche
         </h3>
-        <Button onClick={handleAddNew} size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Aggiungi Barca
-        </Button>
+        {!readOnly && (
+          <Button onClick={handleAddNew} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Aggiungi Barca
+          </Button>
+        )}
       </div>
 
       {/* Boats Grid */}
@@ -471,12 +474,14 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
           <CardContent className="py-12 text-center">
             <Ship className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground mb-4">
-              Non hai ancora registrato nessuna barca
+              {readOnly ? "Questo utente non ha registrato barche" : "Non hai ancora registrato nessuna barca"}
             </p>
-            <Button onClick={handleAddNew} variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Registra la tua prima barca
-            </Button>
+            {!readOnly && (
+              <Button onClick={handleAddNew} variant="outline">
+                <Plus className="h-4 w-4 mr-2" />
+                Registra la tua prima barca
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -555,23 +560,27 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
                         <span className="ml-1 text-xs">{boatMediaMap[boat.id].length}</span>
                       ) : null}
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(boat)}
-                      className="flex-1"
-                    >
-                      <Edit2 className="h-4 w-4 mr-2" />
-                      Modifica
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDeleteId(boat.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {!readOnly && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(boat)}
+                          className="flex-1"
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Modifica
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteId(boat.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -591,7 +600,7 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
                       >
                         {media.thumbnailPath || media.path ? (
                           <img
-                            src={media.thumbnailPath || media.path}
+                            src={getMediaUrl(media.thumbnailPath || media.path)}
                             alt={media.title || media.filename}
                             className="w-full h-full object-cover transition-transform group-hover:scale-110"
                           />
@@ -970,7 +979,7 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
               <div className="flex justify-center">
                 {viewingMedia.type === "VIDEO" ? (
                   <video
-                    src={viewingMedia.path}
+                    src={getMediaUrl(viewingMedia.path)}
                     controls
                     autoPlay
                     playsInline
@@ -978,10 +987,10 @@ export default function BoatsSection({ primaryColor = "#0066CC", viewUserId, rea
                   />
                 ) : (
                   <img
-                    src={viewingMedia.path}
+                    src={getMediaUrl(viewingMedia.path)}
                     alt={viewingMedia.title || viewingMedia.filename}
                     className="max-w-full max-h-[60vh] object-contain rounded-lg cursor-pointer hover:opacity-90"
-                    onClick={() => window.open(viewingMedia.path, '_blank')}
+                    onClick={() => window.open(getMediaUrl(viewingMedia.path), '_blank')}
                     title="Clicca per aprire in formato originale"
                   />
                 )}

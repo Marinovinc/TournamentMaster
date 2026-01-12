@@ -14,6 +14,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { getMediaUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -470,10 +471,12 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
             </Badge>
           )}
         </h3>
-        <Button onClick={handleAddNew} size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Aggiungi
-        </Button>
+        {!readOnly && (
+          <Button onClick={handleAddNew} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Aggiungi
+          </Button>
+        )}
       </div>
 
       {/* Type Filter */}
@@ -505,12 +508,14 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
           <CardContent className="py-12 text-center">
             <Package className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground mb-4">
-              Non hai ancora registrato nessuna attrezzatura
+              {readOnly ? "Questo utente non ha registrato attrezzature" : "Non hai ancora registrato nessuna attrezzatura"}
             </p>
-            <Button onClick={handleAddNew} variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Aggiungi la tua prima attrezzatura
-            </Button>
+            {!readOnly && (
+              <Button onClick={handleAddNew} variant="outline">
+                <Plus className="h-4 w-4 mr-2" />
+                Aggiungi la tua prima attrezzatura
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : filteredEquipment.length === 0 ? (
@@ -572,23 +577,27 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
                         <span className="ml-1 text-xs">{equipmentMediaMap[item.id].length}</span>
                       ) : null}
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(item)}
-                      className="flex-1"
-                    >
-                      <Edit2 className="h-4 w-4 mr-2" />
-                      Modifica
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDeleteId(item.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {!readOnly && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(item)}
+                          className="flex-1"
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Modifica
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteId(item.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -608,7 +617,7 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
                       >
                         {media.thumbnailPath || media.path ? (
                           <img
-                            src={media.thumbnailPath || media.path}
+                            src={getMediaUrl(media.thumbnailPath || media.path)}
                             alt={media.title || media.filename}
                             className="w-full h-full object-cover transition-transform group-hover:scale-110"
                           />
@@ -867,7 +876,7 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
                   >
                     {media.thumbnailPath || media.path ? (
                       <img
-                        src={media.thumbnailPath || media.path}
+                        src={getMediaUrl(media.thumbnailPath || media.path)}
                         alt={media.title || media.filename}
                         className="w-full h-full object-cover transition-transform group-hover:scale-105"
                       />
@@ -907,7 +916,7 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
               <div className="flex justify-center">
                 {viewingMedia.type === "VIDEO" ? (
                   <video
-                    src={viewingMedia.path}
+                    src={getMediaUrl(viewingMedia.path)}
                     controls
                     autoPlay
                     playsInline
@@ -915,10 +924,10 @@ export default function EquipmentSection({ primaryColor = "#0066CC", viewUserId,
                   />
                 ) : (
                   <img
-                    src={viewingMedia.path}
+                    src={getMediaUrl(viewingMedia.path)}
                     alt={viewingMedia.title || viewingMedia.filename}
                     className="max-w-full max-h-[60vh] object-contain rounded-lg cursor-pointer hover:opacity-90"
-                    onClick={() => window.open(viewingMedia.path, '_blank')}
+                    onClick={() => window.open(getMediaUrl(viewingMedia.path), '_blank')}
                     title="Clicca per aprire in formato originale"
                   />
                 )}

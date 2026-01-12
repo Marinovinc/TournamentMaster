@@ -13,6 +13,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { getMediaUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -138,7 +139,9 @@ export default function MediaSection({ primaryColor = "#0066CC", viewUserId, rea
 
       setLoading(true);
       try {
-        const res = await fetch(`${API_URL}/api/user-media?limit=100`, {
+        // Se viewUserId è presente, admin sta visualizzando media di un altro utente
+        const userIdParam = viewUserId ? `&userId=${viewUserId}` : '';
+        const res = await fetch(`${API_URL}/api/user-media?limit=100${userIdParam}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -336,14 +339,16 @@ export default function MediaSection({ primaryColor = "#0066CC", viewUserId, rea
             {photosCount} foto, {videosCount} video
           </Badge>
         </h3>
-        <Button
-          size="sm"
-          onClick={() => setUploadOpen(true)}
-          style={{ backgroundColor: primaryColor }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Carica Media
-        </Button>
+        {!readOnly && (
+          <Button
+            size="sm"
+            onClick={() => setUploadOpen(true)}
+            style={{ backgroundColor: primaryColor }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Carica Media
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -399,15 +404,17 @@ export default function MediaSection({ primaryColor = "#0066CC", viewUserId, rea
           <CardContent className="py-12 text-center">
             <Camera className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground mb-4">
-              Non hai ancora caricato nessun media
+              {readOnly ? "Questo utente non ha ancora caricato media" : "Non hai ancora caricato nessun media"}
             </p>
-            <Button
-              onClick={() => setUploadOpen(true)}
-              style={{ backgroundColor: primaryColor }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Carica il tuo primo media
-            </Button>
+            {!readOnly && (
+              <Button
+                onClick={() => setUploadOpen(true)}
+                style={{ backgroundColor: primaryColor }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Carica il tuo primo media
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : filteredMedia.length === 0 ? (
@@ -427,7 +434,7 @@ export default function MediaSection({ primaryColor = "#0066CC", viewUserId, rea
               {/* Thumbnail */}
               {item.thumbnailPath || item.path ? (
                 <img
-                  src={item.thumbnailPath || item.path}
+                  src={getMediaUrl(item.thumbnailPath || item.path)}
                   alt={item.title || item.filename}
                   className="w-full h-full object-cover transition-transform group-hover:scale-105"
                 />
@@ -623,7 +630,7 @@ export default function MediaSection({ primaryColor = "#0066CC", viewUserId, rea
               <div className="flex flex-col items-center">
                 {viewingMedia.type === "VIDEO" ? (
                   <video
-                    src={viewingMedia.path}
+                    src={getMediaUrl(viewingMedia.path)}
                     controls
                     autoPlay
                     playsInline
@@ -631,10 +638,10 @@ export default function MediaSection({ primaryColor = "#0066CC", viewUserId, rea
                   />
                 ) : (
                   <img
-                    src={viewingMedia.path}
+                    src={getMediaUrl(viewingMedia.path)}
                     alt={viewingMedia.title || viewingMedia.filename}
                     className="max-w-full max-h-[70vh] object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => window.open(viewingMedia.path, '_blank', 'noopener,noreferrer')}
+                    onClick={() => window.open(getMediaUrl(viewingMedia.path), '_blank', 'noopener,noreferrer')}
                     title="Clicca per aprire in formato originale"
                   />
                 )}
@@ -710,20 +717,22 @@ export default function MediaSection({ primaryColor = "#0066CC", viewUserId, rea
                 </div>
               )}
 
-              {/* Actions */}
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => {
-                    setDeleteId(viewingMedia.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Elimina
-                </Button>
-              </div>
+              {/* Actions - solo se non in readOnly */}
+              {!readOnly && (
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => {
+                      setDeleteId(viewingMedia.id);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Elimina
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
